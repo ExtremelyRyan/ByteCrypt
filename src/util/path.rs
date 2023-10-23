@@ -1,8 +1,7 @@
-use anyhow::{Result, Ok};
+use anyhow::{Ok, Result};
 use glob::glob;
 use std::{env, fs};
 use walkdir::WalkDir;
- 
 
 pub fn walk_dir_recursive() -> Result<Vec<String>> {
     let cur_dir = std::env::current_dir()?;
@@ -33,7 +32,6 @@ pub fn walk_dir() -> Result<()> {
 
     // The order in which `read_dir` returns entries is not guaranteed. If reproducible
     // ordering is required the entries should be explicitly sorted.
-
     entries.sort();
 
     for e in entries {

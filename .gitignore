@@ -1,1 +1,3 @@
 /target
+*.encrypt
+*.decrypt

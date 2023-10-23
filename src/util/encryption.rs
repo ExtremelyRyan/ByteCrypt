@@ -4,21 +4,16 @@ use std::fs;
 
 use chacha20poly1305::{aead::Aead, KeyInit, XChaCha20Poly1305};
 
-pub fn encrypt_file(
-    filepath: &str,
-    dist: &str,
-    key: &[u8; 32],
-    nonce: &[u8; 24],
-) -> Result<(), anyhow::Error> {
+pub fn encrypt_file( file_in: &str, file_out: &str, key: &[u8; 32],  nonce: &[u8; 24] ) -> Result<(), anyhow::Error> {
     let cipher = XChaCha20Poly1305::new(key.into());
 
-    let file_data = fs::read(filepath)?;
+    let file_data: Vec<u8> = fs::read(file_in)?;
 
-    let encrypted_file = cipher
+    let encrypted_file: Vec<u8> = cipher
         .encrypt(nonce.into(), file_data.as_ref())
         .map_err(|err| anyhow!("Encrypting file: {}", err))?;
 
-    std::fs::write(&dist, encrypted_file)?;
+    std::fs::write(&file_out, encrypted_file)?;
 
     Ok(())
 }

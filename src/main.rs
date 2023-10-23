@@ -29,7 +29,7 @@ fn main() -> Result<()> {
 
     println!("Decrypting {} to {}", file_crypt, file_decrypt);
     util::encryption::decrypt_file(file_crypt, file_decrypt, &key, &nonce)?;
- 
+
     let cur_dir = std::env::current_dir().unwrap();
     let walker = WalkDir::new(cur_dir).into_iter();
     for entry in walker.filter_entry(|e| !util::path::is_hidden(e)) {
