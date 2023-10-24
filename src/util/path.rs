@@ -1,20 +1,35 @@
 use anyhow::{Ok, Result};
 use glob::glob;
-use std::{env, fs};
+use std::{env, fs, path::PathBuf};
 use walkdir::WalkDir;
 
-pub fn walk_dir_recursive() -> Result<Vec<String>> {
-    let cur_dir = std::env::current_dir()?;
-    let walker = WalkDir::new(cur_dir).into_iter();
+pub fn walk_directory(path_in: &str) -> Result<Vec<String>> {
+ 
+    let path;
+    if path_in.is_empty() {
+        path = std::env::current_dir()?;
+    } else { 
+        path = get_full_file_path(path_in)?; 
+    } 
+
+    let walker = WalkDir::new(path).into_iter();
     let mut pathlist: Vec<String> = Vec::new();
 
     for entry in walker.filter_entry(|e| !is_hidden(e)) {
         let entry = entry.unwrap();
         println!("{}", entry.path().display());
-        pathlist.push(entry.path().display().to_string());
+        // we only want to save paths that are towards a file.
+        if entry.path().display().to_string().find(".").is_some() {
+            pathlist.push(entry.path().display().to_string());
+        }
+        
     }
 
     Ok(pathlist)
+}
+
+pub fn get_full_file_path(path: &str) -> anyhow::Result<PathBuf> {
+    Ok(dunce::canonicalize(path)?)
 }
 
 pub fn is_hidden(entry: &walkdir::DirEntry) -> bool {
@@ -25,7 +40,7 @@ pub fn is_hidden(entry: &walkdir::DirEntry) -> bool {
         .unwrap_or(false)
 }
 
-pub fn walk_dir() -> Result<()> {
+pub fn walk_dir() -> anyhow::Result<()> {
     let mut entries = fs::read_dir(".")?
         .map(|res| res.map(|e| e.path()))
         .collect::<Result<Vec<_>, std::io::Error>>()?;
@@ -42,7 +57,7 @@ pub fn walk_dir() -> Result<()> {
     Ok(())
 }
 
-pub fn glob_find() -> Result<()> {
+pub fn glob_find() -> anyhow::Result<()> {
     for entry in glob("**/*.rs")? {
         println!("{}", entry?.display());
     }
@@ -50,7 +65,7 @@ pub fn glob_find() -> Result<()> {
     Ok(())
 }
 
-pub fn walk() -> Result<()> {
+pub fn walk() -> anyhow::Result<()> {
     let current_dir = env::current_dir()?;
     println!(
         "Entries modified in the last 24 hours in {:?}:",

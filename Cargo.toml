@@ -6,9 +6,12 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-anyhow = "1.0.75"
-cocoon = { version = "0.4.0", features = ["std"] }
+anyhow = "1.0.75" 
 chacha20poly1305 = { version = "0.10.1", features = ["stream"] }
 rand = "0.8"
 walkdir = "2.4.0"
 glob = "0.3.1"
+dunce = "1.0.4"
+serde_json = "1.0"
+serde = { version = "1", features = ["derive"] }
+toml = { version = "0.8.4", features = ["display"] }

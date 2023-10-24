@@ -1,5 +1,4 @@
-use anyhow::{anyhow, Result};
-
+use anyhow::{anyhow, Result}; 
 use std::fs;
 
 use chacha20poly1305::{aead::Aead, KeyInit, XChaCha20Poly1305};
@@ -35,4 +34,63 @@ pub fn decrypt_file(
     std::fs::write(&dist, decrypted_file)?;
 
     Ok(())
+}
+
+
+// cargo nextest run
+#[cfg(test)]
+mod test {
+    use chacha20poly1305::aead::OsRng;
+    use rand::RngCore;
+
+    use crate::util::common;
+
+    use super::*;
+
+    #[test]
+    fn test_encrypt() {
+        let file = "foo.txt";
+        let file_crypt = "file.crypt";
+        let file_decrypt = "file.decrypt";
+
+        let mut key = [0u8; 32];
+        let mut nonce = [0u8; 24];
+
+        OsRng.fill_bytes(&mut key);
+        OsRng.fill_bytes(&mut nonce);
+
+        println!("Encrypting {} to {}", file, file_crypt);
+        encrypt_file(file, file_crypt, &key, &nonce).expect("encrypt failure");
+
+        println!("Decrypting {} to {}", file_crypt, file_decrypt);
+        decrypt_file(file_crypt, file_decrypt, &key, &nonce)
+            .expect("decrypt failure");
+
+        let src = common::read_to_vec_u8(file);
+        let res = common::read_to_vec_u8(file_crypt);
+
+        assert_ne!(src, res)
+    }
+
+    #[test]
+    fn test_decrypt() { 
+        let file = "foo.txt";
+        let file_crypt = "file.crypt";
+        let file_decrypt = "file.decrypt";
+
+        let mut key = [0u8; 32];
+        let mut nonce = [0u8; 24];
+
+        OsRng.fill_bytes(&mut key);
+        OsRng.fill_bytes(&mut nonce);
+ 
+        println!("Decrypting {} to {}", file_crypt, file_decrypt);
+        decrypt_file(file_crypt, file_decrypt, &key, &nonce)
+            .expect("decrypt failure");
+
+        let src = common::read_to_vec_u8(file);
+        let res = common::read_to_vec_u8(file_decrypt);
+
+        assert_eq!(src, res)
+    }
 }

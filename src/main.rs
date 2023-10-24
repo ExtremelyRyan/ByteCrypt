@@ -1,72 +1,71 @@
-use anyhow::{self, Result};
-
-use rand::{rngs::OsRng, RngCore};
-use std::fs::{self};
-use walkdir::WalkDir;
+use std::{fs::File, path::Path, io::{Write, Read}};
+use toml;
+use anyhow::{self, Result}; 
 mod util;
 
 fn main() -> Result<()> {
-    let file = "foo.txt";
-    let file_crypt = "file.crypt";
-    let file_decrypt = "file.decrypt";
-    println!("Removing encrypt files...");
-    match fs::remove_file("file.crypt") {
-        Ok(_) => {
-            fs::remove_file("file.decrypt").unwrap();
-        }
-        Err(_) => (), // do nothing and move on.
-    }
+    // let dir = "../test_folder"; 
 
-    let mut key = [0u8; 32];
-    let mut nonce = [0u8; 24];
-    // println!("key: {:?}\n nonce: {:?}", key, nonce);
+    // let paths = walk_directory(dir).unwrap();
 
-    OsRng.fill_bytes(&mut key);
-    OsRng.fill_bytes(&mut nonce);
+    // for p in paths {
+    //     let s = util::common::read_to_vec_string(p.as_str());
+    //     println!("{:?} from file: {}", s, p);
+    // }
 
-    println!("Encrypting {} to {}", file, file_crypt);
-    util::encryption::encrypt_file(file, file_crypt, &key, &nonce)?;
-
-    println!("Decrypting {} to {}", file_crypt, file_decrypt);
-    util::encryption::decrypt_file(file_crypt, file_decrypt, &key, &nonce)?;
-
-    let cur_dir = std::env::current_dir().unwrap();
-    let walker = WalkDir::new(cur_dir).into_iter();
-    for entry in walker.filter_entry(|e| !util::path::is_hidden(e)) {
-        let entry = entry.unwrap();
-        println!("{}", entry.path().display());
-    }
+    // let f = json_example().unwrap();
+    let t = toml_example().unwrap();
+ 
+    // println!("{:?}", f);
+    println!("{:?}", t);
+    prepend_file(t, "db.txt");
 
     Ok(())
 }
 
-// cargo nextest run
-#[cfg(test)]
-mod test {
-    use super::*;
+use serde::{Deserialize, Serialize};
 
-    #[test]
-    fn test_encrypt() {
-        let file = "foo.txt";
-        let file_crypt = "file.crypt";
-        let file_decrypt = "file.decrypt";
 
-        let mut key = [0u8; 32];
-        let mut nonce = [0u8; 24];
+#[derive(Debug, Deserialize, Serialize)]
+pub struct FileCrypt {
+    filename: String,
+    full_path: String,
+    key: Vec<u8>,
+    nonce: Vec<u8>, 
+} 
 
-        OsRng.fill_bytes(&mut key);
-        OsRng.fill_bytes(&mut nonce);
+fn toml_example() -> Result<FileCrypt> {
+ 
+    Ok(toml::from_str(r#"
+        filename = "foo.txt"
+        full_path = "C:/Users/ryanm/code/bytecloak/foo.txt"
+ 
+        key = [1,2,3,4,5]
+        nonce = [6,99,7,6,6,87,5,4,6,6]
 
-        println!("Encrypting {} to {}", file, file_crypt);
-        util::encryption::encrypt_file(file, file_crypt, &key, &nonce).expect("encrypt failure");
+"#).unwrap() ) 
+}
 
-        println!("Decrypting {} to {}", file_crypt, file_decrypt);
-        util::encryption::decrypt_file(file_crypt, file_decrypt, &key, &nonce)
-            .expect("decrypt failure");
+fn _write_to_file<P: AsRef<Path>>(path: P, file_crypt: FileCrypt) -> Result<()> {
+    let mut f = File::create(path)?;
+    let buf = toml::to_string(&file_crypt).unwrap();
+    let bytes = buf.as_bytes();
+    f.write_all(&bytes[..])?;
+    Ok(())
+}
 
-        let src = util::common::read_to_vec_u8(file);
-        let res = util::common::read_to_vec_u8(file_decrypt);
+/// simple prepending file
+pub fn prepend_file<P: AsRef<Path> + ?Sized>(file_crypt: FileCrypt, path: &P) -> Result<()> {
 
-        assert_eq!(src, res)
-    }
+    // open file
+    let mut f = File::open(path)?;
+    // insert new data into vec
+    let mut content = toml::to_string(&file_crypt).unwrap().as_bytes().to_owned();  
+    content.push(b'\n');
+    f.read_to_end(&mut content)?;
+
+    let mut f = File::create(path)?;
+    f.write_all(content.as_slice())?;
+
+    Ok(())
 }

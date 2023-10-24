@@ -1,0 +1,19 @@
+filename = "foo.txt"
+full_path = "C:/Users/ryanm/code/bytecloak/foo.txt"
+key = [1, 2, 3, 4, 5]
+nonce = [6, 99, 7, 6, 6, 87, 5, 4, 6, 6]
+
+filename = "foo.txt"
+full_path = "C:/Users/ryanm/code/bytecloak/foo.txt"
+key = [1, 2, 3, 4, 5]
+nonce = [6, 99, 7, 6, 6, 87, 5, 4, 6, 6]
+
+filename = "foo.txt"
+full_path = "C:/Users/ryanm/code/bytecloak/foo.txt"
+key = [1, 2, 3, 4, 5]
+nonce = [6, 99, 7, 6, 6, 87, 5, 4, 6, 6]
+
+filename = "foo.txt"
+full_path = "C:/Users/ryanm/code/bytecloak/foo.txt"
+key = [1, 2, 3, 4, 5]
+nonce = [6, 99, 7, 6, 6, 87, 5, 4, 6, 6]
