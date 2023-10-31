@@ -4,13 +4,12 @@ use std::{env, fs, path::PathBuf};
 use walkdir::WalkDir;
 
 pub fn walk_directory(path_in: &str) -> Result<Vec<String>> {
- 
     let path;
     if path_in.is_empty() {
         path = std::env::current_dir()?;
-    } else { 
-        path = get_full_file_path(path_in)?; 
-    } 
+    } else {
+        path = get_full_file_path(path_in)?;
+    }
 
     let walker = WalkDir::new(path).into_iter();
     let mut pathlist: Vec<String> = Vec::new();
@@ -22,9 +21,7 @@ pub fn walk_directory(path_in: &str) -> Result<Vec<String>> {
         if entry.path().display().to_string().find(".").is_some() {
             pathlist.push(entry.path().display().to_string());
         }
-        
     }
-
     Ok(pathlist)
 }
 
@@ -89,7 +86,6 @@ pub fn walk() -> anyhow::Result<()> {
             );
         }
     }
-
     Ok(())
 }
 
@@ -106,6 +102,5 @@ pub fn find_file_with_name() -> Result<()> {
             println!("{}", f_name);
         }
     }
-
     Ok(())
 }

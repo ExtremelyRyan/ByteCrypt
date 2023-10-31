@@ -1,9 +1,14 @@
-use anyhow::{anyhow, Result}; 
+use anyhow::{anyhow, Result};
 use std::fs;
 
 use chacha20poly1305::{aead::Aead, KeyInit, XChaCha20Poly1305};
 
-pub fn encrypt_file( file_in: &str, file_out: &str, key: &[u8; 32],  nonce: &[u8; 24] ) -> Result<(), anyhow::Error> {
+pub fn encrypt_file(
+    file_in: &str,
+    file_out: &str,
+    key: &[u8; 32],
+    nonce: &[u8; 24],
+) -> Result<(), anyhow::Error> {
     let cipher = XChaCha20Poly1305::new(key.into());
 
     let file_data: Vec<u8> = fs::read(file_in)?;
@@ -36,14 +41,12 @@ pub fn decrypt_file(
     Ok(())
 }
 
-
 // cargo nextest run
 #[cfg(test)]
 mod test {
+    use crate::util::common;
     use chacha20poly1305::aead::OsRng;
     use rand::RngCore;
-
-    use crate::util::common;
 
     use super::*;
 
@@ -63,8 +66,7 @@ mod test {
         encrypt_file(file, file_crypt, &key, &nonce).expect("encrypt failure");
 
         println!("Decrypting {} to {}", file_crypt, file_decrypt);
-        decrypt_file(file_crypt, file_decrypt, &key, &nonce)
-            .expect("decrypt failure");
+        decrypt_file(file_crypt, file_decrypt, &key, &nonce).expect("decrypt failure");
 
         let src = common::read_to_vec_u8(file);
         let res = common::read_to_vec_u8(file_crypt);
@@ -73,7 +75,7 @@ mod test {
     }
 
     #[test]
-    fn test_decrypt() { 
+    fn test_decrypt() {
         let file = "foo.txt";
         let file_crypt = "file.crypt";
         let file_decrypt = "file.decrypt";
@@ -83,10 +85,9 @@ mod test {
 
         OsRng.fill_bytes(&mut key);
         OsRng.fill_bytes(&mut nonce);
- 
+
         println!("Decrypting {} to {}", file_crypt, file_decrypt);
-        decrypt_file(file_crypt, file_decrypt, &key, &nonce)
-            .expect("decrypt failure");
+        decrypt_file(file_crypt, file_decrypt, &key, &nonce).expect("decrypt failure");
 
         let src = common::read_to_vec_u8(file);
         let res = common::read_to_vec_u8(file_decrypt);

@@ -1,30 +1,24 @@
-use std::{fs::{File}, path::{Path}, io::{BufReader, BufRead}};
+use std::{
+    fs::File,
+    io::{BufRead, BufReader},
+    path::Path,
+};
 
 /// read file, and return values within a Vector of Strings.
 pub fn read_to_vec_string(path: &str) -> Vec<String> {
-
     let f = File::options()
-    .read(true)
-    .append(true)
-    .create(true)
-    .open(path)
-    .expect("Error opening file! \n");
+        .read(true)
+        .append(true)
+        .create(true)
+        .open(path)
+        .expect("Error opening file! \n");
 
-    let reader = BufReader::new(f); 
-    let mut v: Vec<String> = Vec::new(); 
+    let reader = BufReader::new(f);
+    let mut v: Vec<String> = Vec::new();
     for line in reader.lines() {
-        // let mut l = line.unwrap();  
-        // let offset = l.find('C').unwrap_or(7);
-        // l.replace_range(0..offset, ""); 
         v.push(line.unwrap());
     }
     v
-    // read_to_string(f.)
-    //     .expect("Can't open/read file!")
-    //     .split("\n")
-    //     .filter(|s| !s.is_empty()) // so long as the string is not empty
-    //     .map(|s| s.trim().to_string()) // convert item to a string.
-    //     .collect()
 }
 
 /// read file, and return values within a Vector of Strings.
