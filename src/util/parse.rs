@@ -1,3 +1,5 @@
+use std::{fs::File, io::Write, io::{Read, self}};
+
 use serde::{Deserialize, Serialize};
 use toml;
 
@@ -9,7 +11,7 @@ pub struct FileCrypt {
     nonce: Vec<u8>,
 }
 
-pub fn toml_example() -> Result<FileCrypt> {
+pub fn toml_example() -> anyhow::Result<FileCrypt> {
     Ok(toml::from_str(
         r#"
         filename = "foo.txt"
@@ -18,11 +20,10 @@ pub fn toml_example() -> Result<FileCrypt> {
         key = [1,2,3,4,5]
         nonce = [6,99,7,6,6,87,5,4,6,6]
         "#,
-    )
-    .unwrap())
+    )?)
 }
 
-pub fn _write_to_file<P: AsRef<Path>>(path: P, file_crypt: FileCrypt) -> Result<()> {
+pub fn _write_to_file (path: &str, file_crypt: FileCrypt) -> anyhow::Result<()> {
     let mut f = File::create(path)?;
     let buf = toml::to_string(&file_crypt).unwrap();
     let bytes = buf.as_bytes();
@@ -31,7 +32,7 @@ pub fn _write_to_file<P: AsRef<Path>>(path: P, file_crypt: FileCrypt) -> Result<
 }
 
 /// simple prepending file
-pub fn prepend_file<P: AsRef<Path> + ?Sized>(file_crypt: FileCrypt, path: &P) -> Result<()> {
+pub fn prepend_file(file_crypt: FileCrypt, path: &str) -> anyhow::Result<()> {
     // open file
     let mut f = File::open(path)?;
     // insert new data into vec

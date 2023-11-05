@@ -1,3 +1,4 @@
 /target
 *.encrypt
 *.decrypt
+db.txt

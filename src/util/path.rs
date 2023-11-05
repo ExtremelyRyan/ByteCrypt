@@ -4,12 +4,11 @@ use std::{env, fs, path::PathBuf};
 use walkdir::WalkDir;
 
 pub fn walk_directory(path_in: &str) -> Result<Vec<String>> {
-    let path;
-    if path_in.is_empty() {
-        path = std::env::current_dir()?;
-    } else {
-        path = get_full_file_path(path_in)?;
-    }
+    
+    let path = match path_in.is_empty() {
+        true => std::env::current_dir()?,
+        false => get_full_file_path(path_in)?,
+    };
 
     let walker = WalkDir::new(path).into_iter();
     let mut pathlist: Vec<String> = Vec::new();
@@ -25,7 +24,7 @@ pub fn walk_directory(path_in: &str) -> Result<Vec<String>> {
     Ok(pathlist)
 }
 
-pub fn get_full_file_path(path: &str) -> anyhow::Result<PathBuf> {
+pub fn get_full_file_path(path: &str) -> Result<PathBuf> {
     Ok(dunce::canonicalize(path)?)
 }
 
@@ -51,14 +50,6 @@ pub fn walk_dir() -> anyhow::Result<()> {
     }
 
     // The entries have now been sorted by their path.
-    Ok(())
-}
-
-pub fn glob_find() -> anyhow::Result<()> {
-    for entry in glob("**/*.rs")? {
-        println!("{}", entry?.display());
-    }
-
     Ok(())
 }
 
