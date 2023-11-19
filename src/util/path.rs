@@ -15,7 +15,7 @@ pub fn walk_directory(path_in: &str) -> Result<Vec<String>> {
         let entry = entry.unwrap();
         println!("{}", entry.path().display());
         // we only want to save paths that are towards a file.
-        if entry.path().display().to_string().find(".").is_some() {
+        if entry.path().display().to_string().find('.').is_some() {
             pathlist.push(entry.path().display().to_string());
         }
     }
@@ -33,7 +33,7 @@ pub fn is_hidden(entry: &walkdir::DirEntry) -> bool {
     entry
         .file_name()
         .to_str()
-        .map(|s| s.starts_with(".") || s.starts_with("target"))
+        .map(|s| s.starts_with('.') || s.starts_with("target"))
         .unwrap_or(false)
 }
 
@@ -85,9 +85,9 @@ pub fn walk() -> anyhow::Result<()> {
 ///
 /// # Errors
 /// This function will return an error if:
-/// 1. a filename has invalid unicode characters within its name. i.e. "fo�o.txt" 
+/// 1. a filename has invalid unicode characters within its name. i.e. "fo�o.txt"
 /// 2. you do not have permission to read the metadata from a file.
-/// 
+///
 pub fn find_file_with_name(extension: &str, time: u64) -> Result<()> {
     for entry in WalkDir::new(".")
         .follow_links(true)
