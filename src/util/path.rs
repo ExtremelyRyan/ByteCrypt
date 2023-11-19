@@ -1,10 +1,8 @@
 use anyhow::{Ok, Result};
-use glob::glob;
 use std::{env, fs, path::PathBuf};
 use walkdir::WalkDir;
 
 pub fn walk_directory(path_in: &str) -> Result<Vec<String>> {
-    
     let path = match path_in.is_empty() {
         true => std::env::current_dir()?,
         false => get_full_file_path(path_in)?,
@@ -24,11 +22,14 @@ pub fn walk_directory(path_in: &str) -> Result<Vec<String>> {
     Ok(pathlist)
 }
 
+/// get full full path from a relative path
 pub fn get_full_file_path(path: &str) -> Result<PathBuf> {
     Ok(dunce::canonicalize(path)?)
 }
 
 pub fn is_hidden(entry: &walkdir::DirEntry) -> bool {
+    //? add configurable hidden extensions here
+    //? something like: vec!["target", "another", "and another"], etc.
     entry
         .file_name()
         .to_str()
@@ -80,7 +81,14 @@ pub fn walk() -> anyhow::Result<()> {
     Ok(())
 }
 
-pub fn find_file_with_name() -> Result<()> {
+/// looks in current directory for any files with a specific extension (".rs") that has been modified within a specific time.
+///
+/// # Errors
+/// This function will return an error if:
+/// 1. a filename has invalid unicode characters within its name. i.e. "fo�o.txt" 
+/// 2. you do not have permission to read the metadata from a file.
+/// 
+pub fn find_file_with_name(extension: &str, time: u64) -> Result<()> {
     for entry in WalkDir::new(".")
         .follow_links(true)
         .into_iter()
@@ -89,7 +97,7 @@ pub fn find_file_with_name() -> Result<()> {
         let f_name = entry.file_name().to_string_lossy();
         let sec = entry.metadata()?.modified()?;
 
-        if f_name.ends_with(".rs") && sec.elapsed()?.as_secs() < 86400 {
+        if f_name.ends_with(extension) && sec.elapsed()?.as_secs() < time {
             println!("{}", f_name);
         }
     }

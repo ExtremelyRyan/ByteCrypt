@@ -1,5 +1,4 @@
-use std::{fs::File, io::Write, io::{Read, self}};
-
+use std::{fs::File, io::Write, io::Read};
 use serde::{Deserialize, Serialize};
 use toml;
 
@@ -36,7 +35,7 @@ pub fn prepend_file(file_crypt: FileCrypt, path: &str) -> anyhow::Result<()> {
     // open file
     let mut f = File::open(path)?;
     // insert new data into vec
-    let mut content = toml::to_string(&file_crypt).unwrap().as_bytes().to_owned();
+    let mut content = toml::to_string(&file_crypt).expect("error serializing data!").as_bytes().to_owned();
     content.push(b'\n');
     f.read_to_end(&mut content)?;
 
