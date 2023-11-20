@@ -3,12 +3,32 @@ use chacha20poly1305::{aead::Aead, KeyInit, XChaCha20Poly1305};
 use serde::{Deserialize, Serialize};
 use std::fs::{self};
 
+///Directory object holds file objects
+#[derive(Debug, Deserialize, Serialize)]
+pub struct DirectoryCrypt {
+    ///Name of the root directory being encrypted
+    directory_name: String,
+    ///Vector of FileCrypts being encrypted
+    files: Vec<FileCrypt>,
+    //other variables
+}
+
 #[derive(Debug, Deserialize, Serialize)]
 pub struct FileCrypt {
     filename: String,
     full_path: String,
     key: Vec<u8>,
     nonce: Vec<u8>,
+}
+
+///Implementation for DirectoryCrypt
+impl DirectoryCrypt {
+    pub fn new(directory_name: String, files: Vec<FileCrypt>) -> Self {
+        Self {
+            directory_name,
+            files,
+        }
+    }
 }
 
 impl FileCrypt {

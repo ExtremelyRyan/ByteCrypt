@@ -1,9 +1,15 @@
+mod cloud_storage;
+mod ui;
 mod util;
 use anyhow::{self, Ok, Result};
+use ui::ui::load_ui;
 use util::*;
 
 fn main() -> Result<()> {
     config::load_config();
+
+    //Load the UI - CLI only currently
+    load_ui();
 
     Ok(())
 }
