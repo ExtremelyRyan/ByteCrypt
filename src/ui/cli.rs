@@ -50,7 +50,7 @@ enum Commands {
     },
 }
 
-pub fn load_ui() -> anyhow::Result<()> {
+pub fn load_cli() -> anyhow::Result<()> {
     let command_line = CommandLineInterface::parse();
     //Choose copy or in place
     //File or directory
