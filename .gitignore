@@ -1,4 +1,6 @@
+.vscode
 /target
 *.encrypt
 *.decrypt
 db.txt
+.env

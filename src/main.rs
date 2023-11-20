@@ -3,6 +3,8 @@ use anyhow::{self, Ok, Result};
 use util::*;
 
 fn main() -> Result<()> {
+    config::load_config();
+
     Ok(())
 }
 
