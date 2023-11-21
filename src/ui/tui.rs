@@ -98,43 +98,53 @@ fn draw_ui(frame: &mut Frame, cursor: &Cursor) {
     ];
     
     for(button, &button_text) in button_text.iter().enumerate() {
-        let mut paragraph = Paragraph::new(button_text)
-            .alignment(Alignment::Center)
-            .white();
-            /*.block(Block::default()
+        let outer_block = Block::default()
             .borders(Borders::ALL)
-            .magenta());*/
-        let block = if cursor.selected == button {
-            Block::default()
-                .borders(Borders::ALL)
-                .style(Style::default().bg(Color::Magenta))
-        } else {
-            Block::default().borders(Borders::ALL).magenta()
-        };
-        /*if cursor.selected == button {
-            paragraph = paragraph.block(
-                Block::default()
-                    .borders(Borders::ALL)
-                    .style(Style::default().bg(Color::Magenta))
-            );
-        } else {
-            paragraph = paragraph.block(Block::default().borders(Borders::ALL))
-                .magenta();    
-        }*/
-            /*paragraph = paragraph.style(Style::default()
-                .add_modifier(Modifier::REVERSED));*/
+            .fg(Color::Magenta);
         
-        frame.render_widget(paragraph.block(block), sub_menu[button]);
+        let inner_style = if cursor.selected == button {
+            Style::default().fg(Color::White)
+                .bg(Color::Magenta)
+        } else {
+            Style::default().fg(Color::White)
+        };
+
+        let inner_paragraph = Paragraph::new(button_text)
+            .alignment(Alignment::Center)
+            .style(inner_style);
+
+        frame.render_widget(outer_block, sub_menu[button]);
+
+        let inner_area = {
+            let mut area = sub_menu[button];
+            area.height = area.height.saturating_sub(2);
+            area.width = area.width.saturating_sub(2);
+            area.x += 1;
+            area.y += 1;
+            area
+        };
+
+        frame.render_widget(inner_paragraph, inner_area);
     }
 
     //Information Display
-    frame.render_widget( //Button 2
-        Block::default()
-            .borders(Borders::ALL)
-            .title(" Information: ")
-            .magenta(),
-        interaction_layout[1],
-    );
+    let button_info = [
+        "Menu Option 1 Info",
+        "Menu Option 2 Info",
+        "Menu Option 3 Info",
+        "Menu Option 4 Info",
+    ];
+
+    let info_window = Paragraph::new(button_info[cursor.selected])
+        .block(Block::default().borders(Borders::ALL)
+        .border_style(Style::default().fg(Color::Magenta))
+        .title(" Information ")
+        .title_style(Style::default().fg(Color::Blue)))
+        .white()
+        .alignment(Alignment::Left)
+        .wrap(Wrap { trim: true });
+
+    frame.render_widget(info_window, interaction_layout[1]);
 
     //Directory Layout
     let directory_layout= Layout::default()
@@ -155,7 +165,7 @@ fn draw_ui(frame: &mut Frame, cursor: &Cursor) {
     frame.render_widget(
         Block::default()
             .borders(Borders::ALL)
-            .title("Left Directory")
+            .title("Right Directory")
             .magenta(),
         directory_layout[1],
     );
