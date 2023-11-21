@@ -100,18 +100,17 @@ fn draw_ui(frame: &mut Frame, cursor: &Cursor) {
     for(button, &button_text) in button_text.iter().enumerate() {
         let mut paragraph = Paragraph::new(button_text)
             .alignment(Alignment::Center)
-            .white()
-            .style(
-                if cursor.selected == button {
-                    Style::default().bg(Color::Magenta)
-                } else {
-                    Style::default()
-                });
+            .white();
             /*.block(Block::default()
             .borders(Borders::ALL)
             .magenta());*/
-        let block = Block::default().borders(Borders::ALL)
-            .magenta();
+        let block = if cursor.selected == button {
+            Block::default()
+                .borders(Borders::ALL)
+                .style(Style::default().bg(Color::Magenta))
+        } else {
+            Block::default().borders(Borders::ALL).magenta()
+        };
         /*if cursor.selected == button {
             paragraph = paragraph.block(
                 Block::default()
