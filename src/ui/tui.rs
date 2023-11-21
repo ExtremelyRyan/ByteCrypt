@@ -43,7 +43,7 @@ fn draw_ui(frame: &mut Frame) {
 
     //Place the Title bar in main layout
     frame.render_widget(
-        Block::new().borders(Borders::TOP).title("ByteCrypt"),
+        Block::new().borders(Borders::TOP).title("ByteCrypt").cyan(),
         main_layout[0],
     );
 
@@ -56,18 +56,27 @@ fn draw_ui(frame: &mut Frame) {
     //Create inner sub-widgets
     //Left sub-widget for inner_layout
     frame.render_widget(
-        Block::default().borders(Borders::ALL).title("Left"),
+        Block::default()
+            .borders(Borders::ALL)
+            .title("Left")
+            .magenta(),
         inner_layout[0],
     );
     //Right sub-widget for inner_layout
     frame.render_widget(
-        Block::default().borders(Borders::ALL).title("Right"),
+        Block::default()
+            .borders(Borders::ALL)
+            .title("Right")
+            .magenta(),
         inner_layout[1],
     );
 
     //Add the status bar at the bottom of the main_layout
     frame.render_widget(
-        Block::new().borders(Borders::TOP).title("Status Bar"),
+        Block::new()
+            .borders(Borders::TOP)
+            .title("Status Bar")
+            .cyan(),
         main_layout[2],
     );
 }
