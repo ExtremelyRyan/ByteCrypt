@@ -8,30 +8,12 @@ use ratatui::{prelude::*, widgets::*};
 use std::io::{self, stdout};
 
 
-
-///Button
-struct Button {
-    button_text: String,
-    is_selected: bool,
-    action: Box<dyn Fn()>,   
-}
-
 ///Tracks cursor state
 struct Cursor {
     ///Index of selected area
     selected: usize,
 }
 
-///Implemenatation for Button
-impl Button {
-    fn new(button_text: String, action: Box<dyn Fn()>) -> Self {
-        Button {
-            button_text,
-            is_selected: false,
-            action
-        }
-    }
-}
 
 ///Loads the TUI
 pub fn load_tui() -> anyhow::Result<()> {
@@ -42,10 +24,12 @@ pub fn load_tui() -> anyhow::Result<()> {
     terminal.clear()?;
 
     let mut should_quit = false;
+    let mut cursor = Cursor { selected: 0 };
+    
     while !should_quit {
         //Draw terminal
-        terminal.draw(draw_ui)?;
-        should_quit = event_handler()?;
+        terminal.draw(|frame| draw_ui(frame, &cursor))?;
+        should_quit = event_handler(&mut cursor)?;
     }
 
     //Close out of the interface
@@ -56,7 +40,7 @@ pub fn load_tui() -> anyhow::Result<()> {
 }
 
 ///Create the UI
-fn draw_ui(frame: &mut Frame/*, cursor_state: &Cursor*/) {
+fn draw_ui(frame: &mut Frame, cursor: &Cursor) {
     //Create a main layout
     let main_layout = Layout::default()
         .direction(Direction::Vertical)
@@ -86,19 +70,34 @@ fn draw_ui(frame: &mut Frame/*, cursor_state: &Cursor*/) {
         .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
         .split(interaction_layout[0]);
 
-    //Create inner layout and place it in the center of main_layout
+    //Sub menu on the left side of the menu layout
     let sub_menu_left= Layout::default()
         .direction(Direction::Vertical)
         .constraints([Constraint::Min(3), Constraint::Min(3)])
         .split(menu_layout[0]);
 
+    //Sub menu on the right side of the menu layout
+    let sub_menu_right= Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Min(3), Constraint::Min(3)])
+        .split(menu_layout[1]);
 
 
-
-    //<--------------------------------------Fix this section
-    /*let left_buttons = ["Menu Option 1", "Menu Option 2"];
+    //Create and implement the buttons
+    let button_text  = [
+        "Menu Option 1", 
+        "Menu Option 2", 
+        "Menu Option 3", 
+        "Menu Option 4"
+    ];
+    let sub_menu = [
+        sub_menu_left[0], 
+        sub_menu_left[1], 
+        sub_menu_right[0], 
+        sub_menu_right[1]
+    ];
     
-    for(i, &button_text) in left_buttons.iter().enumerate() {
+    for(button, &button_text) in button_text.iter().enumerate() {
         let mut paragraph = Paragraph::new(button_text)
             .alignment(Alignment::Center)
             .white()
@@ -106,61 +105,12 @@ fn draw_ui(frame: &mut Frame/*, cursor_state: &Cursor*/) {
             .borders(Borders::ALL)
             .magenta());
 
-        if cursor_state.selected == i {
+        if cursor.selected == button {
             paragraph = paragraph.style(Style::default()
                 .add_modifier(Modifier::REVERSED));
         }
-        frame.render_widget(paragraph, sub_menu_left[i]);
-    }*/
-    //<----------------------------------------
-
-    //Create the two left buttons
-    frame.render_widget( //Button 1
-        Paragraph::new("Menu Option 1")
-            .alignment(Alignment::Center)
-            .white()
-            .block(Block::new()
-            .borders(Borders::ALL)
-            .magenta()),
-        sub_menu_left[0],
-    );
-
-    frame.render_widget( //Button 2
-        Paragraph::new("Menu Option 2")
-            .alignment(Alignment::Center)
-            .white()
-            .block(Block::new()
-            .borders(Borders::ALL)
-            .magenta()),
-        sub_menu_left[1],
-    );
-
-    //Create inner layout and place it in the center of main_layout
-    let sub_menu_right= Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([Constraint::Min(3), Constraint::Min(3)])
-        .split(menu_layout[1]);
-
-    //Create the two buttons
-    frame.render_widget( //Button 2
-        Paragraph::new("Menu Option 3")
-            .alignment(Alignment::Center)
-            .white()
-            .block(Block::new()
-            .borders(Borders::ALL)
-            .magenta()),
-        sub_menu_right[0],
-    );
-
-    frame.render_widget( //Button 2
-        Paragraph::new("Menu Option 4")
-            .alignment(Alignment::Center)
-            .white()
-            .block(Block::new()
-            .borders(Borders::ALL)
-            .magenta()),
-        sub_menu_right[1],
-    );
+        frame.render_widget(paragraph, sub_menu[button]);
+    }
 
     //Information Display
     frame.render_widget( //Button 2
@@ -206,14 +156,39 @@ fn draw_ui(frame: &mut Frame/*, cursor_state: &Cursor*/) {
 }
 
 ///Handles input events for the TUI
-fn event_handler() -> anyhow::Result<bool> {
+fn event_handler(cursor: &mut Cursor) -> anyhow::Result<bool> {
     //16ms ~60fps
     if event::poll(std::time::Duration::from_millis(16))? {
         if let event::Event::Key(key) = event::read()? {
-            if key.kind == event::KeyEventKind::Press && key.code == KeyCode::Char('q') {
-                return Ok(true);
+            match key.code {
+                KeyCode::Up => {
+                    if cursor.selected % 2 > 0 {
+                        cursor.selected -= 1;
+                    }
+                },
+                KeyCode::Left => {
+                    if cursor.selected > 1 {
+                        cursor.selected -= 2;
+                    }
+                }
+                KeyCode::Down => {
+                    if cursor.selected % 2 == 0 {
+                        cursor.selected += 1;
+                    }
+                }
+                KeyCode::Right => {
+                    if cursor.selected < 2 {
+                        cursor.selected += 2;
+                    }
+                }
+                KeyCode::Enter => {
+                    //Key action for enter here
+                }
+                KeyCode::Char('q') => return Ok(true),
+                _ => {}
             }
         }
     }
+
     return Ok(false);
 }
