@@ -101,15 +101,31 @@ fn draw_ui(frame: &mut Frame, cursor: &Cursor) {
         let mut paragraph = Paragraph::new(button_text)
             .alignment(Alignment::Center)
             .white()
-            .block(Block::default()
+            .style(
+                if cursor.selected == button {
+                    Style::default().bg(Color::Magenta)
+                } else {
+                    Style::default()
+                });
+            /*.block(Block::default()
             .borders(Borders::ALL)
-            .magenta());
-
-        if cursor.selected == button {
-            paragraph = paragraph.style(Style::default()
-                .add_modifier(Modifier::REVERSED));
-        }
-        frame.render_widget(paragraph, sub_menu[button]);
+            .magenta());*/
+        let block = Block::default().borders(Borders::ALL)
+            .magenta();
+        /*if cursor.selected == button {
+            paragraph = paragraph.block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .style(Style::default().bg(Color::Magenta))
+            );
+        } else {
+            paragraph = paragraph.block(Block::default().borders(Borders::ALL))
+                .magenta();    
+        }*/
+            /*paragraph = paragraph.style(Style::default()
+                .add_modifier(Modifier::REVERSED));*/
+        
+        frame.render_widget(paragraph.block(block), sub_menu[button]);
     }
 
     //Information Display
