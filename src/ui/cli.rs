@@ -59,17 +59,17 @@ pub fn load_cli() -> anyhow::Result<()> {
 
     match &command_line.command {
         Some(Commands::Encrypt {
-            structure,
-            path,
-            name,
-            copy,
+            structure: _,
+            path: _,
+            name: _,
+            copy: _,
         }) => {
             todo!();
         }
         Some(Commands::Decrypt {
-            structure,
-            path,
-            name,
+            structure: _,
+            path: _,
+            name: _,
         }) => {
             todo!();
         }
