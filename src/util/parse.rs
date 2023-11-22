@@ -1,25 +1,50 @@
-use super::encryption::FileCrypt; 
-use std::{fs::File, io::Read, io::Write};
-use toml;
+use super::encryption::FileCrypt;
+use anyhow::Ok;
+use std::{
+    fs::{File, OpenOptions},
+    io::Read,
+    io::Write,
+};
 
-pub fn toml_example() -> anyhow::Result<FileCrypt> {
-    Ok(toml::from_str(
-        r#"
-        filename = "foo.txt"
-        full_path = "C:/Users/ryanm/code/bytecloak/foo.txt"
-        key = [1,2,3,4,5]
-        nonce = [6,99,7,6,6,87,5,4,6,6]
-        "#,
-    )
-    .expect("error Serializing"))
-}
+/// our (temp) file to store FileCrypts
+pub const CRYPT: &str = "crypt";
 
-pub fn write_to_file(path: &str, file_crypt: FileCrypt) -> anyhow::Result<()> {
-    let mut f = File::create(path)?;
-    let buf = toml::to_string(&file_crypt).unwrap();
+pub fn write_to_crypt(file_crypt: FileCrypt) -> anyhow::Result<()> {
+    let mut f = OpenOptions::new()
+        .append(true)
+        .create(true)
+        .read(true)
+        .open(CRYPT)?;
+    let buf = serde_json::to_string(&file_crypt).unwrap();
     let bytes = buf.as_bytes();
     f.write_all(bytes[..].as_ref())?;
-    Ok(())
+    Ok(f.flush()?)
+}
+
+pub fn write_contents_to_file(file: &str, encrypted_contents: Vec<u8>) -> anyhow::Result<()> {
+    let mut f = OpenOptions::new()
+        .append(true)
+        .create(true)
+        .read(true)
+        .open(CRYPT)?;
+    f.write_all(encrypted_contents.as_slice())
+        .expect("failed writing to file");
+    Ok(f.flush()?)
+}
+
+pub fn read_from_crypt(decrypting_file: &str) -> anyhow::Result<Vec<FileCrypt>> {
+    let collection: Vec<String> = std::fs::read_to_string(CRYPT)
+        .unwrap()
+        .lines()
+        .map(String::from)
+        .collect();
+
+    let mut files: Vec<FileCrypt> = Vec::new();
+
+    for s in collection {
+        files.push(FileCrypt::from_string(s));
+    }
+    Ok(files)
 }
 
 /// simple prepending file
@@ -27,7 +52,7 @@ pub fn prepend_file(file_crypt: FileCrypt, path: &str) -> anyhow::Result<()> {
     // open file
     let mut f = File::open(path)?;
     // insert new data into vec
-    let mut content = toml::to_string(&file_crypt)
+    let mut content = serde_json::to_string(&file_crypt)
         .expect("error serializing data!")
         .as_bytes()
         .to_owned();
@@ -37,44 +62,45 @@ pub fn prepend_file(file_crypt: FileCrypt, path: &str) -> anyhow::Result<()> {
     let mut f = File::create(path).expect("error creating file");
     f.write_all(content.as_slice())
         .expect("error writing to file");
-
-    Ok(())
+    Ok(f.flush()?)
 }
 
+// pub fn remove_data(file_crypt: FileCrypt, path: &str) -> anyhow::Result<()> {
+//     // open file
+//     let mut f = File::options().append(true).open(path)?;
 
-pub fn remove_data(file_crypt: FileCrypt, path: &str) -> anyhow::Result<()> {
-    // open file
-    let mut f = File::options().append(true).open(path)?;
+//     let mut s: String = String::new();
+//     std::io::BufReader::new(&f).read_to_string(&mut s)?;
 
-    let mut s: String = String::new();
-    std::io::BufReader::new(&f).read_to_string(&mut s)?;
+//     let mut crypt: Vec<String> = s
+//         .split('\n')
+//         // .filter(|s| !s.is_empty()) // so long as the string is not empty
+//         .map(|s| s.to_string()) // convert item to a string.
+//         .collect();
 
-    let mut crypt: Vec<String> = s.split('\n')
-        // .filter(|s| !s.is_empty()) // so long as the string is not empty
-        .map(|s| s.to_string()) // convert item to a string.
-        .collect();
+//     dbg!(&file_crypt.filename);
+//     let index = crypt
+//         .iter()
+//         .position(|r| r.contains(&file_crypt.filename))
+//         .expect("cant find filename in crypt file!");
+//     dbg!(&index);
 
-    dbg!(&file_crypt.filename);
-    let index = crypt.iter().position(|r| r.contains(&file_crypt.filename)).expect("cant find filename in crypt file!");
-    dbg!(&index);
+//     crypt.drain(index..index + 4);
+//     dbg!(&crypt);
 
-    crypt.drain(index..index+4); 
-    dbg!(&crypt);
+//     let temp: &[String] = crypt.iter().as_slice();
 
-    let temp: &[String] = crypt.iter().as_slice();
-  
-    let mut bytes: Vec<u8> = Vec::new();
+//     let mut bytes: Vec<u8> = Vec::new();
 
-    for t in temp { 
-        for tt in t.as_bytes() {
-            bytes.push(*tt);
-        }
-    }
-    let res = f.write_all(bytes.as_slice());
-    dbg!(&res);
-    Ok(())
-}
-
+//     for t in temp {
+//         for tt in t.as_bytes() {
+//             bytes.push(*tt);
+//         }
+//     }
+//     let res = f.write_all(bytes.as_slice());
+//     dbg!(&res);
+//     Ok(())
+// }
 
 pub trait RemoveElem<T> {
     fn remove_elem<F>(&mut self, predicate: F) -> Option<T>
