@@ -2,14 +2,19 @@ mod cloud_storage;
 mod ui;
 mod util;
 use anyhow::{self, Ok, Result};
-use ui::ui::load_ui;
+use ui::*;
 use util::*;
 
 fn main() -> Result<()> {
+    //Load config file
     config::load_config();
 
+    //Load user settings
+
     //Load the UI - CLI only currently
-    load_ui();
+    //cli::load_cli();
+    let _ = tui::load_tui();
+    //gui::load_gui();
 
     Ok(())
 }
