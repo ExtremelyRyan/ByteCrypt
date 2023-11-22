@@ -1,13 +1,12 @@
-use std::fs::File;
-
 use anyhow::{Ok, Result};
 use chacha20poly1305::{
     aead::{Aead, KeyInit, OsRng},
     ChaCha20Poly1305, Key, Nonce,
 };
 use rand::RngCore;
-use serde::{Deserialize, Serialize}; 
+use serde::{Deserialize, Serialize};
 
+use super::uuid::generate_uuid;
 
 ///Directory object holds file objects
 #[derive(Debug)]
@@ -33,6 +32,7 @@ pub const NONCE_SIZE: usize = 12;
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct FileCrypt {
+    pub uuid: String,
     pub filename: String,
     pub ext: String,
     pub full_path: String,
@@ -41,19 +41,23 @@ pub struct FileCrypt {
 }
 
 impl FileCrypt {
-    pub fn new(
-        filename: String,
-        ext: String,
-        full_path: String,
-        key: [u8; KEY_SIZE],
-        nonce: [u8; NONCE_SIZE],
-    ) -> Self {
+    pub fn new(filename: String, ext: String, full_path: String) -> Self {
+        // generate key & nonce
+        let mut key = [0u8; KEY_SIZE];
+        let mut nonce = [0u8; NONCE_SIZE];
+        OsRng.fill_bytes(&mut key);
+        OsRng.fill_bytes(&mut nonce);
+
+        // generate file uuid
+        let uuid = generate_uuid();
+
         Self {
             filename,
             full_path,
             key,
             nonce,
             ext,
+            uuid,
         }
     }
 
@@ -76,6 +80,7 @@ impl FileCrypt {
             full_path: fc.full_path,
             key: fc.key,
             nonce: fc.nonce,
+            uuid: fc.uuid,
         }
     }
 }
@@ -133,9 +138,9 @@ mod test {
         let contents: Vec<u8> = std::fs::read(file).unwrap();
 
         // generate new key and nonce palceholders
-        let k = [0u8; KEY_SIZE];
-        let n = [0u8; NONCE_SIZE];
-        let mut fc = FileCrypt::new(filename.to_owned(), extension.to_owned(), fp, k, n);
+        // let k = [0u8; KEY_SIZE];
+        // let n = [0u8; NONCE_SIZE];
+        let mut fc = FileCrypt::new(filename.to_owned(), extension.to_owned(), fp);
 
         // generate random values for key, nonce
         fc.generate();
@@ -159,9 +164,9 @@ mod test {
         let contents: Vec<u8> = std::fs::read(file).unwrap();
 
         // generate new key and nonce palceholders
-        let k = [0u8; KEY_SIZE];
-        let n = [0u8; NONCE_SIZE];
-        let mut fc = FileCrypt::new(filename.to_owned(), extension.to_owned(), fp, k, n);
+        // let k = [0u8; KEY_SIZE];
+        // let n = [0u8; NONCE_SIZE];
+        let mut fc = FileCrypt::new(filename.to_owned(), extension.to_owned(), fp);
 
         // generate random values for key, nonce
         fc.generate();
@@ -169,7 +174,7 @@ mod test {
         println!("Encrypting {} ", file);
         let decryped_contents = decrypt_file(fc, &contents).expect("decrypt failure");
 
-        let src = common::read_to_vec_u8("foo.txt"); 
+        let src = common::read_to_vec_u8("foo.txt");
 
         assert_eq!(src, decryped_contents);
     }

@@ -7,19 +7,7 @@ use std::{
 };
 
 /// our (temp) file to store FileCrypts
-pub const CRYPT: &str = "crypt";
-
-pub fn write_to_crypt(file_crypt: FileCrypt) -> anyhow::Result<()> {
-    let mut f = OpenOptions::new()
-        .append(true)
-        .create(true)
-        .read(true)
-        .open(CRYPT)?;
-    let buf = serde_json::to_string(&file_crypt).unwrap();
-    let bytes = buf.as_bytes();
-    f.write_all(bytes[..].as_ref())?;
-    Ok(f.flush()?)
-}
+pub const CRYPT: &str = "crypt_keeper";
 
 pub fn write_contents_to_file(file: &str, encrypted_contents: Vec<u8>) -> anyhow::Result<()> {
     let mut f = OpenOptions::new()
@@ -32,7 +20,8 @@ pub fn write_contents_to_file(file: &str, encrypted_contents: Vec<u8>) -> anyhow
     Ok(f.flush()?)
 }
 
-pub fn read_from_crypt(decrypting_file: &str) -> anyhow::Result<Vec<FileCrypt>> {
+/// read from (temp) database crypt_keeper and returns a
+pub fn read_crypt_keeper() -> anyhow::Result<Vec<FileCrypt>> {
     let collection: Vec<String> = std::fs::read_to_string(CRYPT)
         .unwrap()
         .lines()
@@ -45,6 +34,18 @@ pub fn read_from_crypt(decrypting_file: &str) -> anyhow::Result<Vec<FileCrypt>> 
         files.push(FileCrypt::from_string(s));
     }
     Ok(files)
+}
+
+pub fn write_to_crypt_keeper(file_crypt: FileCrypt) -> anyhow::Result<()> {
+    let mut f = OpenOptions::new()
+        .append(true)
+        .create(true)
+        .read(true)
+        .open(CRYPT)?;
+    let buf = serde_json::to_string(&file_crypt).unwrap();
+    let bytes = buf.as_bytes();
+    f.write_all(bytes[..].as_ref())?;
+    Ok(f.flush()?)
 }
 
 /// simple prepending file
