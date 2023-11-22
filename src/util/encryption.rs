@@ -1,11 +1,12 @@
-use anyhow::{anyhow, Ok, Result};
+use std::fs::File;
+
+use anyhow::{Ok, Result};
 use chacha20poly1305::{
     aead::{Aead, KeyInit, OsRng},
     ChaCha20Poly1305, Key, Nonce,
 };
 use rand::RngCore;
-use serde::{Deserialize, Serialize};
-use std::fs::{self, File}; 
+use serde::{Deserialize, Serialize}; 
 
 
 ///Directory object holds file objects
@@ -68,10 +69,7 @@ impl FileCrypt {
     }
 
     pub fn from_string(s: String) -> Self {
-        let fc: FileCrypt = match serde_json::from_str(s.as_str()) {
-            Ok(f) => f,
-            Err(e) => panic!("ERROR: {e}"), 
-        };
+        let fc: FileCrypt = serde_json::from_str(s.as_str()).unwrap();
         Self {
             filename: fc.filename,
             ext: fc.ext,
@@ -169,11 +167,10 @@ mod test {
         fc.generate();
 
         println!("Encrypting {} ", file);
-        decrypt_file(fc, &contents).expect("decrypt failure");
+        let decryped_contents = decrypt_file(fc, &contents).expect("decrypt failure");
 
-        let src = common::read_to_vec_u8(file);
-        let res = common::read_to_vec_u8(file_decrypt);
+        let src = common::read_to_vec_u8("foo.txt"); 
 
-        assert_eq!(src, res)
+        assert_eq!(src, decryped_contents);
     }
 }
