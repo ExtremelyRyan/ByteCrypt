@@ -1,20 +1,53 @@
 mod cloud_storage;
 mod ui;
 mod util;
+use std::io::Read;
+
 use anyhow::{self, Ok, Result};
 use ui::*;
 use util::*;
 
-fn main() -> Result<()> {
+use crate::util::encryption::*;
+
+fn main() -> Result<()> { 
     //Load config file
-    config::load_config();
+    config::load_config(); 
 
     //Load user settings
 
-    //Load the UI - CLI only currently
+    //Load the UI - CLI only currently 
     //cli::load_cli();
     let _ = tui::load_tui();
-    //gui::load_gui();
+    //gui::load_gui(); 
+    // let _ = load_ui();
+
+    // let file = "foo.txt";
+    // let index = file.find('.').unwrap();
+    // let (file_name, ext) = file.split_at(index);
+    // let full_path = crate::util::path::get_full_file_path(file)
+    //     .unwrap()
+    //     .to_str()
+    //     .unwrap()
+    //     .to_string();
+    // let contents: Vec<u8> = std::fs::read(file).unwrap();
+
+    // let k = [0u8; KEY_SIZE];
+    // let n = [0u8; NONCE_SIZE];
+    // let mut fc = FileCrypt::new(file_name.to_owned(), ext.to_owned(), full_path, k, n);
+
+    // fc.generate();
+
+    // println!("Encrypting {} ", file);
+    // let encrypted_contents = encrypt_file(&mut fc, &contents).unwrap();
+    // assert_ne!(contents, encrypted_contents);
+
+    // println!("Decrypting {} ", file);
+    // let decrypted_contents = decrypt_file(fc, &encrypted_contents).unwrap();
+    // assert_eq!(decrypted_contents, contents);
+
+    let fc = parse::read_from_crypt("").unwrap();
+
+    println!("{:?}", fc); 
 
     Ok(())
 }
@@ -33,8 +66,8 @@ mod tests {
     }
 }
 
-fn _test_write_db() -> Result<()> {
-    let t = util::parse::toml_example()?;
-    println!("{:?}", t);
-    parse::prepend_file(t, "db")
-}
+// fn _test_write_db() -> Result<()> {
+//     let t = util::parse::toml_example()?;
+//     println!("{:?}", t);
+//     parse::prepend_file(t, "db")
+// }

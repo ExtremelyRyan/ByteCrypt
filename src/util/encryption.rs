@@ -1,10 +1,16 @@
-use anyhow::{anyhow, Result};
-use chacha20poly1305::{aead::{Aead, OsRng}, KeyInit, XChaCha20Poly1305, ChaCha20Poly1305, AeadCore};
-use serde::{Deserialize, Serialize};
-use std::fs::{self}; 
+use std::fs::File;
+
+use anyhow::{Ok, Result};
+use chacha20poly1305::{
+    aead::{Aead, KeyInit, OsRng},
+    ChaCha20Poly1305, Key, Nonce,
+};
+use rand::RngCore;
+use serde::{Deserialize, Serialize}; 
+
 
 ///Directory object holds file objects
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug)]
 pub struct DirectoryCrypt {
     ///Name of the root directory being encrypted
     directory_name: String,
@@ -12,15 +18,6 @@ pub struct DirectoryCrypt {
     files: Vec<FileCrypt>,
     //other variables
 }
-
-#[derive(Debug, Deserialize, Serialize)]
-pub struct FileCrypt {
-    pub filename: String,
-    pub full_path: String,
-    key: Option<Vec<u8>>,
-    nonce: Option<Vec<u8>>,
-}
-
 ///Implementation for DirectoryCrypt
 impl DirectoryCrypt {
     pub fn new(directory_name: String, files: Vec<FileCrypt>) -> Self {
@@ -31,101 +28,149 @@ impl DirectoryCrypt {
     }
 }
 
+pub const KEY_SIZE: usize = 32;
+pub const NONCE_SIZE: usize = 12;
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct FileCrypt {
+    pub filename: String,
+    pub ext: String,
+    pub full_path: String,
+    key: [u8; KEY_SIZE],
+    nonce: [u8; NONCE_SIZE],
+}
+
 impl FileCrypt {
-    pub fn new(filename: String, full_path: String, key: Option<Vec<u8>>, nonce: Option<Vec<u8>>) -> Self {
+    pub fn new(
+        filename: String,
+        ext: String,
+        full_path: String,
+        key: [u8; KEY_SIZE],
+        nonce: [u8; NONCE_SIZE],
+    ) -> Self {
         Self {
             filename,
             full_path,
             key,
-            nonce
+            nonce,
+            ext,
         }
     }
-} 
 
-pub fn encrypt_file(mut f: FileCrypt) -> Result<(), anyhow::Error> {
-    let key = ChaCha20Poly1305::generate_key(&mut OsRng);
-    let cipher = XChaCha20Poly1305::new(&key);
-    let nonce = XChaCha20Poly1305::generate_nonce(&mut OsRng); // 192-bits; unique per message 
-    let file_data: Vec<u8> = fs::read(&f.filename)?;
-    let encrypted_file: Vec<u8> = cipher
-        .encrypt(&nonce, file_data.as_ref())
-        .map_err(|err| anyhow!("Encrypting file: {}", err))?;
+    pub fn generate(&mut self) {
+        let mut k = [0u8; KEY_SIZE];
+        let mut n = [0u8; NONCE_SIZE];
 
-    std::fs::write(&f.full_path, encrypted_file)?;
+        OsRng.fill_bytes(&mut k);
+        OsRng.fill_bytes(&mut n);
 
-    // save key and nonce
-    f.key = Some(key.to_vec());
-    f.nonce = Some(nonce.to_vec());
+        self.key = k;
+        self.nonce = n;
+    }
 
-    // write filecrypt to file
-    crate::util::parse::prepend_file(f, "crypt")
-
+    pub fn from_string(s: String) -> Self {
+        let fc: FileCrypt = serde_json::from_str(s.as_str()).unwrap();
+        Self {
+            filename: fc.filename,
+            ext: fc.ext,
+            full_path: fc.full_path,
+            key: fc.key,
+            nonce: fc.nonce,
+        }
+    }
 }
 
-pub fn decrypt_file(f: FileCrypt) -> Result<(), anyhow::Error> {
-    let cipher = XChaCha20Poly1305::new(f.key.unwrap().as_slice().into());
-
-    let file_data = std::fs::read(&f.full_path)?;
-
-    let decrypted_file = cipher
-        .decrypt(f.nonce.unwrap().as_slice().into(), file_data.as_ref())
-        .map_err(|err| anyhow!("Decrypting file: {}", err))?;
-
-    std::fs::write(f.full_path, decrypted_file)?;
-
-    Ok(())
+/// takes a FileCrypt and encrypts content in place (TODO: for now)
+pub fn encrypt_file(fc: &mut FileCrypt, contents: &Vec<u8>) -> Result<Vec<u8>> {
+    if fc.key.into_iter().all(|b| b == 0) {
+        fc.generate();
+    }
+    let k = Key::from_slice(&fc.key);
+    let n = Nonce::from_slice(&fc.nonce);
+    let cipher = ChaCha20Poly1305::new(k)
+        .encrypt(n, contents.as_ref())
+        .unwrap();
+    Ok(cipher)
 }
+
+pub fn decrypt_file(fc: FileCrypt, contents: &Vec<u8>) -> Result<Vec<u8>> {
+    let k = Key::from_slice(&fc.key);
+    let n = Nonce::from_slice(&fc.nonce);
+
+    let cipher = ChaCha20Poly1305::new(k)
+        .decrypt(n, contents.as_ref())
+        .unwrap();
+    Ok(cipher)
+}
+
+// {
+
+//     let extension = fc.filename.find('.').unwrap();
+//     let fname = fc.filename.split_at(extension);
+
+//     std::fs::write(format!("{}.decrypt", fname.0), decrypted_file)?;
+
+//     Ok(())
+// }
 
 // cargo nextest run
 #[cfg(test)]
 mod test {
     use super::*;
     use crate::util::common;
-    use chacha20poly1305::aead::OsRng;
-    use rand::RngCore;
 
     #[test]
     fn test_encrypt() {
         let file = "foo.txt";
-        let file_crypt = "file.crypt";
+        let index = file.find('.').unwrap();
+        let (filename, extension) = file.split_at(index);
 
-        let mut key = [0u8; 32].to_vec();
-        let mut nonce = [0u8; 24].to_vec();
+        let fp = crate::util::path::get_full_file_path(file)
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .to_string();
+        let contents: Vec<u8> = std::fs::read(file).unwrap();
 
-        OsRng.fill_bytes(&mut key);
-        OsRng.fill_bytes(&mut nonce);
+        // generate new key and nonce palceholders
+        let k = [0u8; KEY_SIZE];
+        let n = [0u8; NONCE_SIZE];
+        let mut fc = FileCrypt::new(filename.to_owned(), extension.to_owned(), fp, k, n);
 
-        let fc = FileCrypt::new("foo.txt".to_string(), "file.crypt".to_string(), Some(key), Some(nonce));
+        // generate random values for key, nonce
+        fc.generate();
 
-        println!("Encrypting {} to {}", file, file_crypt);
-        encrypt_file(fc).expect("encrypt failure");
-
-        let src = common::read_to_vec_u8(file);
-        let res = common::read_to_vec_u8(file_crypt);
-
-        assert_ne!(src, res)
+        println!("Encrypting {} ", file);
+        let encrypted_contents = encrypt_file(&mut fc, &contents).unwrap();
+        assert_ne!(contents, encrypted_contents);
     }
 
     #[test]
     fn test_decrypt() {
-        let file = "foo.txt";
-        let file_crypt = "file.crypt";
-        let file_decrypt = "file.decrypt";
+        let file = "foo.crypt";
+        let index = file.find('.').unwrap();
+        let (filename, extension) = file.split_at(index);
 
-        let mut key = [0u8; 32].to_vec();
-        let mut nonce = [0u8; 24].to_vec();
+        let fp = crate::util::path::get_full_file_path(file)
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .to_string();
+        let contents: Vec<u8> = std::fs::read(file).unwrap();
 
-        OsRng.fill_bytes(&mut key);
-        OsRng.fill_bytes(&mut nonce);
+        // generate new key and nonce palceholders
+        let k = [0u8; KEY_SIZE];
+        let n = [0u8; NONCE_SIZE];
+        let mut fc = FileCrypt::new(filename.to_owned(), extension.to_owned(), fp, k, n);
 
-        let fc = FileCrypt::new("foo.txt".to_string(), "file.crypt".to_string(), Some(key), Some(nonce));
+        // generate random values for key, nonce
+        fc.generate();
 
-        println!("Decrypting {} to {}", file_crypt, file_decrypt);
-        decrypt_file(fc).expect("decrypt failure");
+        println!("Encrypting {} ", file);
+        let decryped_contents = decrypt_file(fc, &contents).expect("decrypt failure");
 
-        let src = common::read_to_vec_u8(file);
-        let res = common::read_to_vec_u8(file_decrypt);
+        let src = common::read_to_vec_u8("foo.txt"); 
 
-        assert_eq!(src, res)
+        assert_eq!(src, decryped_contents);
     }
 }
