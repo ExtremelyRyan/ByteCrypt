@@ -23,38 +23,38 @@ pub struct CharacterSet {
 
 impl CharacterSet {
     pub const U8_SLINE: Self = Self {
-        h_line: ,
-        v_line: ,
-        joint: ,
-        node: ,
+        h_line: '─',
+        v_line: '│',
+        joint: '├',
+        node: '└',
     }
 
     pub const U8_SLINE_BOLD: Self = Self {
-        h_line: ,
-        v_line: ,
-        joint: ,
-        node: ,
+        h_line: '━',
+        v_line: '┃',
+        joint: '┣',
+        node: '┗',
     }
 
     pub const U8_SLINE_CURVE: Self = Self {
-        h_line: ,
-        v_line: ,
-        joint: ,
-        node: ,
+        h_line: '─',
+        v_line: '│',
+        joint: '├',
+        node: '╰',
     }
 
     pub const U8_DLINE: Self = Self {
-        h_line: ,
-        v_line: ,
-        joint: ,
-        node: ,
+        h_line: '═',
+        v_line: '║',
+        joint: '╠',
+        node: '╚',
     }
 
     pub const ASCII_SLINE: Self = Self {
-        h_line: ,
-        v_line: ,
-        joint: ,
-        node: ,
+        h_line: '-',
+        v_line: '|',
+        joint: '|',
+        node: '`',
     }
 }
 
