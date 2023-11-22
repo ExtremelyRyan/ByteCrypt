@@ -23,4 +23,5 @@ toml = { version = "0.8.4", features = ["display"] }
 envy = "0.4.2"
 dotenv = "0.15.0"
 clap = { version = "4.4.8", features = ["derive", "cargo"] }
+serde_arrays = "0.1.0"
 
