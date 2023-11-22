@@ -4,15 +4,21 @@ mod util;
 use std::io::Read;
 
 use anyhow::{self, Ok, Result};
-use ui::ui::load_ui;
+use ui::*;
 use util::*;
 
 use crate::util::encryption::*;
 
-fn main() -> Result<()> {
-    // config::load_config();
+fn main() -> Result<()> { 
+    //Load config file
+    config::load_config(); 
 
-    //Load the UI - CLI only currently
+    //Load user settings
+
+    //Load the UI - CLI only currently 
+    //cli::load_cli();
+    let _ = tui::load_tui();
+    //gui::load_gui(); 
     // let _ = load_ui();
 
     // let file = "foo.txt";
@@ -41,7 +47,7 @@ fn main() -> Result<()> {
 
     let fc = parse::read_from_crypt("").unwrap();
 
-    println!("{:?}", fc);
+    println!("{:?}", fc); 
 
     Ok(())
 }

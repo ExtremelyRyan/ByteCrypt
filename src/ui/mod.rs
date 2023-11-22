@@ -1,2 +1,4 @@
 #![allow(dead_code)]
-pub mod ui;
+pub mod cli;
+pub mod gui;
+pub mod tui;
