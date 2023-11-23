@@ -245,18 +245,23 @@ pub fn format_directory(directory: &Directory, depth: usize, cursor: &Cursor) ->
     let char_set = CharacterSet::U8_SLINE;
     let mut result = String::new();
 
+    //Root directory
+    if depth == 0 { 
+        result.push_str(&format!{"{}", 
+            directory.path.file_name().unwrap().to_str().unwrap()
+        });
+    }
    
     //Traverse through the directory and build the string to display
     for (index, entity) in directory.contents.iter().enumerate() {
         //set up for last entity
         let last_entity = index == directory.contents.len() - 1;
         let connector = if last_entity { char_set.node } else { char_set.joint };
-
         
         let mut prefix = String::new();
-        if depth > 0 { //Non-root
-            prefix.push_str(&" ".repeat(depth * 2));
-            prefix.push_str(&format!{"{} ", connector});
+        if index > 0 { //Non-root
+            prefix.push_str(&" ".repeat(depth * 4));
+            prefix.push_str(&format!{"{}", connector});
         }
 
         //Check for cursor position:
