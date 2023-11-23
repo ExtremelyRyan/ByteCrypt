@@ -1,6 +1,51 @@
 use anyhow::{Ok, Result};
-use std::{env, fs, path::PathBuf};
+use std::{env, fs, path::{PathBuf, Path}};
 use walkdir::WalkDir;
+
+///Directory struct
+pub struct Directory {
+    pub path: PathBuf,
+    pub expanded: bool,
+    pub contents: Vec<FileSystemEntity>,
+}
+
+///FileSystemEntity enum
+pub enum FileSystemEntity {
+    File(PathBuf),
+    Directory(Directory),
+}
+
+///Generates a directory to convert into strings
+pub fn generate_directory(/*base_path: &str,*/ current_directory: &PathBuf) -> anyhow::Result<Directory> {
+    //Create root
+    let mut root = Directory {
+        path: current_directory.clone(),
+        expanded: true, //root is always expanded
+        contents: Vec::new(),
+    };
+
+    //Read contents of current directory
+    for entry in fs::read_dir(current_directory)? {
+        let entry = entry?;
+        let path = entry.path();
+        let file_name = entry.file_name();
+        let file_name_str = file_name.to_string_lossy();
+
+        if !file_name_str.starts_with('.') && !file_name_str.starts_with("target") {
+            if path.is_dir() {
+                root.contents.push(FileSystemEntity::Directory(Directory {
+                    path,
+                    expanded: true,
+                    contents: Vec::new(),
+                }));
+            } else {
+                root.contents.push(FileSystemEntity::File(path));
+            }
+        }
+    }
+    return Ok(root);
+}
+
 
 pub fn walk_directory(path_in: &str) -> Result<Vec<String>> {
     let path = match path_in.is_empty() {
@@ -13,7 +58,7 @@ pub fn walk_directory(path_in: &str) -> Result<Vec<String>> {
 
     for entry in walker.filter_entry(|e| !is_hidden(e)) {
         let entry = entry.unwrap();
-        println!("{}", entry.path().display());
+        //println!("{}", entry.path().display());
         // we only want to save paths that are towards a file.
         if entry.path().display().to_string().find('.').is_some() {
             pathlist.push(entry.path().display().to_string());
