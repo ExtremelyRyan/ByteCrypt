@@ -5,12 +5,17 @@ use anyhow::{self, Ok, Result};
 use ui::*;
 use util::*;
 
+
 fn main() -> Result<()> {
     //Load config file
     config::load_config();
 
     //Load user settings
 
+    //let directory_tree = generate_directory("").unwrap();
+    //let formatted_tree = format_directory(&directory_tree, &PathBuf::from("/"), 0);
+
+    //println!("{}", formatted_tree);
     //Load the UI - CLI only currently
     //cli::load_cli();
     let _ = tui::load_tui();

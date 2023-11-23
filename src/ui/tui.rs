@@ -5,9 +5,10 @@ use crossterm::{
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
     ExecutableCommand,
 };
+use std::path::PathBuf;
 use ratatui::{prelude::*, widgets::*};
 use crate::util::path::{generate_directory, Directory, FileSystemEntity};
-//use ui_repo::CharacterSet;
+use super::ui_repo::CharacterSet;
 
 ///Tracks cursor state
 struct Cursor {
@@ -155,13 +156,18 @@ fn draw_ui(frame: &mut Frame, cursor: &Cursor) {
         .split(main_layout[2]);
 
     //Left Directory
-    let directory_tree = generate_directory("");
-    let left_directory = Paragraph::new(directory_tree)
-        .block(Block::default()
+    let directory_tree = generate_directory("").unwrap();
+    let formatted_tree = format_directory(&directory_tree, &PathBuf::from("/"),  0);
+
+    let left_directory = Paragraph::new(formatted_tree)
+        .block(Block::default().borders(Borders::ALL)
+            .border_style(Style::default().fg(Color::Magenta))
             .title(" Left Directory ")
-            .borders(Borders::ALL))
+            .title_style(Style::default().fg(Color::Blue))
+            .white())
         .alignment(Alignment::Left)
-        .wrap(Wrap { trim: true });
+        .wrap(Wrap { trim: true })
+        .scroll((5, 0));
 
     frame.render_widget(left_directory, directory_layout[0]);
 
@@ -220,4 +226,35 @@ fn event_handler(cursor: &mut Cursor) -> anyhow::Result<bool> {
     }
 
     return Ok(false);
+}
+
+///Takes in the current directory and formats it into a string
+pub fn format_directory(directory: &Directory, root: &PathBuf, indent: usize) -> String {
+    let mut result = String::new();
+
+    for entity in &directory.contents {
+        match entity {
+            FileSystemEntity::File(path) => {
+                result += &format_directory_path(path, root, indent);
+            }
+            FileSystemEntity::Directory(dir) => {
+                result += &format_directory_path(&dir.path, root, indent);
+                if dir.expanded {
+                    result += &format_directory(dir, root, indent + 2);
+                }
+            }
+        }
+    }
+    return result;
+}
+
+fn format_directory_path(path: &PathBuf, root: &PathBuf, indent: usize) -> String {
+    let character_set = CharacterSet::U8_SLINE_CURVE;
+    //let depth = path.strip_prefix(root).unwrap().iter().count() - 1;
+    
+    let name = path.file_name().unwrap().to_string_lossy();
+    let indentation = character_set.v_line.to_string().repeat(indent);
+    let display_character = if path.is_dir() { character_set.node } else { ' ' };
+
+    return format!("{}{}{} {}\n", indentation, character_set.joint, display_character, name);
 }

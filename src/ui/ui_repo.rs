@@ -12,10 +12,10 @@ pub enum Color {
 
 #[derive(Clone, Copy)]
 pub struct CharacterSet {
-    h_line: char,
-    v_line: char,
-    joint: char,
-    node: char,
+    pub h_line: char,
+    pub v_line: char,
+    pub joint: char,
+    pub node: char,
 }
 
 impl CharacterSet {
