@@ -14,7 +14,7 @@ pub fn write_contents_to_file(file: &str, encrypted_contents: Vec<u8>) -> anyhow
         .append(true)
         .create(true)
         .read(true)
-        .open(CRYPT)?;
+        .open(file)?;
     f.write_all(encrypted_contents.as_slice())
         .expect("failed writing to file");
     Ok(f.flush()?)

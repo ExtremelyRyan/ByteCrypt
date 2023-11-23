@@ -14,17 +14,3 @@ fn main() -> Result<()> {
 
     Ok(())
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_reaing_path() {
-        let dir = "./test_folder_backup";
-        for p in path::walk_directory(dir).unwrap() {
-            let s = util::common::read_to_vec_string(p.as_str());
-            println!("{:?} from file: {}", s, p);
-        }
-    }
-}

@@ -13,7 +13,7 @@ pub fn walk_directory(path_in: &str) -> Result<Vec<String>> {
 
     for entry in walker.filter_entry(|e| !is_hidden(e)) {
         let entry = entry.unwrap();
-        println!("{}", entry.path().display());
+        // println!("{}", entry.path().display());
         // we only want to save paths that are towards a file.
         if entry.path().display().to_string().find('.').is_some() {
             pathlist.push(entry.path().display().to_string());
