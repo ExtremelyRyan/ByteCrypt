@@ -16,15 +16,19 @@ pub enum FileSystemEntity {
 }
 
 ///Generates a directory to convert into strings
-pub fn generate_directory(base_path: &str) -> anyhow::Result<Directory> {
+pub fn generate_directory(base_path: &str, current_directory: &PathBuf) -> anyhow::Result<Directory> {
     //Walk the base directory
-    let paths = walk_directory_full(base_path).expect(
-        "It failed yo"
-    );
+    let base_path = if base_path.is_empty() {
+        current_directory.clone() 
+    } else {
+        PathBuf::from(base_path) 
+    };
+
+    let paths = walk_directory_full(&base_path.to_string_lossy())?;
 
     //Create root
     let mut root = Directory {
-        path: PathBuf::from(""),
+        path: base_path,
         expanded: true, //root is always expanded
         contents: Vec::new(),
     };
@@ -34,9 +38,10 @@ pub fn generate_directory(base_path: &str) -> anyhow::Result<Directory> {
         let path = PathBuf::from(path_str);
         //Add subdirectory
         if path.is_dir() {
+            let expanded = current_directory.starts_with(&path);
             root.contents.push(FileSystemEntity::Directory(Directory {
                 path,
-                expanded: false,
+                expanded,
                 contents: Vec::new(),
             }));
         } else { //if it's a file
@@ -46,23 +51,24 @@ pub fn generate_directory(base_path: &str) -> anyhow::Result<Directory> {
     return Ok(root);
 }
 
-pub fn walk_directory_full(path_in: &str) -> Result<Vec<String>> {
-    let path = match path_in.is_empty() {
-        true => std::env::current_dir()?,
-        false => get_full_file_path(path_in)?,
+pub fn walk_directory_full(path_in: &str) -> Result<Vec<String>, anyhow::Error> {
+    let base_path = if path_in.is_empty() {
+        std::env::current_dir()?
+    } else {
+        PathBuf::from(path_in)
     };
 
-    let walker = WalkDir::new(path).into_iter();
     let mut pathlist: Vec<String> = Vec::new();
 
-    for entry in walker.filter_entry(|e| !is_hidden(e)) {
-        let entry = entry.unwrap();
-        //Save all directories
-        if entry.path().is_dir() || entry.path().display().to_string().find('.').is_some() {
-            pathlist.push(entry.path().display().to_string());
-        }
+    for entry in WalkDir::new(&base_path)
+        .into_iter()
+        .filter_map(|e| e.ok())
+        .filter(|e| !is_hidden(e))
+    {
+        let path = entry.path();
+        pathlist.push(path.display().to_string());
     }
-    Ok(pathlist)
+    return Ok(pathlist);
 }
 
 pub fn walk_directory(path_in: &str) -> Result<Vec<String>> {

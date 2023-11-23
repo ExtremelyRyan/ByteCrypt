@@ -5,7 +5,7 @@ use crossterm::{
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
     ExecutableCommand,
 };
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use ratatui::{prelude::*, widgets::*};
 use crate::util::path::{generate_directory, Directory, FileSystemEntity};
 use super::ui_repo::CharacterSet;
@@ -156,8 +156,9 @@ fn draw_ui(frame: &mut Frame, cursor: &Cursor) {
         .split(main_layout[2]);
 
     //Left Directory
-    let directory_tree = generate_directory("").unwrap();
-    let formatted_tree = format_directory(&directory_tree, 0);
+    let current_directory = std::env::current_dir().expect("Failed to get current directory");
+    let directory_tree = generate_directory("", &current_directory).unwrap();
+    let formatted_tree = format_directory(&directory_tree, &current_directory, 0);
 
     let left_directory = Paragraph::new(formatted_tree)
         .block(Block::default().borders(Borders::ALL)
@@ -167,7 +168,7 @@ fn draw_ui(frame: &mut Frame, cursor: &Cursor) {
             .white())
         .alignment(Alignment::Left)
         .wrap(Wrap { trim: false })
-        .scroll((5, 0));
+        .scroll((0, 0));
 
     frame.render_widget(left_directory, directory_layout[0]);
 
@@ -229,7 +230,7 @@ fn event_handler(cursor: &mut Cursor) -> anyhow::Result<bool> {
 }
 
 ///Takes in the current directory and formats it into a string
-pub fn format_directory(directory: &Directory, indent: usize) -> String {
+pub fn format_directory(directory: &Directory, current_path: &Path, indent: usize) -> String {
     let character_set = CharacterSet::U8_SLINE;
     let mut result = String::new();
     let indentation = " ".repeat(indent);
@@ -238,20 +239,22 @@ pub fn format_directory(directory: &Directory, indent: usize) -> String {
         result.push_str(&indentation);
         match entity {
             FileSystemEntity::File(path) => {
-                result.push_str(&character_set.v_line.to_string());
-                result.push(' ');
-                result.push_str(&character_set.node.to_string());
-                result.push_str(&character_set.h_line.to_string());
-                result.push(' ');
+                result.push_str(&format!("{}  {}{} ",
+                    character_set.v_line,
+                    character_set.node,
+                    character_set.h_line
+                ));
                 result.push_str(&format_directory_path(path, indent));
             }
             FileSystemEntity::Directory(dir) => {
-                result.push_str(&character_set.joint.to_string());
-                result.push_str(&character_set.h_line.to_string());
+                result.push_str(&format!("{}{} ",
+                    character_set.joint,
+                    character_set.h_line
+                ));
                 result.push_str(&dir.path.file_name().unwrap().to_str().unwrap());
                 result.push('/');
                 result.push('\n');
-                result.push_str(&format_directory(dir, indent + 4));
+                result.push_str(&format_directory(dir, current_path, indent + 4));
             }
         }
     }
