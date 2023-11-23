@@ -248,6 +248,7 @@ fn event_handler(cursor: &mut Cursor) -> anyhow::Result<bool> {
 pub fn format_directory<'a>(directory: &Directory, depth: usize, cursor: &Cursor) -> Text<'a> {
     let char_set = CharacterSet::U8_SLINE;
     let mut lines: Vec<Line> = Vec::new();
+    let mut line_span: Vec<Span> = Vec::new();
 
     let mut result = String::new();
     //Root directory
@@ -256,6 +257,8 @@ pub fn format_directory<'a>(directory: &Directory, depth: usize, cursor: &Cursor
             directory.path.file_name().unwrap().to_str().unwrap()
         });
     }
+    line_span.push(Span::raw(result));
+    lines.push(Line::from(line_span));
    
     //Traverse through the directory and build the string to display
     for (index, entity) in directory.contents.iter().enumerate() {
@@ -291,31 +294,9 @@ pub fn format_directory<'a>(directory: &Directory, depth: usize, cursor: &Cursor
             Span::raw(text)
         };
         
-        line_spans.push(Span::raw(&result));
         line_spans.push(Span::raw(prefix));
         line_spans.push(selected_text);
         lines.push(Line::from(line_spans));
-
-        //Check for cursor position:
-        /*match entity {
-            FileSystemEntity::File(path) => {
-                result.push_str(&format!("{}{} {}\n",
-                    prefix,
-                    char_set.h_line,
-                    path.file_name().unwrap().to_str().unwrap()
-                ));
-            }
-            FileSystemEntity::Directory(dir) => {
-                result.push_str(&format!("{}{} {}\n",
-                    prefix,
-                    char_set.h_line,
-                    dir.path.file_name().unwrap().to_str().unwrap(),
-                ));
-                if dir.expanded {
-                    result.push_str(&format_directory(dir, depth + 1, cursor));
-                }
-            }
-        }*/
     }
     return Text::from(lines);
 }

@@ -17,15 +17,6 @@ pub enum FileSystemEntity {
 
 ///Generates a directory to convert into strings
 pub fn generate_directory(/*base_path: &str,*/ current_directory: &PathBuf) -> anyhow::Result<Directory> {
-    //Walk the base directory
-    /*let base_path = if base_path.is_empty() {
-        current_directory.clone() 
-    } else {
-        PathBuf::from(base_path) 
-    };*/
-
-    //let paths = walk_directory_full(&base_path.to_string_lossy())?;
-
     //Create root
     let mut root = Directory {
         path: current_directory.clone(),
@@ -52,60 +43,9 @@ pub fn generate_directory(/*base_path: &str,*/ current_directory: &PathBuf) -> a
             }
         }
     }
-
-    //Go through each directory and add contents
-    /*for path_str in paths {
-        let path = PathBuf::from(path_str);
-        //Add subdirectory
-        if path.is_dir() {
-            //println!("Comparing: {:?} with {:?}", path, current_directory);
-            let normalized_path = path.canonicalize()?;
-            let normalized_curr_dir = current_directory.canonicalize()?;
-            let expanded = normalized_curr_dir.starts_with(&normalized_path) ||
-                            normalized_curr_dir.ancestors().any(|a| a == normalized_path);
-            
-            /*let expanded = if &path == current_directory {
-                true
-            } else { 
-                current_directory.ancestors().any(|a| {
-                    println!("Ancestor: {:?}, Path: {:?}", a, path);
-                    &path == a
-                })
-            };*/
-            //println!("Expanded: {}", expanded);
-            
-            root.contents.push(FileSystemEntity::Directory(Directory {
-                path,
-                expanded,
-                contents: Vec::new(),
-            }));
-        } else { //if it's a file
-            root.contents.push(FileSystemEntity::File(path));
-        }
-    }*/
     return Ok(root);
 }
 
-///Walks the directory and grabs every directory and file
-pub fn walk_directory_full(path_in: &str) -> Result<Vec<String>, anyhow::Error> {
-    let base_path = if path_in.is_empty() {
-        std::env::current_dir()?
-    } else {
-        PathBuf::from(path_in)
-    };
-
-    let mut pathlist: Vec<String> = Vec::new();
-
-    for entry in WalkDir::new(&base_path)
-        .into_iter()
-        .filter_map(|e| e.ok())
-        .filter(|e| !is_hidden(e))
-    {
-        let path = entry.path();
-        pathlist.push(path.display().to_string());
-    }
-    return Ok(pathlist);
-}
 
 pub fn walk_directory(path_in: &str) -> Result<Vec<String>> {
     let path = match path_in.is_empty() {
