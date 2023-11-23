@@ -161,6 +161,7 @@ fn draw_ui(frame: &mut Frame, cursor: &Cursor) {
     let current_directory = std::env::current_dir().expect("Failed to get current directory");
     let directory_tree = generate_directory(&current_directory).unwrap();
     let formatted_tree = format_directory(&directory_tree, 0, cursor);
+    //let left_directory = Paragraph::new(formatted_tree);
 
     let left_directory = Paragraph::new(formatted_tree)
         .block(Block::default().borders(Borders::ALL)
@@ -230,6 +231,9 @@ fn event_handler(cursor: &mut Cursor) -> anyhow::Result<bool> {
                 }
                 KeyCode::Enter => {
                     //Key action for enter here
+                    if cursor.section == 1 {
+                        //expand/collapse directories
+                    }
                 }
                 KeyCode::Char('q') => return Ok(true),
                 _ => {}
@@ -241,10 +245,11 @@ fn event_handler(cursor: &mut Cursor) -> anyhow::Result<bool> {
 }
 
 ///Takes in the current directory and formats it into a string
-pub fn format_directory(directory: &Directory, depth: usize, cursor: &Cursor) -> String {
+pub fn format_directory<'a>(directory: &Directory, depth: usize, cursor: &Cursor) -> Text<'a> {
     let char_set = CharacterSet::U8_SLINE;
-    let mut result = String::new();
+    let mut lines: Vec<Line> = Vec::new();
 
+    let mut result = String::new();
     //Root directory
     if depth == 0 { 
         result.push_str(&format!{"{}\n", 
@@ -254,6 +259,9 @@ pub fn format_directory(directory: &Directory, depth: usize, cursor: &Cursor) ->
    
     //Traverse through the directory and build the string to display
     for (index, entity) in directory.contents.iter().enumerate() {
+        let is_selected = index == cursor.selected[1];
+        let mut line_spans: Vec<Span> = Vec::new();
+
         //set up for last entity
         let last_entity = index == directory.contents.len() - 1;
         let connector = if last_entity { char_set.node } else { char_set.joint };
@@ -267,9 +275,29 @@ pub fn format_directory(directory: &Directory, depth: usize, cursor: &Cursor) ->
             prefix.push_str(&format!{"{}", connector});
         }
 
+        let text = match entity {
+            FileSystemEntity::File(path) => {
+                path.file_name().unwrap().to_str().unwrap().to_string()
+            },
+            FileSystemEntity::Directory(dir) => {
+                dir.path.file_name().unwrap().to_str().unwrap().to_string()        
+            },
+        };
+
+        //Styles for selected items
+        let selected_text = if is_selected {
+            Span::styled(text, Style::new().bg(Color::Magenta).fg(Color::White))
+        } else {
+            Span::raw(text)
+        };
+        
+        line_spans.push(Span::raw(&result));
+        line_spans.push(Span::raw(prefix));
+        line_spans.push(selected_text);
+        lines.push(Line::from(line_spans));
+
         //Check for cursor position:
-        let is_selected = index == cursor.selected[1];
-        match entity {
+        /*match entity {
             FileSystemEntity::File(path) => {
                 result.push_str(&format!("{}{} {}\n",
                     prefix,
@@ -287,8 +315,8 @@ pub fn format_directory(directory: &Directory, depth: usize, cursor: &Cursor) ->
                     result.push_str(&format_directory(dir, depth + 1, cursor));
                 }
             }
-        }
+        }*/
     }
-    return result;
+    return Text::from(lines);
 }
 
