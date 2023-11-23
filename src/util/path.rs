@@ -37,15 +37,19 @@ pub fn generate_directory(/*base_path: &str,*/ current_directory: &PathBuf) -> a
     for entry in fs::read_dir(current_directory)? {
         let entry = entry?;
         let path = entry.path();
+        let file_name = entry.file_name();
+        let file_name_str = file_name.to_string_lossy();
 
-        if path.is_dir() {
-            root.contents.push(FileSystemEntity::Directory(Directory {
-                path,
-                expanded: true,
-                contents: Vec::new(),
-            }));
-        } else {
-            root.contents.push(FileSystemEntity::File(path));
+        if !file_name_str.starts_with('.') && !file_name_str.starts_with("target") {
+            if path.is_dir() {
+                root.contents.push(FileSystemEntity::Directory(Directory {
+                    path,
+                    expanded: true,
+                    contents: Vec::new(),
+                }));
+            } else {
+                root.contents.push(FileSystemEntity::File(path));
+            }
         }
     }
 

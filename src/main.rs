@@ -20,7 +20,7 @@ fn main() -> Result<()> {
     let mut cursor = Cursor { selected: [0, 0, 0], section: 0 };
     let current_directory = std::env::current_dir().expect("Failed to get current directory");
     let directory_tree = generate_directory(&current_directory).unwrap();
-    let formatted_tree = format_directory(&directory_tree, &current_directory, 0, &cursor);
+    let formatted_tree = format_directory(&directory_tree, 0, &cursor);
     println!("{}", formatted_tree);
     
     //Load the UI - CLI only currently

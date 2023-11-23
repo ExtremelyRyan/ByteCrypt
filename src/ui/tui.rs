@@ -160,7 +160,7 @@ fn draw_ui(frame: &mut Frame, cursor: &Cursor) {
     //Left Directory
     let current_directory = std::env::current_dir().expect("Failed to get current directory");
     let directory_tree = generate_directory(&current_directory).unwrap();
-    let formatted_tree = format_directory(&directory_tree, &current_directory, 0, cursor);
+    let formatted_tree = format_directory(&directory_tree, 0, cursor);
 
     let left_directory = Paragraph::new(formatted_tree)
         .block(Block::default().borders(Borders::ALL)
@@ -241,45 +241,42 @@ fn event_handler(cursor: &mut Cursor) -> anyhow::Result<bool> {
 }
 
 ///Takes in the current directory and formats it into a string
-pub fn format_directory(directory: &Directory, current_path: &Path, indent: usize, cursor: &Cursor) -> String {
-    let character_set = CharacterSet::U8_SLINE;
+pub fn format_directory(directory: &Directory, depth: usize, cursor: &Cursor) -> String {
+    let char_set = CharacterSet::U8_SLINE;
     let mut result = String::new();
 
    
     //Traverse through the directory and build the string to display
-    for entity in &directory.contents {
+    for (index, entity) in directory.contents.iter().enumerate() {
         //set up for last entity
-        //let last_entity = index == directory.contents.len() - 1;
-        //let connector = if last_entity { character_set.node } else { character_set.joint };
+        let last_entity = index == directory.contents.len() - 1;
+        let connector = if last_entity { char_set.node } else { char_set.joint };
 
-        let mut indent_str = String::new();
-        /*if indent > 0 { //Non-root
-            indent_str.push_str(&" ".repeat(indent - 1));
-            indent_str.push_str(&format!("{}{} ",
-                character_set.v_line,
-                connector
-            ));
-        }*/
+        
+        let mut prefix = String::new();
+        if depth > 0 { //Non-root
+            prefix.push_str(&" ".repeat(depth * 2));
+            prefix.push_str(&format!{"{} ", connector});
+        }
 
         //Check for cursor position:
-        //let is_selected = index == cursor.selected[1];
-        match &entity {
+        let is_selected = index == cursor.selected[1];
+        match entity {
             FileSystemEntity::File(path) => {
                 result.push_str(&format!("{}{} {}\n",
-                    character_set.v_line,
-                    character_set.h_line,
+                    prefix,
+                    char_set.h_line,
                     path.file_name().unwrap().to_str().unwrap()
                 ));
-                //result.push_str(&format_directory_path(path, indent + 2, is_selected));
             }
             FileSystemEntity::Directory(dir) => {
                 result.push_str(&format!("{}{} {}\n",
-                    indent_str,
-                    character_set.h_line,
+                    prefix,
+                    char_set.h_line,
                     dir.path.file_name().unwrap().to_str().unwrap(),
                 ));
                 if dir.expanded {
-                    result.push_str(&format_directory(dir, current_path, indent + 4, cursor));
+                    result.push_str(&format_directory(dir, depth + 1, cursor));
                 }
             }
         }
@@ -287,7 +284,3 @@ pub fn format_directory(directory: &Directory, current_path: &Path, indent: usiz
     return result;
 }
 
-fn format_directory_path(path: &PathBuf, indent: usize, is_selected: bool) -> String {
-    let name = path.file_name().unwrap().to_string_lossy().to_string();
-    return format!("{}{}\n", " ".repeat(indent), name);
-}
