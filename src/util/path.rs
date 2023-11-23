@@ -1,6 +1,48 @@
 use anyhow::{Ok, Result};
-use std::{env, fs, path::PathBuf};
+use std::{env, fs, path::{PathBuf, Path}};
 use walkdir::WalkDir;
+
+struct Directory {
+    path: PathBuf,
+    expanded: bool,
+    contents: Vec<FileSystemEntity>,
+}
+
+enum FileSystemEntity {
+    File(PathBuf),
+    Directory(Directory),
+}
+
+pub fn generate_directory(base_path: &str) -> anyhow::Result<Directory> {
+    //Walk the base directory
+    let paths = walk_directory(base_path).expect(
+        "It failed yo"
+    );
+
+    //Create root
+    let mut root = Directory {
+        path: PathBuf::from("/"),
+        expanded: true, //root is always expanded
+        contents: Vec::new(),
+    };
+
+    //Go through each directory and add contents
+    for path_str in paths {
+        let path = PathBuf::from(path_str);
+        //Add subdirectory
+        if path.is_dir() {
+            root.contents.push(FileSystemEntity::Directory(Directory {
+                path,
+                expanded: false,
+                contents: Vec::new(),
+            }));
+        } else { //if it's a file
+            root.contents.push(FileSystemEntity::File(path));
+        }
+    }
+    return Ok(root);
+}
+
 
 pub fn walk_directory(path_in: &str) -> Result<Vec<String>> {
     let path = match path_in.is_empty() {

@@ -1,3 +1,4 @@
+use std::io::{self, stdout};
 use anyhow::{Ok, Result};
 use crossterm::{
     event::{self, Event, KeyCode, MouseButton},
@@ -5,8 +6,8 @@ use crossterm::{
     ExecutableCommand,
 };
 use ratatui::{prelude::*, widgets::*};
-use std::io::{self, stdout};
-
+use util::*;
+//use ui_repo::CharacterSet;
 
 ///Tracks cursor state
 struct Cursor {
@@ -38,6 +39,7 @@ pub fn load_tui() -> anyhow::Result<()> {
 
     Ok(())
 }
+
 
 ///Create the UI
 fn draw_ui(frame: &mut Frame, cursor: &Cursor) {
@@ -151,21 +153,23 @@ fn draw_ui(frame: &mut Frame, cursor: &Cursor) {
         .direction(Direction::Horizontal)
         .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
         .split(main_layout[2]);
-    
-    //Right sub-widget for inner_layout
-    frame.render_widget(
-        Block::default()
-            .borders(Borders::ALL)
-            .title("Left Directory")
-            .magenta(),
-        directory_layout[0],
-    );
 
-    //Right sub-widget for inner_layout
+    //Left Directory
+    let directory_tree = generate_directory();
+    let left_directory = Paragraph::new(directory_tree)
+        .block(Block::default()
+            .title(" Left Directory ")
+            .borders(Borders::ALL))
+        .alignment(Alignment::Left)
+        .wrap(Wrap { trim: true });
+
+    frame.render_widget(left_directory, directory_layout[0]);
+
+    //Right Directory
     frame.render_widget(
         Block::default()
             .borders(Borders::ALL)
-            .title("Right Directory")
+            .title(" Right Directory ")
             .magenta(),
         directory_layout[1],
     );
@@ -174,7 +178,7 @@ fn draw_ui(frame: &mut Frame, cursor: &Cursor) {
     frame.render_widget(
         Block::new()
             .borders(Borders::TOP)
-            .title("Status Bar")
+            .title("Footer Bar ")
             .cyan(),
         main_layout[3],
     );
