@@ -20,8 +20,10 @@ pub fn write_contents_to_file(file: &str, encrypted_contents: Vec<u8>) -> Result
     Ok(f.flush()?)
 }
 
-pub fn prepend_uuid(uuid: String, encrypted_contents: &mut Vec<u8>) -> Vec<u8> { 
+pub fn prepend_uuid(uuid: &String, encrypted_contents: &mut Vec<u8>) -> Vec<u8> { 
     let mut uuid_bytes = uuid.as_bytes().to_vec();
+    let mut tmp: Vec<u8> = vec![33,33,33];
+    uuid_bytes.append(&mut tmp);
     uuid_bytes.append(encrypted_contents);
     uuid_bytes
 }

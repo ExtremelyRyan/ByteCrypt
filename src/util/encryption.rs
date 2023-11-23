@@ -145,8 +145,11 @@ mod test {
         fc.generate();
 
         println!("Encrypting {} ", file);
-        let encrypted_contents = encryption(&mut fc, &contents).unwrap();
+        let mut encrypted_contents = encryption(&mut fc, &contents).unwrap();
         assert_ne!(contents, encrypted_contents);
+
+        // prepend uuid to contents
+        encrypted_contents = parse::prepend_uuid(&fc.uuid, &mut encrypted_contents);
 
         //for testing purposes, write to file
         let _ = parse::write_contents_to_file("foo.crypt", encrypted_contents);
