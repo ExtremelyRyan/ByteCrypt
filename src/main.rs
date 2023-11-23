@@ -40,24 +40,28 @@ fn main() -> Result<()> {
     encrypted_contents = parse::prepend_uuid(&fc.uuid, &mut encrypted_contents);
 
     println!(
-        "uuid as bytes: {:?}, len: {}",
+        "uuid: {} as bytes: {:?}, len: {}",
+        fc.uuid,
         fc.uuid.as_bytes(),
         fc.uuid.len()
     );
 
+    println!("printing first 39 characters of encrypted_contents:");
     for i in 0..39 {
         print!("{}", encrypted_contents.get(i).unwrap())
     }
+    print!("\n");
     //for testing purposes, write to file
+    println!("writing encrypted file to file");
     let _ = parse::write_contents_to_file("foo.crypt", encrypted_contents);
 
     //write fc to crypt_keeper
     let _ = parse::write_to_crypt_keeper(fc);
-
+    println!("reading contents from file");
     let file_content = std::fs::read("foo.crypt").unwrap();
-    let sub = &file_content[0..39].to_vec().to_owned();
+    let sub = &file_content[0..38].to_vec().to_owned();
 
-    println!("\n\nfrom file: {:?}", String::from_utf8(sub.to_owned()));
+    println!("\nfrom file: {:?}", String::from_utf8(sub.to_owned()));
     
     
     Ok(())

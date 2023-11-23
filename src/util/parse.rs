@@ -25,7 +25,13 @@ pub fn prepend_uuid(uuid: &String, encrypted_contents: &mut Vec<u8>) -> Vec<u8> 
     let mut tmp: Vec<u8> = vec![33,33,33];
     uuid_bytes.append(&mut tmp);
     uuid_bytes.append(encrypted_contents);
-    uuid_bytes
+
+    println!("printing uuid_bytes");
+    for i in 0..38 {
+        print!("{:?}",uuid_bytes.get(i).unwrap());
+    }
+println!("\n");    uuid_bytes
+
 }
 
 /// read from (temp) database crypt_keeper and returns a
