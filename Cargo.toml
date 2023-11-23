@@ -1,7 +1,10 @@
 [package]
-name = "bytecloak"
+name = "bytecrypt"
 version = "0.1.0"
+authors = ["Ryan M", "Josh B"]
 edition = "2021"
+
+default-run = "bytecrypt"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -10,24 +13,33 @@ edition = "2021"
 oauth2 = "4.4.0" #latest 4.4.2
 reqwest = { version = "0.11", featuers = ["json"] } # HTTP client
 tokio = { version = "1", features = ["full"] } # Async Runtime
+
 #Other Dependencies
 anyhow = "1.0.75"
+uuid = { version = "1.6.1", features = ["v4", "fast-rng"] }
+
+# Encryption
 chacha20poly1305 = { version = "0.10.1", features = ["stream"] }
 rand = "0.8"
-walkdir = "2.4.0"
-glob = "0.3.1"
+
+# Path walking
+walkdir = "2.4.0" 
 dunce = "1.0.4"
+
+# Serialization / Deserialization
 serde_json = "1.0"
-serde = { version = "1", features = ["derive"] }
-toml = { version = "0.8.4", features = ["display"] }
+serde = { version = "1", features = ["derive"] } 
+
+# configuration mangement
 envy = "0.4.2"
 dotenv = "0.15.0"
 
 #===== UI =====
 # --CLI
-clap = { version = "4.4.8", features = ["derive", "cargo"] }
+clap = { version = "4.4.8", features = ["derive", "cargo"] } 
 # --TUI
 ratatui = "0.24.0"
 crossterm = "0.27.0"
 # --GUI
+
 
