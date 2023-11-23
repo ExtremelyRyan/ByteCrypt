@@ -11,9 +11,11 @@ use crate::util::path::{generate_directory, Directory, FileSystemEntity};
 use super::ui_repo::CharacterSet;
 
 ///Tracks cursor state
-struct Cursor {
-    ///Index of selected area
-    selected: usize,
+pub struct Cursor {
+    ///Index of selected area per section
+    selected: [usize; 3],
+    ///Index of current section
+    section: usize,
 }
 
 
@@ -26,7 +28,7 @@ pub fn load_tui() -> anyhow::Result<()> {
     terminal.clear()?;
 
     let mut should_quit = false;
-    let mut cursor = Cursor { selected: 0 };
+    let mut cursor = Cursor { selected: [0, 0, 0], section: 0 };
     
     while !should_quit {
         //Draw terminal
@@ -105,7 +107,7 @@ fn draw_ui(frame: &mut Frame, cursor: &Cursor) {
             .borders(Borders::ALL)
             .fg(Color::Magenta);
         
-        let inner_style = if cursor.selected == button {
+        let inner_style = if cursor.selected[0] == button {
             Style::default().fg(Color::White)
                 .bg(Color::Magenta)
         } else {
@@ -138,7 +140,7 @@ fn draw_ui(frame: &mut Frame, cursor: &Cursor) {
         "Menu Option 4 Info",
     ];
 
-    let info_window = Paragraph::new(button_info[cursor.selected])
+    let info_window = Paragraph::new(button_info[cursor.selected[0]])
         .block(Block::default().borders(Borders::ALL)
         .border_style(Style::default().fg(Color::Magenta))
         .title(" Information ")
@@ -158,7 +160,7 @@ fn draw_ui(frame: &mut Frame, cursor: &Cursor) {
     //Left Directory
     let current_directory = std::env::current_dir().expect("Failed to get current directory");
     let directory_tree = generate_directory("", &current_directory).unwrap();
-    let formatted_tree = format_directory(&directory_tree, &current_directory, 0);
+    let formatted_tree = format_directory(&directory_tree, &current_directory, 0, cursor);
 
     let left_directory = Paragraph::new(formatted_tree)
         .block(Block::default().borders(Borders::ALL)
@@ -197,24 +199,33 @@ fn event_handler(cursor: &mut Cursor) -> anyhow::Result<bool> {
     if event::poll(std::time::Duration::from_millis(16))? {
         if let event::Event::Key(key) = event::read()? {
             match key.code {
+                KeyCode::Tab => {
+                    cursor.section = (cursor.section + 1) % 3;
+                },
                 KeyCode::Up => {
-                    if cursor.selected % 2 > 0 {
-                        cursor.selected -= 1;
+                    if cursor.section == 0 && cursor.selected[0] % 2 > 0 {
+                        cursor.selected[0] -= 1;
+                    }
+                    if cursor.section == 1 && cursor.selected[1] > 0 {
+                        cursor.selected[1] -= 1;
                     }
                 },
                 KeyCode::Left => {
-                    if cursor.selected > 1 {
-                        cursor.selected -= 2;
+                    if cursor.selected[0] > 1 {
+                        cursor.selected[0] -= 2;
                     }
                 }
                 KeyCode::Down => {
-                    if cursor.selected % 2 == 0 {
-                        cursor.selected += 1;
+                    if cursor.section == 0 && cursor.selected[0] % 2 == 0 {
+                        cursor.selected[0] += 1;
+                    }
+                    if cursor.section == 1 {
+                        cursor.selected[1] += 1;
                     }
                 }
                 KeyCode::Right => {
-                    if cursor.selected < 2 {
-                        cursor.selected += 2;
+                    if cursor.selected[0] < 2 {
+                        cursor.selected[0] += 2;
                     }
                 }
                 KeyCode::Enter => {
@@ -230,13 +241,17 @@ fn event_handler(cursor: &mut Cursor) -> anyhow::Result<bool> {
 }
 
 ///Takes in the current directory and formats it into a string
-pub fn format_directory(directory: &Directory, current_path: &Path, indent: usize) -> String {
+pub fn format_directory(directory: &Directory, current_path: &Path, indent: usize, cursor: &Cursor) -> String {
     let character_set = CharacterSet::U8_SLINE;
     let mut result = String::new();
     let indentation = " ".repeat(indent);
 
-    for entity in &directory.contents {
+    //Traverse through the directory and build the string to display
+    for (index, entity) in directory.contents.iter().enumerate() {
         result.push_str(&indentation);
+
+        //Check for cursor position:
+        let is_selected = index == cursor.selected[1];
         match entity {
             FileSystemEntity::File(path) => {
                 result.push_str(&format!("{}  {}{} ",
@@ -244,7 +259,7 @@ pub fn format_directory(directory: &Directory, current_path: &Path, indent: usiz
                     character_set.node,
                     character_set.h_line
                 ));
-                result.push_str(&format_directory_path(path, indent));
+                result.push_str(&format_directory_path(path, indent, is_selected));
             }
             FileSystemEntity::Directory(dir) => {
                 result.push_str(&format!("{}{} ",
@@ -254,14 +269,14 @@ pub fn format_directory(directory: &Directory, current_path: &Path, indent: usiz
                 result.push_str(&dir.path.file_name().unwrap().to_str().unwrap());
                 result.push('/');
                 result.push('\n');
-                result.push_str(&format_directory(dir, current_path, indent + 4));
+                result.push_str(&format_directory(dir, current_path, indent + 4, cursor));
             }
         }
     }
     return result;
 }
 
-fn format_directory_path(path: &PathBuf, indent: usize) -> String {
+fn format_directory_path(path: &PathBuf, indent: usize, is_selected: bool) -> String {
     let name = path.file_name().unwrap().to_string_lossy().to_string();
     return format!("{}\n", name);
 }

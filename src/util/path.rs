@@ -38,10 +38,9 @@ pub fn generate_directory(base_path: &str, current_directory: &PathBuf) -> anyho
         let path = PathBuf::from(path_str);
         //Add subdirectory
         if path.is_dir() {
-            let expanded = current_directory.as_path().ancestors()
-                .any(|ancestor| ancestor == path.as_path()) 
-                && 
-                current_directory.as_path() != path.as_path();
+            let expanded = current_directory
+                .ancestors()
+                .any(|a| a == path && a != current_directory.as_path());
             root.contents.push(FileSystemEntity::Directory(Directory {
                 path,
                 expanded,
@@ -54,6 +53,7 @@ pub fn generate_directory(base_path: &str, current_directory: &PathBuf) -> anyho
     return Ok(root);
 }
 
+///Walks the directory and grabs every directory and file
 pub fn walk_directory_full(path_in: &str) -> Result<Vec<String>, anyhow::Error> {
     let base_path = if path_in.is_empty() {
         std::env::current_dir()?
