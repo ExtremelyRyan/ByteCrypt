@@ -244,22 +244,26 @@ fn event_handler(cursor: &mut Cursor) -> anyhow::Result<bool> {
 pub fn format_directory(directory: &Directory, current_path: &Path, indent: usize, cursor: &Cursor) -> String {
     let character_set = CharacterSet::U8_SLINE;
     let mut result = String::new();
-    let indentation = " ".repeat(indent);
+    let indentation = " ".repeat(indent.clone());
 
     //Traverse through the directory and build the string to display
     for (index, entity) in directory.contents.iter().enumerate() {
+        //set up for last entity
+        let last_entity = index == directory.contents.len() - 1;
+        let connector = if last_entity { character_set.node } else { character_set.joint };
+        
         result.push_str(&indentation);
+        if indent > 0 { //Non-root
+            result.push(connector);
+            result.push(character_set.h_line);
+            result.push(' ');
+        }
 
         //Check for cursor position:
         let is_selected = index == cursor.selected[1];
         match entity {
             FileSystemEntity::File(path) => {
-                result.push_str(&format!("{}  {}{} ",
-                    character_set.v_line,
-                    character_set.node,
-                    character_set.h_line
-                ));
-                result.push_str(&format_directory_path(path, indent, is_selected));
+                result.push_str(&format_directory_path(path, indent + 4, is_selected));
             }
             FileSystemEntity::Directory(dir) => {
                 result.push_str(&format!("{}{} ",
@@ -269,7 +273,9 @@ pub fn format_directory(directory: &Directory, current_path: &Path, indent: usiz
                 result.push_str(&dir.path.file_name().unwrap().to_str().unwrap());
                 result.push('/');
                 result.push('\n');
-                result.push_str(&format_directory(dir, current_path, indent + 4, cursor));
+                if dir.expanded {
+                    result.push_str(&format_directory(dir, current_path, indent + 4, cursor));
+                }
             }
         }
     }
@@ -278,5 +284,5 @@ pub fn format_directory(directory: &Directory, current_path: &Path, indent: usiz
 
 fn format_directory_path(path: &PathBuf, indent: usize, is_selected: bool) -> String {
     let name = path.file_name().unwrap().to_string_lossy().to_string();
-    return format!("{}\n", name);
+    return format!("{}{}\n", " ".repeat(indent), name);
 }
