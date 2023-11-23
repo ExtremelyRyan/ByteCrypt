@@ -38,7 +38,10 @@ pub fn generate_directory(base_path: &str, current_directory: &PathBuf) -> anyho
         let path = PathBuf::from(path_str);
         //Add subdirectory
         if path.is_dir() {
-            let expanded = current_directory.starts_with(&path);
+            let expanded = current_directory.as_path().ancestors()
+                .any(|ancestor| ancestor == path.as_path()) 
+                && 
+                current_directory.as_path() != path.as_path();
             root.contents.push(FileSystemEntity::Directory(Directory {
                 path,
                 expanded,
