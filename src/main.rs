@@ -4,7 +4,7 @@ mod util;
 use anyhow::{self, Ok, Result};
 use ui::*;
 use util::*;
-use ui::tui::format_directory;
+use ui::tui::{Cursor, format_directory};
 use util::path::{
     generate_directory, Directory,
 };
@@ -17,13 +17,15 @@ fn main() -> Result<()> {
 
     //Load user settings
 
-    //let directory_tree = generate_directory("").unwrap();
-    //let formatted_tree = format_directory(&directory_tree, &PathBuf::from("/"), 0);
-
-    //println!("{}", formatted_tree);
+    let mut cursor = Cursor { selected: [0, 0, 0], section: 0 };
+    let current_directory = std::env::current_dir().expect("Failed to get current directory");
+    let directory_tree = generate_directory(&current_directory).unwrap();
+    let formatted_tree = format_directory(&directory_tree, &current_directory, 0, &cursor);
+    println!("{}", formatted_tree);
+    
     //Load the UI - CLI only currently
     //cli::load_cli();
-    let _ = tui::load_tui();
+    //let _ = tui::load_tui();
     //gui::load_gui();
 
     Ok(())

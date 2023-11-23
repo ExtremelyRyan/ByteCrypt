@@ -16,31 +16,60 @@ pub enum FileSystemEntity {
 }
 
 ///Generates a directory to convert into strings
-pub fn generate_directory(base_path: &str, current_directory: &PathBuf) -> anyhow::Result<Directory> {
+pub fn generate_directory(/*base_path: &str,*/ current_directory: &PathBuf) -> anyhow::Result<Directory> {
     //Walk the base directory
-    let base_path = if base_path.is_empty() {
+    /*let base_path = if base_path.is_empty() {
         current_directory.clone() 
     } else {
         PathBuf::from(base_path) 
-    };
+    };*/
 
-    let paths = walk_directory_full(&base_path.to_string_lossy())?;
+    //let paths = walk_directory_full(&base_path.to_string_lossy())?;
 
     //Create root
     let mut root = Directory {
-        path: base_path,
+        path: current_directory.clone(),
         expanded: true, //root is always expanded
         contents: Vec::new(),
     };
 
+    //Read contents of current directory
+    for entry in fs::read_dir(current_directory)? {
+        let entry = entry?;
+        let path = entry.path();
+
+        if path.is_dir() {
+            root.contents.push(FileSystemEntity::Directory(Directory {
+                path,
+                expanded: true,
+                contents: Vec::new(),
+            }));
+        } else {
+            root.contents.push(FileSystemEntity::File(path));
+        }
+    }
+
     //Go through each directory and add contents
-    for path_str in paths {
+    /*for path_str in paths {
         let path = PathBuf::from(path_str);
         //Add subdirectory
         if path.is_dir() {
-            let expanded = current_directory
-                .ancestors()
-                .any(|a| a == path && a != current_directory.as_path());
+            //println!("Comparing: {:?} with {:?}", path, current_directory);
+            let normalized_path = path.canonicalize()?;
+            let normalized_curr_dir = current_directory.canonicalize()?;
+            let expanded = normalized_curr_dir.starts_with(&normalized_path) ||
+                            normalized_curr_dir.ancestors().any(|a| a == normalized_path);
+            
+            /*let expanded = if &path == current_directory {
+                true
+            } else { 
+                current_directory.ancestors().any(|a| {
+                    println!("Ancestor: {:?}, Path: {:?}", a, path);
+                    &path == a
+                })
+            };*/
+            //println!("Expanded: {}", expanded);
+            
             root.contents.push(FileSystemEntity::Directory(Directory {
                 path,
                 expanded,
@@ -49,7 +78,7 @@ pub fn generate_directory(base_path: &str, current_directory: &PathBuf) -> anyho
         } else { //if it's a file
             root.contents.push(FileSystemEntity::File(path));
         }
-    }
+    }*/
     return Ok(root);
 }
 
