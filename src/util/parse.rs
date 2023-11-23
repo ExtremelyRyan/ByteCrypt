@@ -1,5 +1,5 @@
 use super::encryption::FileCrypt;
-use anyhow::Ok;
+use anyhow::{Result,Ok};
 use std::{
     fs::{File, OpenOptions},
     io::Read,
@@ -9,7 +9,7 @@ use std::{
 /// our (temp) file to store FileCrypts
 pub const CRYPT: &str = "crypt_keeper";
 
-pub fn write_contents_to_file(file: &str, encrypted_contents: Vec<u8>) -> anyhow::Result<()> {
+pub fn write_contents_to_file(file: &str, encrypted_contents: Vec<u8>) -> Result<()> {
     let mut f = OpenOptions::new()
         .append(true)
         .create(true)
@@ -18,6 +18,12 @@ pub fn write_contents_to_file(file: &str, encrypted_contents: Vec<u8>) -> anyhow
     f.write_all(encrypted_contents.as_slice())
         .expect("failed writing to file");
     Ok(f.flush()?)
+}
+
+pub fn prepend_uuid(uuid: String, encrypted_contents: &mut Vec<u8>) -> Vec<u8> { 
+    let mut uuid_bytes = uuid.as_bytes().to_vec();
+    uuid_bytes.append(encrypted_contents);
+    uuid_bytes
 }
 
 /// read from (temp) database crypt_keeper and returns a
