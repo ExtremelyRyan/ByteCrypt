@@ -4,6 +4,11 @@ mod util;
 use anyhow::{self, Ok, Result};
 use ui::*;
 use util::*;
+use ui::tui::format_directory;
+use util::path::{
+    generate_directory, Directory,
+};
+use std::path::PathBuf;
 
 
 fn main() -> Result<()> {

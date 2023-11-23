@@ -157,7 +157,7 @@ fn draw_ui(frame: &mut Frame, cursor: &Cursor) {
 
     //Left Directory
     let directory_tree = generate_directory("").unwrap();
-    let formatted_tree = format_directory(&directory_tree, &PathBuf::from("/"),  0);
+    let formatted_tree = format_directory(&directory_tree, 0);
 
     let left_directory = Paragraph::new(formatted_tree)
         .block(Block::default().borders(Borders::ALL)
@@ -166,7 +166,7 @@ fn draw_ui(frame: &mut Frame, cursor: &Cursor) {
             .title_style(Style::default().fg(Color::Blue))
             .white())
         .alignment(Alignment::Left)
-        .wrap(Wrap { trim: true })
+        .wrap(Wrap { trim: false })
         .scroll((5, 0));
 
     frame.render_widget(left_directory, directory_layout[0]);
@@ -229,32 +229,36 @@ fn event_handler(cursor: &mut Cursor) -> anyhow::Result<bool> {
 }
 
 ///Takes in the current directory and formats it into a string
-pub fn format_directory(directory: &Directory, root: &PathBuf, indent: usize) -> String {
+pub fn format_directory(directory: &Directory, indent: usize) -> String {
+    let character_set = CharacterSet::U8_SLINE;
     let mut result = String::new();
+    let indentation = " ".repeat(indent);
 
     for entity in &directory.contents {
+        result.push_str(&indentation);
         match entity {
             FileSystemEntity::File(path) => {
-                result += &format_directory_path(path, root, indent);
+                result.push_str(&character_set.v_line.to_string());
+                result.push(' ');
+                result.push_str(&character_set.node.to_string());
+                result.push_str(&character_set.h_line.to_string());
+                result.push(' ');
+                result.push_str(&format_directory_path(path, indent));
             }
             FileSystemEntity::Directory(dir) => {
-                result += &format_directory_path(&dir.path, root, indent);
-                if dir.expanded {
-                    result += &format_directory(dir, root, indent + 2);
-                }
+                result.push_str(&character_set.joint.to_string());
+                result.push_str(&character_set.h_line.to_string());
+                result.push_str(&dir.path.file_name().unwrap().to_str().unwrap());
+                result.push('/');
+                result.push('\n');
+                result.push_str(&format_directory(dir, indent + 4));
             }
         }
     }
     return result;
 }
 
-fn format_directory_path(path: &PathBuf, root: &PathBuf, indent: usize) -> String {
-    let character_set = CharacterSet::U8_SLINE_CURVE;
-    //let depth = path.strip_prefix(root).unwrap().iter().count() - 1;
-    
-    let name = path.file_name().unwrap().to_string_lossy();
-    let indentation = character_set.v_line.to_string().repeat(indent);
-    let display_character = if path.is_dir() { character_set.node } else { ' ' };
-
-    return format!("{}{}{} {}\n", indentation, character_set.joint, display_character, name);
+fn format_directory_path(path: &PathBuf, indent: usize) -> String {
+    let name = path.file_name().unwrap().to_string_lossy().to_string();
+    return format!("{}\n", name);
 }

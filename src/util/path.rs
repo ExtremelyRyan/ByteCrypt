@@ -18,13 +18,13 @@ pub enum FileSystemEntity {
 ///Generates a directory to convert into strings
 pub fn generate_directory(base_path: &str) -> anyhow::Result<Directory> {
     //Walk the base directory
-    let paths = walk_directory(base_path).expect(
+    let paths = walk_directory_full(base_path).expect(
         "It failed yo"
     );
 
     //Create root
     let mut root = Directory {
-        path: PathBuf::from("/"),
+        path: PathBuf::from(""),
         expanded: true, //root is always expanded
         contents: Vec::new(),
     };
@@ -46,6 +46,24 @@ pub fn generate_directory(base_path: &str) -> anyhow::Result<Directory> {
     return Ok(root);
 }
 
+pub fn walk_directory_full(path_in: &str) -> Result<Vec<String>> {
+    let path = match path_in.is_empty() {
+        true => std::env::current_dir()?,
+        false => get_full_file_path(path_in)?,
+    };
+
+    let walker = WalkDir::new(path).into_iter();
+    let mut pathlist: Vec<String> = Vec::new();
+
+    for entry in walker.filter_entry(|e| !is_hidden(e)) {
+        let entry = entry.unwrap();
+        //Save all directories
+        if entry.path().is_dir() || entry.path().display().to_string().find('.').is_some() {
+            pathlist.push(entry.path().display().to_string());
+        }
+    }
+    Ok(pathlist)
+}
 
 pub fn walk_directory(path_in: &str) -> Result<Vec<String>> {
     let path = match path_in.is_empty() {
