@@ -2,13 +2,13 @@ use anyhow::{Ok, Result};
 use std::{env, fs, path::{PathBuf, Path}};
 use walkdir::WalkDir;
 
-struct Directory {
+pub struct Directory {
     path: PathBuf,
     expanded: bool,
     contents: Vec<FileSystemEntity>,
 }
 
-enum FileSystemEntity {
+pub enum FileSystemEntity {
     File(PathBuf),
     Directory(Directory),
 }

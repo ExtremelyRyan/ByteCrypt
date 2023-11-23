@@ -6,7 +6,7 @@ use crossterm::{
     ExecutableCommand,
 };
 use ratatui::{prelude::*, widgets::*};
-use util::*;
+use crate::util::path::{generate_directory, Directory, FileSystemEntity};
 //use ui_repo::CharacterSet;
 
 ///Tracks cursor state
@@ -155,7 +155,7 @@ fn draw_ui(frame: &mut Frame, cursor: &Cursor) {
         .split(main_layout[2]);
 
     //Left Directory
-    let directory_tree = generate_directory();
+    let directory_tree = generate_directory("");
     let left_directory = Paragraph::new(directory_tree)
         .block(Block::default()
             .title(" Left Directory ")
