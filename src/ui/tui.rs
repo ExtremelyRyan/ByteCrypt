@@ -247,7 +247,7 @@ pub fn format_directory(directory: &Directory, depth: usize, cursor: &Cursor) ->
 
     //Root directory
     if depth == 0 { 
-        result.push_str(&format!{"{}", 
+        result.push_str(&format!{"{}\n", 
             directory.path.file_name().unwrap().to_str().unwrap()
         });
     }
@@ -259,7 +259,10 @@ pub fn format_directory(directory: &Directory, depth: usize, cursor: &Cursor) ->
         let connector = if last_entity { char_set.node } else { char_set.joint };
         
         let mut prefix = String::new();
-        if index > 0 { //Non-root
+        if depth == 0 { //for item that immediately follows root contents
+            prefix.push_str(&format!("{}", connector));
+        }
+        if depth > 0 { //Non-root
             prefix.push_str(&" ".repeat(depth * 4));
             prefix.push_str(&format!{"{}", connector});
         }
