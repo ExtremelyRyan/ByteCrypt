@@ -4,6 +4,7 @@ mod util;
 
 use anyhow::{self, Ok, Result};
 use util::*;
+use ui::*;
 
 
 fn main() -> Result<()> {
@@ -11,8 +12,8 @@ fn main() -> Result<()> {
     config::load_config();
 
     //Load the UI - CLI only currently
-    let _ = ui::cli::load_cli();
-    //let _ = tui::load_tui();  //Uncomment for TUI
+    //let _ = ui::cli::load_cli();
+    let _ = tui::load_tui();  //Uncomment for TUI
 
     Ok(())
 }
