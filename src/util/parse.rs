@@ -11,7 +11,7 @@ pub const CRYPT: &str = "crypt_keeper";
 
 pub fn write_contents_to_file(file: &str, encrypted_contents: Vec<u8>) -> Result<()> {
     let mut f = OpenOptions::new()
-        .append(true)
+        .write(true)
         .create(true)
         .read(true)
         .open(file)?;
@@ -27,7 +27,7 @@ pub fn prepend_uuid(uuid: &String, encrypted_contents: &mut Vec<u8>) -> Vec<u8> 
     uuid_bytes.append(encrypted_contents);
 
     println!("printing uuid_bytes");
-    for i in 0..38 {
+    for i in 0..300 {
         print!("{:?}",uuid_bytes.get(i).unwrap());
     }
 println!("\n");    uuid_bytes

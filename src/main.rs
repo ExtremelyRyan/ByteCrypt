@@ -59,9 +59,12 @@ fn main() -> Result<()> {
     let _ = parse::write_to_crypt_keeper(fc);
     println!("reading contents from file");
     let file_content = std::fs::read("foo.crypt").unwrap();
-    let sub = &file_content[0..38].to_vec().to_owned();
+    //let sub = &file_content[0..300].to_vec().to_owned();
 
-    println!("\nfrom file: {:?}", String::from_utf8(sub.to_owned()));
+    for i in 0..300 {
+        print!("{:?}",file_content.get(i).unwrap());
+    }
+    //println!("\nfrom file: {:?}", String::from_utf8(sub.to_vec()));
     
     
     Ok(())
