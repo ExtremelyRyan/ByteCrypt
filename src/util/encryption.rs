@@ -1,13 +1,12 @@
-use std::fs::File;
-
 use anyhow::{Ok, Result};
 use chacha20poly1305::{
     aead::{Aead, KeyInit, OsRng},
     ChaCha20Poly1305, Key, Nonce,
 };
 use rand::RngCore;
-use serde::{Deserialize, Serialize}; 
+use serde::{Deserialize, Serialize};
 
+use super::uuid::generate_uuid;
 
 pub const KEY_SIZE: usize = 32;
 pub const NONCE_SIZE: usize = 12;
@@ -23,19 +22,23 @@ pub struct FileCrypt {
 }
 
 impl FileCrypt {
-    pub fn new(
-        filename: String,
-        ext: String,
-        full_path: String,
-        key: [u8; KEY_SIZE],
-        nonce: [u8; NONCE_SIZE],
-    ) -> Self {
+    pub fn new(filename: String, ext: String, full_path: String) -> Self {
+        // generate key & nonce
+        let mut key = [0u8; KEY_SIZE];
+        let mut nonce = [0u8; NONCE_SIZE];
+        OsRng.fill_bytes(&mut key);
+        OsRng.fill_bytes(&mut nonce);
+
+        // generate file uuid
+        let uuid = generate_uuid();
+
         Self {
             filename,
             full_path,
             key,
             nonce,
             ext,
+            uuid,
         }
     }
 
@@ -58,12 +61,13 @@ impl FileCrypt {
             full_path: fc.full_path,
             key: fc.key,
             nonce: fc.nonce,
+            uuid: fc.uuid,
         }
     }
 }
 
 /// takes a FileCrypt and encrypts content in place (TODO: for now)
-pub fn encrypt_file(fc: &mut FileCrypt, contents: &Vec<u8>) -> Result<Vec<u8>> {
+pub fn encryption(fc: &mut FileCrypt, contents: &Vec<u8>) -> Result<Vec<u8>> {
     if fc.key.into_iter().all(|b| b == 0) {
         fc.generate();
     }
@@ -75,13 +79,12 @@ pub fn encrypt_file(fc: &mut FileCrypt, contents: &Vec<u8>) -> Result<Vec<u8>> {
     Ok(cipher)
 }
 
-pub fn decrypt_file(fc: FileCrypt, contents: &Vec<u8>) -> Result<Vec<u8>> {
+pub fn decryption(fc: FileCrypt, contents: &Vec<u8>) -> Result<Vec<u8>> {
     let k = Key::from_slice(&fc.key);
     let n = Nonce::from_slice(&fc.nonce);
-
     let cipher = ChaCha20Poly1305::new(k)
         .decrypt(n, contents.as_ref())
-        .unwrap();
+        .expect("failed to decrypt cipher text");
     Ok(cipher)
 }
 
@@ -99,7 +102,10 @@ pub fn decrypt_file(fc: FileCrypt, contents: &Vec<u8>) -> Result<Vec<u8>> {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::util::common;
+    use crate::util::{
+        common,
+        parse::{self, read_crypt_keeper},
+    };
 
     #[test]
     fn test_encrypt() {
@@ -114,17 +120,23 @@ mod test {
             .to_string();
         let contents: Vec<u8> = std::fs::read(file).unwrap();
 
-        // generate new key and nonce palceholders
-        let k = [0u8; KEY_SIZE];
-        let n = [0u8; NONCE_SIZE];
-        let mut fc = FileCrypt::new(filename.to_owned(), extension.to_owned(), fp, k, n);
+        let mut fc = FileCrypt::new(filename.to_owned(), extension.to_owned(), fp);
 
         // generate random values for key, nonce
         fc.generate();
 
         println!("Encrypting {} ", file);
-        let encrypted_contents = encrypt_file(&mut fc, &contents).unwrap();
+        let mut encrypted_contents = encryption(&mut fc, &contents).unwrap();
         assert_ne!(contents, encrypted_contents);
+
+        // prepend uuid to contents
+        encrypted_contents = parse::prepend_uuid(&fc.uuid, &mut encrypted_contents);
+
+        //for testing purposes, write to file
+        let _ = parse::write_contents_to_file("foo.crypt", encrypted_contents);
+
+        //write fc to crypt_keeper
+        let _ = parse::write_to_crypt_keeper(fc);
     }
 
     #[test]
@@ -139,19 +151,23 @@ mod test {
             .unwrap()
             .to_string();
         let contents: Vec<u8> = std::fs::read(file).unwrap();
+        let crypts = read_crypt_keeper().unwrap();
 
-        // generate new key and nonce palceholders
-        let k = [0u8; KEY_SIZE];
-        let n = [0u8; NONCE_SIZE];
-        let mut fc = FileCrypt::new(filename.to_owned(), extension.to_owned(), fp, k, n);
+        let mut fc: FileCrypt =
+            FileCrypt::new(filename.to_string(), extension.to_string(), fp.clone());
 
-        // generate random values for key, nonce
-        fc.generate();
+        for c in crypts {
+            if c.uuid == fp {
+                fc.uuid = c.uuid; 
+            }
+        }
+
+        dbg!(&fc);
 
         println!("Encrypting {} ", file);
-        let decryped_contents = decrypt_file(fc, &contents).expect("decrypt failure");
+        let decryped_contents = decryption(fc, &contents).expect("decrypt failure");
 
-        let src = common::read_to_vec_u8("foo.txt"); 
+        let src = common::read_to_vec_u8("foo.txt");
 
         assert_eq!(src, decryped_contents);
     }

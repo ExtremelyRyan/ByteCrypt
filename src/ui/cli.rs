@@ -1,4 +1,9 @@
+use std::env;
+
+use anyhow::Ok;
 use clap::{Parser, Subcommand};
+
+use crate::util;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -16,16 +21,16 @@ enum Commands {
     ///Encrypt file or directory
     Encrypt {
         ///File or Directory
-        #[arg(required = true)]
-        structure: String,
+        // #[arg(required = true)]
+        // structure: String,
         ///Path to the given File or Directory
-        #[arg(required = true)]
-        path: String,
+        // #[arg(required = true)]
+        // path: String,
         ///Name of the File or Directory
         #[arg(required = true)]
         name: String,
-        #[arg(short, long, required = true)]
-        copy: bool,
+        // #[arg(short, long, required = true)]
+        // copy: bool,
     },
     ///Decrypt file or folder
     Decrypt {
@@ -59,12 +64,15 @@ pub fn load_cli() -> anyhow::Result<()> {
 
     match &command_line.command {
         Some(Commands::Encrypt {
-            structure: _,
-            path: _,
-            name: _,
-            copy: _,
+            // structure: _,
+            // path: _,
+            name,
+            // copy: _,
         }) => {
-            todo!();
+            let path = env::current_dir().unwrap();
+            println!("The current directory is {}", path.display());
+
+            Ok(())
         }
         Some(Commands::Decrypt {
             structure: _,
