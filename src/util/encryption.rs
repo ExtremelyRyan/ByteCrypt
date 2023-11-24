@@ -33,7 +33,7 @@ pub const NONCE_SIZE: usize = 12;
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct FileCrypt {
-    pub uuid: Vec<u8>,
+    pub uuid: String,
     pub filename: String,
     pub ext: String,
     pub full_path: String,

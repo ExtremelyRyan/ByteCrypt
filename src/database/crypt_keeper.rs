@@ -4,7 +4,7 @@ use crate::util::encryption::FileCrypt;
 
 
 // pub struct FileCrypt {
-//     pub uuid: Vec<u8>,
+//     pub uuid: String,
 //     pub filename: String,
 //     pub ext: String,
 //     pub full_path: String,
@@ -18,7 +18,7 @@ fn enable_keeper() -> anyhow::Result<Connection> {
 
     conn.execute(
         "CREATE TABLE IF NOT EXISTS crypt (
-            uuid BLOB PRIMARY KEY,
+            uuid TEXT PRIMARY KEY,
             filename TEXT NOT NULL,
             extension TEXT NOT NULL,
             full_path TEXT NOT NULL,
@@ -32,7 +32,7 @@ fn enable_keeper() -> anyhow::Result<Connection> {
 }
 
 fn insert(crypt: FileCrypt) -> anyhow::Result<()> {
-    let conn = enable_keeper().unwrap();
+    let conn = enable_keeper()?;
 
     conn.execute(
         "INSERT INTO crypt (
@@ -48,8 +48,8 @@ fn insert(crypt: FileCrypt) -> anyhow::Result<()> {
             crypt.filename,
             crypt.ext,
             crypt.full_path,
-            crypt.key,
-            crypt.nonce,
+            crypt.key.as_ref(),
+            crypt.nonce.as_ref(),
         ]
     );
 
