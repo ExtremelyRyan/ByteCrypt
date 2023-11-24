@@ -8,8 +8,8 @@ use crate::util::encryption::FileCrypt;
 //     pub filename: String,
 //     pub ext: String,
 //     pub full_path: String,
-//     key: [u8; KEY_SIZE],
-//     nonce: [u8; NONCE_SIZE],
+//     pub key: [u8; KEY_SIZE],
+//     pub nonce: [u8; NONCE_SIZE],
 // }
 
 

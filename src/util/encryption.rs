@@ -9,25 +9,6 @@ use rand::RngCore;
 use serde::{Deserialize, Serialize}; 
 
 
-///Directory object holds file objects
-#[derive(Debug)]
-pub struct DirectoryCrypt {
-    ///Name of the root directory being encrypted
-    directory_name: String,
-    ///Vector of FileCrypts being encrypted
-    files: Vec<FileCrypt>,
-    //other variables
-}
-///Implementation for DirectoryCrypt
-impl DirectoryCrypt {
-    pub fn new(directory_name: String, files: Vec<FileCrypt>) -> Self {
-        Self {
-            directory_name,
-            files,
-        }
-    }
-}
-
 pub const KEY_SIZE: usize = 32;
 pub const NONCE_SIZE: usize = 12;
 
