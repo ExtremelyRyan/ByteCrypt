@@ -43,15 +43,15 @@ fn insert(crypt: FileCrypt) -> anyhow::Result<()> {
             key_seed,
             nonce_seed,
         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-        &[
-            crypt.uuid,
-            crypt.filename,
-            crypt.ext,
-            crypt.full_path,
-            crypt.key.as_ref(),
-            crypt.nonce.as_ref(),
-        ]
-    );
+        (
+            &crypt.uuid,
+            &crypt.filename,
+            &crypt.ext,
+            &crypt.full_path,
+            &crypt.key.to_owned().as_ref(),
+            &crypt.nonce.as_ref(),
+        )
+    )?;
 
     return Ok(());
 }
