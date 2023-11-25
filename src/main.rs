@@ -13,7 +13,16 @@ use crate::util::encryption::FileCrypt;
 
 fn main() -> Result<()> {
     //Load config file
-    config::load_config();
+    let mut config = config::load_config().unwrap();
+    println!("{:#?}", config);
+
+    config.add_cloud_service("google".to_string());
+
+    println!("Add google {:#?}", config.cloud_services);
+
+    config.remove_cloud_service("google".to_string());
+
+    println!("Remove google {:#?}", config.cloud_services);
 
     //Resets the database (TEMPORARY) -- keeps filling up with new files
     let _ = crypt_keeper::delete_keeper()?;
