@@ -1,5 +1,5 @@
-use rusqlite::{Connection, Result as SQResult, Error};
-use anyhow::{Ok, Result};
+// use chacha20poly1305::aead::Result;
+use rusqlite::{Connection, Result, Error};
 use crate::util::encryption::FileCrypt;
 
 
@@ -13,7 +13,7 @@ use crate::util::encryption::FileCrypt;
 // }
 
 
-fn enable_keeper() -> anyhow::Result<Connection> {
+fn enable_keeper() -> Result<Connection> {
     let conn = Connection::open("crypt_keeper.db")?;
 
     conn.execute(
@@ -31,7 +31,7 @@ fn enable_keeper() -> anyhow::Result<Connection> {
     return Ok(conn);
 }
 
-fn insert(crypt: FileCrypt) -> anyhow::Result<()> {
+fn insert(crypt: FileCrypt) -> Result<()> {
     let conn = enable_keeper()?;
 
     conn.execute(
@@ -52,6 +52,35 @@ fn insert(crypt: FileCrypt) -> anyhow::Result<()> {
             &crypt.nonce.as_ref(),
         )
     )?;
+    conn.close();
 
     return Ok(());
+}
+
+fn query(uuid: String) -> Result<FileCrypt> {
+    let conn = enable_keeper()?;
+    let query = conn.prepare("
+        SELECT 
+            uuid, 
+            filename, 
+            extension, 
+            full_path, 
+            key_seed, 
+            nonce_seed
+        FROM crypt"
+    )?;
+
+    let query_result = query.query_map([], |row| {
+        Ok(FileCrypt {
+            uuid: row.get(0)?,
+            filename: row.get(1)?,
+            ext: row.get(2)?,
+            full_path: row.get(3)?,
+            key: row.get(4)?,
+            nonce: row.get(5)?,
+        })
+    })?;
+    
+
+    return Ok(query_result.unwrap());
 }
