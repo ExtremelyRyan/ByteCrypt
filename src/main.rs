@@ -35,7 +35,11 @@ fn main() -> Result<()> {
 
     // generate random values for key, nonce
     fc.generate();
-
+    let _ = crypt_keeper::insert(&fc);
+    let test_db = crypt_keeper::query(fc.uuid.clone())?;
+    println!("Filecrypt:\n {:#?}", test_db);
+    
+    
     println!("Encrypting {} ", file);
     let mut encrypted_contents = util::encryption::encryption(&mut fc, &contents).unwrap();
     assert_ne!(contents, encrypted_contents);

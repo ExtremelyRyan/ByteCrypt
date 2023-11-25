@@ -15,7 +15,7 @@ fn enable_keeper() -> Result<Connection> {
             extension TEXT NOT NULL,
             full_path TEXT NOT NULL,
             key_seed BLOB NOT NULL,
-            nonce_seed BLOB NOT NULL,
+            nonce_seed BLOB NOT NULL
         )",
         [],
     )?;
@@ -24,7 +24,7 @@ fn enable_keeper() -> Result<Connection> {
 }
 
 ///Insert a crypt into the database
-fn insert(crypt: FileCrypt) -> Result<()> {
+pub fn insert(crypt: &FileCrypt) -> Result<()> {
     let conn = enable_keeper()?;
 
     conn.execute(
@@ -34,7 +34,7 @@ fn insert(crypt: FileCrypt) -> Result<()> {
             extension,
             full_path,
             key_seed,
-            nonce_seed,
+            nonce_seed
         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
         (
             &crypt.uuid,
@@ -50,7 +50,7 @@ fn insert(crypt: FileCrypt) -> Result<()> {
 }
 
 ///Queries the database for the crypt
-fn query(uuid: String) -> Result<FileCrypt> {
+pub fn query(uuid: String) -> Result<FileCrypt> {
     let conn = enable_keeper()?;
     let mut query = conn.prepare("
         SELECT 
