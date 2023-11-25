@@ -83,6 +83,7 @@ pub fn query_crypt(uuid: String) -> anyhow::Result<Vec<FileCrypt>> {
     })?;
 
     //Convert the results into a vector
+    //--find a method to return a single without vec
     let mut crypts: Vec<FileCrypt> = Vec::new();
     for crypt in query_result {
         crypts.push(crypt.unwrap());

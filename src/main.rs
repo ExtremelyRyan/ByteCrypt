@@ -64,10 +64,11 @@ fn main() -> Result<()> {
     let _ = crypt_keeper::insert(&fc);
 
     println!("== main.rs\n  Reading data from the database");
-    let crypt_collection = crypt_keeper::query(fc.uuid.clone())?;
+    let crypt = crypt_keeper::query_crypt(fc.uuid.clone())?;
+    //let crypt_collection = crypt_keeper::query_keeper()?;
     println!("  FileCrypt:");
-    for i in 0..crypt_collection.len() {
-        println!("  uuid: {:#?}\n    filename: {:#?}{:#?}", crypt_collection[i].uuid, crypt_collection[i].filename, crypt_collection[i].ext);
+    for i in 0..crypt.len() {
+        println!("    uuid: {:#?}\n    filename: {:#?}{:#?}", crypt[i].uuid, crypt[i].filename, crypt[i].ext);
     }
 
     println!("== main.rs\n  reading contents from file");
