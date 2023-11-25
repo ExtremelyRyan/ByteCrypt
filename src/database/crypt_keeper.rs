@@ -52,7 +52,7 @@ pub fn insert(crypt: &FileCrypt) -> anyhow::Result<()> {
 }
 
 ///Queries the database for the crypt
-pub fn query(uuid: String) -> anyhow::Result<Vec<FileCrypt>> {
+pub fn query_crypt(uuid: String) -> anyhow::Result<Vec<FileCrypt>> {
     //Get the connection
     let conn = enable_keeper()?;
 
@@ -70,6 +70,46 @@ pub fn query(uuid: String) -> anyhow::Result<Vec<FileCrypt>> {
 
     //Get the results of the query
     let query_result = query.query_map([uuid], |row| {
+        let key: [u8; KEY_SIZE] = row.get(4)?;
+        let nonce: [u8; NONCE_SIZE] = row.get(5)?;
+        Ok(FileCrypt {
+            uuid: row.get(0)?,
+            filename: row.get(1)?,
+            ext: row.get(2)?,
+            full_path: row.get(3)?,
+            key,
+            nonce,
+        })
+    })?;
+
+    //Convert the results into a vector
+    let mut crypts: Vec<FileCrypt> = Vec::new();
+    for crypt in query_result {
+        crypts.push(crypt.unwrap());
+    }
+    
+    return Ok(crypts);
+}
+
+///Queries the database for all crypts
+pub fn query_keeper() -> anyhow::Result<Vec<FileCrypt>> {
+    //Get the connection
+    let conn = enable_keeper()?;
+
+    //Create the query and execute
+    let mut query = conn.prepare("
+        SELECT 
+            uuid, 
+            filename, 
+            extension, 
+            full_path, 
+            key_seed, 
+            nonce_seed
+        FROM crypt"
+    )?;
+
+    //Get the results of the query
+    let query_result = query.query_map([], |row| {
         let key: [u8; KEY_SIZE] = row.get(4)?;
         let nonce: [u8; NONCE_SIZE] = row.get(5)?;
         Ok(FileCrypt {
