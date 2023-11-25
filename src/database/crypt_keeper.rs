@@ -61,10 +61,10 @@ pub fn insert_crypt(crypt: &FileCrypt) -> anyhow::Result<()> {
             nonce_seed
         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6)
         ON CONFLICT(uuid) DO UPDATE SET
-            uuid = excluded.uuid,
             filename = excluded.filename,
+            extension = excluded.extension,
             full_path = excluded.full_path,
-            key_seed = excdluded.key_seed
+            key_seed = excluded.key_seed
             nonce_seed = excluded.nonce_seed",
         params![
             &crypt.uuid,
