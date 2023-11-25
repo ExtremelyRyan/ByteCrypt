@@ -4,7 +4,7 @@ use rusqlite::Connection;
 
 ///Generates a connection to the database.
 ///Creates the database if one does not exist.
-fn enable_keeper() -> anyhow::Result<Connection> {
+fn get_keeper() -> anyhow::Result<Connection> {
     //Creates/Opens database, change path if desired
     let conn = Connection::open("src/database/crypt_keeper.db")?;
     //Table for tracking the FileCrypt
@@ -26,7 +26,7 @@ fn enable_keeper() -> anyhow::Result<Connection> {
 ///Insert a crypt into the database
 pub fn insert(crypt: &FileCrypt) -> anyhow::Result<()> {
     //Get the connection
-    let conn = enable_keeper()?;
+    let conn = get_keeper()?;
 
     //Create insert command and execute
     conn.execute(
@@ -37,7 +37,13 @@ pub fn insert(crypt: &FileCrypt) -> anyhow::Result<()> {
             full_path,
             key_seed,
             nonce_seed
-        ) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+        ) VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+        ON CONFLICT(uuid) DO UPDATE SET
+            uuid = excluded.uuid,
+            filename = excluded.filename,
+            full_path = excluded.full_path,
+            key_seed = excdlued.key_seed
+            nonce_seed = excluded.nonce_seed",
         (
             &crypt.uuid,
             &crypt.filename,
@@ -54,7 +60,7 @@ pub fn insert(crypt: &FileCrypt) -> anyhow::Result<()> {
 ///Queries the database for the crypt
 pub fn query_crypt(uuid: String) -> anyhow::Result<Vec<FileCrypt>> {
     //Get the connection
-    let conn = enable_keeper()?;
+    let conn = get_keeper()?;
 
     //Create the query and execute
     let mut query = conn.prepare("
@@ -95,7 +101,7 @@ pub fn query_crypt(uuid: String) -> anyhow::Result<Vec<FileCrypt>> {
 ///Queries the database for all crypts
 pub fn query_keeper() -> anyhow::Result<Vec<FileCrypt>> {
     //Get the connection
-    let conn = enable_keeper()?;
+    let conn = get_keeper()?;
 
     //Create the query and execute
     let mut query = conn.prepare("
