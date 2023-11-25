@@ -64,7 +64,7 @@ pub fn insert_crypt(crypt: &FileCrypt) -> anyhow::Result<()> {
             filename = excluded.filename,
             extension = excluded.extension,
             full_path = excluded.full_path,
-            key_seed = excluded.key_seed
+            key_seed = excluded.key_seed,
             nonce_seed = excluded.nonce_seed",
         params![
             &crypt.uuid,
