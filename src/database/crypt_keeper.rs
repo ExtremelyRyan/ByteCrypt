@@ -63,16 +63,13 @@ pub fn query_crypt(uuid: String) -> anyhow::Result<Vec<FileCrypt>> {
     //Get the connection
     let conn = get_keeper()?;
 
+    //TODO: Create sql injection prevention measures
+    
     //Create the query and execute
     let mut query = conn.prepare("
-        SELECT 
-            uuid, 
-            filename, 
-            extension, 
-            full_path, 
-            key_seed, 
-            nonce_seed
-        FROM crypt WHERE uuid = ?1"
+        SELECT *
+        FROM crypt
+        WHERE uuid = ?1"
     )?;
 
     //Get the results of the query
@@ -106,13 +103,7 @@ pub fn query_keeper() -> anyhow::Result<Vec<FileCrypt>> {
 
     //Create the query and execute
     let mut query = conn.prepare("
-        SELECT 
-            uuid, 
-            filename, 
-            extension, 
-            full_path, 
-            key_seed, 
-            nonce_seed
+        SELECT *
         FROM crypt"
     )?;
 

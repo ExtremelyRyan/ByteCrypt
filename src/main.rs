@@ -43,19 +43,6 @@ fn main() -> Result<()> {
     // prepend uuid to contents
     encrypted_contents = parse::prepend_uuid(&fc.uuid, &mut encrypted_contents);
 
-    println!(
-        "== main.rs\n  uuid: {}\n  as bytes: {:?}\n  len: {}",
-        fc.uuid,
-        fc.uuid.as_bytes(),
-        fc.uuid.len()
-    );
-
-    println!("== main.rs:\n  printing first 39 characters of encrypted_contents:");
-    print!("    ");
-    for i in 0..39 {
-        print!("{}", encrypted_contents.get(i).unwrap())
-    }
-    print!("\n");
     //for testing purposes, write to file
     println!("== main.rs:\n  writing encrypted file to file");
     let _ = parse::write_contents_to_file("foo.crypt", encrypted_contents);
@@ -97,26 +84,13 @@ fn main() -> Result<()> {
     // generate random values for key, nonce
     fc2.generate();
         
-    println!("== main.rs:\n  Encrypting {} ", file2);
+    println!("\n== main.rs:\n  Encrypting {} ", file2);
     let mut encrypted_contents2 = util::encryption::encryption(&mut fc2, &contents2).unwrap();
     assert_ne!(contents2, encrypted_contents2);
 
     // prepend uuid to contents
     encrypted_contents2 = parse::prepend_uuid(&fc2.uuid, &mut encrypted_contents2);
 
-    println!(
-        "== main.rs\n  uuid: {}\n  as bytes: {:?}\n  len: {}",
-        fc2.uuid,
-        fc2.uuid.as_bytes(),
-        fc2.uuid.len()
-    );
-
-    println!("== main.rs:\n  printing first 39 characters of encrypted_contents:");
-    print!("    ");
-    for i in 0..39 {
-        print!("{}", encrypted_contents2.get(i).unwrap())
-    }
-    print!("\n");
     //for testing purposes, write to file
     println!("== main.rs:\n  writing encrypted file to file");
     let _ = parse::write_contents_to_file("bar.crypt", encrypted_contents2);
@@ -124,15 +98,12 @@ fn main() -> Result<()> {
     //write fc to crypt_keeper
     let _ = crypt_keeper::insert(&fc2);
 
-    println!("== main.rs\n  Reading data from the database");
+    println!("== main.rs  Reading data from the database ==");
     let crypt2 = crypt_keeper::query_keeper()?;
     println!("  FileCrypt:");
     for i in 0..crypt2.len() {
-        println!("    uuid: {:#?}\n
-                filename: {:#?}{:#?}\n
-                full_path: {:#?}\n
-                key_seed: {:?}\n
-                nonce_seed: {:?}", 
+        println!("    File {:?}:", i);
+        println!("\tuuid: {:#?}\n\tfilename: {:#?}{:#?}\n\tfull_path: {:#?}\n\tkey_seed: {:?}\n\tnonce_seed: {:?}",
             crypt2[i].uuid,
             crypt2[i].filename, crypt2[i].ext,
             crypt2[i].full_path,
@@ -142,20 +113,17 @@ fn main() -> Result<()> {
 
     let _ = crypt_keeper::delete_crypt(fc2.uuid.clone())?;
 
-    println!("== main.rs\n  Reading data from the database");
-    let crypt3 = crypt_keeper::query_keeper()?;
+    println!("== main.rs  Reading data from the database ==");
+    let crypt2 = crypt_keeper::query_keeper()?;
     println!("  FileCrypt:");
-    for i in 0..crypt3.len() {
-        println!("    uuid: {:#?}\n
-                filename: {:#?}{:#?}\n
-                full_path: {:#?}\n
-                key_seed: {:?}\n
-                nonce_seed: {:?}", 
-            crypt3[i].uuid,
-            crypt3[i].filename, crypt3[i].ext,
-            crypt3[i].full_path,
-            crypt3[i].key,
-            crypt3[i].nonce);
+    for i in 0..crypt2.len() {
+        println!("    File {:?}:", i);
+        println!("\tuuid: {:#?}\n\tfilename: {:#?}{:#?}\n\tfull_path: {:#?}\n\tkey_seed: {:?}\n\tnonce_seed: {:?}",
+            crypt2[i].uuid,
+            crypt2[i].filename, crypt2[i].ext,
+            crypt2[i].full_path,
+            crypt2[i].key,
+            crypt2[i].nonce);
     }
 
     //------------------------------ Comment out to here
