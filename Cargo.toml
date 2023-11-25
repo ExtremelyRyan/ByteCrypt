@@ -15,7 +15,7 @@ reqwest = { version = "0.11", featuers = ["json"] } # HTTP client
 tokio = { version = "1", features = ["full"] } # Async Runtime
 
 #Database
-rusqlite = "0.30.0"
+rusqlite = { version = "0.30.0", features = ["bundled"] }
 
 #Other Dependencies
 anyhow = "1.0.75"

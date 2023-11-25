@@ -1,18 +1,10 @@
 // use chacha20poly1305::aead::Result;
 use rusqlite::{Connection, Result, Error};
-use crate::util::encryption::FileCrypt;
+use crate::util::encryption::{FileCrypt, KEY_SIZE, NONCE_SIZE};
 
 
-// pub struct FileCrypt {
-//     pub uuid: String,
-//     pub filename: String,
-//     pub ext: String,
-//     pub full_path: String,
-//     pub key: [u8; KEY_SIZE],
-//     pub nonce: [u8; NONCE_SIZE],
-// }
-
-
+///Generates a connection to the database.
+///Creates the database if one does not exist.
 fn enable_keeper() -> Result<Connection> {
     let conn = Connection::open("crypt_keeper.db")?;
 
@@ -31,6 +23,7 @@ fn enable_keeper() -> Result<Connection> {
     return Ok(conn);
 }
 
+///Insert a crypt into the database
 fn insert(crypt: FileCrypt) -> Result<()> {
     let conn = enable_keeper()?;
 
@@ -52,14 +45,14 @@ fn insert(crypt: FileCrypt) -> Result<()> {
             &crypt.nonce.as_ref(),
         )
     )?;
-    conn.close();
 
     return Ok(());
 }
 
+///Queries the database for the crypt
 fn query(uuid: String) -> Result<FileCrypt> {
     let conn = enable_keeper()?;
-    let query = conn.prepare("
+    let mut query = conn.prepare("
         SELECT 
             uuid, 
             filename, 
@@ -67,20 +60,21 @@ fn query(uuid: String) -> Result<FileCrypt> {
             full_path, 
             key_seed, 
             nonce_seed
-        FROM crypt"
+        FROM crypt WHERE uuid = ?1"
     )?;
 
-    let query_result = query.query_map([], |row| {
+    let mut query_result = query.query_map([uuid], |row| {
+        let key: [u8; KEY_SIZE] = row.get(4)?;
+        let nonce: [u8; NONCE_SIZE] = row.get(5)?;
         Ok(FileCrypt {
             uuid: row.get(0)?,
             filename: row.get(1)?,
             ext: row.get(2)?,
             full_path: row.get(3)?,
-            key: row.get(4)?,
-            nonce: row.get(5)?,
+            key,
+            nonce,
         })
     })?;
-    
 
-    return Ok(query_result.unwrap());
+    return query_result.next().unwrap();
 }
