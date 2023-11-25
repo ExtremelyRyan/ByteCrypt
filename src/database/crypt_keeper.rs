@@ -1,5 +1,6 @@
 use crate::util::encryption::{FileCrypt, KEY_SIZE, NONCE_SIZE};
-use rusqlite::Connection;
+use rusqlite::{Connection, params};
+use std::{fs, path::Path};
 
 
 ///Generates a connection to the database.
@@ -38,12 +39,12 @@ pub fn insert(crypt: &FileCrypt) -> anyhow::Result<()> {
             key_seed,
             nonce_seed
         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6)
-        ON CONFLICT(uuid) DO UPDATE SET
+        "/*ON CONFLICT(uuid) DO UPDATE SET
             uuid = excluded.uuid,
             filename = excluded.filename,
             full_path = excluded.full_path,
-            key_seed = excdlued.key_seed
-            nonce_seed = excluded.nonce_seed",
+            key_seed = excdluded.key_seed
+            nonce_seed = excluded.nonce_seed"*/,
         (
             &crypt.uuid,
             &crypt.filename,
@@ -136,4 +137,26 @@ pub fn query_keeper() -> anyhow::Result<Vec<FileCrypt>> {
     }
     
     return Ok(crypts);
+}
+
+///Deletes the crypt
+pub fn delete_crypt(uuid: String) -> anyhow::Result<()> {
+    //Get the connection
+    let conn = get_keeper()?;
+
+    conn.execute("
+            DELETE FROM crypt WHERE uuid = ?
+        ", 
+        params![uuid]
+    )?;
+
+    return Ok(());
+}
+
+///Delete the database
+pub fn delete_keeper() -> anyhow::Result<()> {
+    if Path::new("src/database/crypt_keeper.db").exists() {
+        fs::remove_file("src/database/crypt_keeper.db")?;
+    }
+    return Ok(());
 }
