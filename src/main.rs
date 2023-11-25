@@ -2,10 +2,10 @@ mod cloud_storage;
 mod ui;
 mod util;
 mod database;
-use std::rc::Rc;
+//use std::rc::Rc;
 use anyhow::{self, Ok, Result};
 use util::*;
-use ui::*;
+//use ui::*;         //UNCOMMENT FOR TESTING 
 use database::*;
 
 
@@ -35,9 +35,6 @@ fn main() -> Result<()> {
 
     // generate random values for key, nonce
     fc.generate();
-    let _ = crypt_keeper::insert(&fc);
-    let test_db = crypt_keeper::query(fc.uuid.clone())?;
-    println!("Filecrypt:\n {:#?}", test_db);
     
     
     println!("Encrypting {} ", file);
@@ -64,15 +61,21 @@ fn main() -> Result<()> {
     let _ = parse::write_contents_to_file("foo.crypt", encrypted_contents);
 
     //write fc to crypt_keeper
-    let _ = parse::write_to_crypt_keeper(fc);
+    let _ = crypt_keeper::insert(&fc);
+
+    
+    println!("Reading data from the database");
+    let crypt_collection = crypt_keeper::query(fc.uuid.clone())?;
+    println!("FileCrypt:");
+    for i in 0..crypt_collection.len() {
+        println!("  uuid: {:#?}\n  filename: {:#?}{:#?}", crypt_collection[i].uuid, crypt_collection[i].filename, crypt_collection[i].ext);
+    }
+
     println!("reading contents from file");
     let file_content = std::fs::read("foo.crypt").unwrap();
-    //let sub = &file_content[0..300].to_vec().to_owned();
-
-    for i in 0..300 {
+    for i in 0..39 {
         print!("{:?}",file_content.get(i).unwrap());
     }
-    //println!("\nfrom file: {:?}", String::from_utf8(sub.to_vec()));
     
     
     Ok(())

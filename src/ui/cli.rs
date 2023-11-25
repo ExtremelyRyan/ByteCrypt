@@ -66,7 +66,7 @@ pub fn load_cli() -> anyhow::Result<()> {
         Some(Commands::Encrypt {
             // structure: _,
             // path: _,
-            name,
+            name: _,
             // copy: _,
         }) => {
             let path = env::current_dir().unwrap();

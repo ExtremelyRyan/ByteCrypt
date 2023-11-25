@@ -1,4 +1,3 @@
-// use chacha20poly1305::aead::Result;
 use rusqlite::{Connection, Result, Error};
 use crate::util::encryption::{FileCrypt, KEY_SIZE, NONCE_SIZE};
 
@@ -50,7 +49,7 @@ pub fn insert(crypt: &FileCrypt) -> Result<()> {
 }
 
 ///Queries the database for the crypt
-pub fn query(uuid: String) -> Result<FileCrypt> {
+pub fn query(uuid: String) -> anyhow::Result<Vec<FileCrypt>> {
     let conn = enable_keeper()?;
     let mut query = conn.prepare("
         SELECT 
@@ -63,7 +62,7 @@ pub fn query(uuid: String) -> Result<FileCrypt> {
         FROM crypt WHERE uuid = ?1"
     )?;
 
-    let mut query_result = query.query_map([uuid], |row| {
+    let query_result = query.query_map([uuid], |row| {
         let key: [u8; KEY_SIZE] = row.get(4)?;
         let nonce: [u8; NONCE_SIZE] = row.get(5)?;
         Ok(FileCrypt {
@@ -76,5 +75,12 @@ pub fn query(uuid: String) -> Result<FileCrypt> {
         })
     })?;
 
-    return query_result.next().unwrap();
+    let mut crypts: Vec<FileCrypt> = Vec::new();
+
+
+    for crypt in query_result {
+        crypts.push(crypt.unwrap());
+    }
+    
+    return Ok(crypts);
 }
