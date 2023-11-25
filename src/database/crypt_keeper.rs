@@ -25,8 +25,10 @@ fn enable_keeper() -> anyhow::Result<Connection> {
 
 ///Insert a crypt into the database
 pub fn insert(crypt: &FileCrypt) -> anyhow::Result<()> {
+    //Get the connection
     let conn = enable_keeper()?;
 
+    //Create insert command and execute
     conn.execute(
         "INSERT INTO crypt (
             uuid,
@@ -51,7 +53,10 @@ pub fn insert(crypt: &FileCrypt) -> anyhow::Result<()> {
 
 ///Queries the database for the crypt
 pub fn query(uuid: String) -> anyhow::Result<Vec<FileCrypt>> {
+    //Get the connection
     let conn = enable_keeper()?;
+
+    //Create the query and execute
     let mut query = conn.prepare("
         SELECT 
             uuid, 
@@ -63,6 +68,7 @@ pub fn query(uuid: String) -> anyhow::Result<Vec<FileCrypt>> {
         FROM crypt WHERE uuid = ?1"
     )?;
 
+    //Get the results of the query
     let query_result = query.query_map([uuid], |row| {
         let key: [u8; KEY_SIZE] = row.get(4)?;
         let nonce: [u8; NONCE_SIZE] = row.get(5)?;
@@ -76,9 +82,8 @@ pub fn query(uuid: String) -> anyhow::Result<Vec<FileCrypt>> {
         })
     })?;
 
+    //Convert the results into a vector
     let mut crypts: Vec<FileCrypt> = Vec::new();
-
-
     for crypt in query_result {
         crypts.push(crypt.unwrap());
     }
