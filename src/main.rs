@@ -80,7 +80,7 @@ fn main() -> Result<()> {
     
     
 
-    //Test file #2
+    //Test file #2 ---Creates a lot of spam, delete/comment out if you want
     let file2 = "bar.txt";
     let index2 = file2.find('.').unwrap();
     let (filename2, extension2) = file2.split_at(index2);
@@ -157,6 +157,8 @@ fn main() -> Result<()> {
             crypt3[i].key,
             crypt3[i].nonce);
     }
+
+    //------------------------------ Comment out to here
 
     //Delete the database (TEMPORARY) -- keeps filling up with new files
     let _ = crypt_keeper::delete_keeper()?;
