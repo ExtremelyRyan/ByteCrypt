@@ -1,13 +1,27 @@
 use crate::util::encryption::{FileCrypt, KEY_SIZE, NONCE_SIZE};
 use rusqlite::{Connection, params};
+use r2d2_sqlite::SqliteConnectionManager;
+use r2d2::Pool;
 use std::{fs, path::Path};
+use anyhow::anyhow;
+use lazy_static::lazy_static;
 
+
+//Connection pool maintains a single connection to db for life of program
+lazy_static! {
+    static ref KEEPER: Pool<SqliteConnectionManager> = {
+        let manager = SqliteConnectionManager::file("src/database/crypt_keeper.db");
+        let pool = Pool::new(manager).expect("Failed to generate pool");
+
+        init_keeper(&pool.get().unwrap()).expect("Failed to initialize keeper");
+
+        pool
+    };
+}
 
 ///Generates a connection to the database.
 ///Creates the database if one does not exist.
-fn get_keeper() -> anyhow::Result<Connection> {
-    //Creates/Opens database, change path if desired
-    let conn = Connection::open("src/database/crypt_keeper.db")?;
+fn init_keeper(conn: &Connection) -> anyhow::Result<()> {
     //Table for tracking the FileCrypt
     conn.execute(
         "CREATE TABLE IF NOT EXISTS crypt (
@@ -21,13 +35,20 @@ fn get_keeper() -> anyhow::Result<Connection> {
         [],
     )?;
 
-    return Ok(conn);
+    return Ok(());
+}
+
+///Grabs the connection
+fn get_keeper() -> anyhow::Result<r2d2::PooledConnection<r2d2_sqlite::SqliteConnectionManager>> {
+    //Returns the static connection
+    return KEEPER.get().map_err(|e| e.into());
 }
 
 ///Insert a crypt into the database
-pub fn insert(crypt: &FileCrypt) -> anyhow::Result<()> {
+pub fn insert_crypt(crypt: &FileCrypt) -> anyhow::Result<()> {
     //Get the connection
-    let conn = get_keeper()?;
+    let conn = get_keeper()
+        .map_err(|_| anyhow!("Failed to get keeper"))?;
 
     //Create insert command and execute
     conn.execute(
@@ -39,21 +60,21 @@ pub fn insert(crypt: &FileCrypt) -> anyhow::Result<()> {
             key_seed,
             nonce_seed
         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6)
-        "/*ON CONFLICT(uuid) DO UPDATE SET
+        ON CONFLICT(uuid) DO UPDATE SET
             uuid = excluded.uuid,
             filename = excluded.filename,
             full_path = excluded.full_path,
             key_seed = excdluded.key_seed
-            nonce_seed = excluded.nonce_seed"*/,
-        (
+            nonce_seed = excluded.nonce_seed",
+        params![
             &crypt.uuid,
             &crypt.filename,
             &crypt.ext,
             &crypt.full_path,
             &crypt.key.to_owned().as_ref(),
             &crypt.nonce.as_ref(),
-        )
-    )?;
+        ]
+    ).map_err(|e| anyhow!("Failed to insert crypt {} into keeper", e))?;
 
     return Ok(());
 }
@@ -61,7 +82,8 @@ pub fn insert(crypt: &FileCrypt) -> anyhow::Result<()> {
 ///Queries the database for the crypt
 pub fn query_crypt(uuid: String) -> anyhow::Result<Vec<FileCrypt>> {
     //Get the connection
-    let conn = get_keeper()?;
+    let conn = get_keeper()
+        .map_err(|_| anyhow!("Failed to get keeper"))?;
 
     //TODO: Create sql injection prevention measures
     
@@ -99,7 +121,8 @@ pub fn query_crypt(uuid: String) -> anyhow::Result<Vec<FileCrypt>> {
 ///Queries the database for all crypts
 pub fn query_keeper() -> anyhow::Result<Vec<FileCrypt>> {
     //Get the connection
-    let conn = get_keeper()?;
+    let conn = get_keeper()
+        .map_err(|_| anyhow!("Failed to get keeper"))?;
 
     //Create the query and execute
     let mut query = conn.prepare("
@@ -133,7 +156,8 @@ pub fn query_keeper() -> anyhow::Result<Vec<FileCrypt>> {
 ///Deletes the crypt
 pub fn delete_crypt(uuid: String) -> anyhow::Result<()> {
     //Get the connection
-    let conn = get_keeper()?;
+    let conn = get_keeper()
+        .map_err(|_| anyhow!("Failed to get keeper"))?;
 
     conn.execute("
             DELETE FROM crypt WHERE uuid = ?

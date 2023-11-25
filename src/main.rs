@@ -15,6 +15,9 @@ fn main() -> Result<()> {
     //Load config file
     config::load_config();
 
+    //Resets the database (TEMPORARY) -- keeps filling up with new files
+    let _ = crypt_keeper::delete_keeper()?;
+
     //Load the UI 
     //let _ = ui::cli::load_cli();
     //let _ = tui::load_tui();  //Uncomment for TUI
@@ -48,7 +51,7 @@ fn main() -> Result<()> {
     let _ = parse::write_contents_to_file("foo.crypt", encrypted_contents);
 
     //write fc to crypt_keeper
-    let _ = crypt_keeper::insert(&fc);
+    let _ = crypt_keeper::insert_crypt(&fc);
 
     println!("== main.rs\n  Reading data from the database");
     let crypt = crypt_keeper::query_crypt(fc.uuid.clone())?;
@@ -96,7 +99,7 @@ fn main() -> Result<()> {
     let _ = parse::write_contents_to_file("bar.crypt", encrypted_contents2);
 
     //write fc to crypt_keeper
-    let _ = crypt_keeper::insert(&fc2);
+    let _ = crypt_keeper::insert_crypt(&fc2);
 
     println!("== main.rs  Reading data from the database ==");
     let crypt2 = crypt_keeper::query_keeper()?;
@@ -128,8 +131,6 @@ fn main() -> Result<()> {
 
     //------------------------------ Comment out to here
 
-    //Delete the database (TEMPORARY) -- keeps filling up with new files
-    let _ = crypt_keeper::delete_keeper()?;
 
     Ok(())
 }
