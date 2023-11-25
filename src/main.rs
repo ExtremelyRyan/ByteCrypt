@@ -53,13 +53,12 @@ fn main() -> Result<()> {
     //write fc to crypt_keeper
     let _ = crypt_keeper::insert_crypt(&fc);
 
-    println!("== main.rs\n  Reading data from the database");
+    println!("== main.rs  Query crypt by uuid ==");
     let crypt = crypt_keeper::query_crypt(fc.uuid.clone())?;
     //let crypt_collection = crypt_keeper::query_keeper()?;
     println!("  FileCrypt:");
-    for i in 0..crypt.len() {
-        println!("    uuid: {:#?}\n    filename: {:#?}{:#?}", crypt[i].uuid, crypt[i].filename, crypt[i].ext);
-    }
+    println!("    uuid: {:#?}\n    filename: {:#?}{:#?}", crypt.uuid, crypt.filename, crypt.ext);
+    println!("    nonce_seed: {:?}", crypt.nonce);
 
     println!("== main.rs\n  reading contents from file");
     print!("    ");

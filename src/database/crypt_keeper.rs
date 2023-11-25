@@ -1,9 +1,9 @@
 use crate::util::encryption::{FileCrypt, KEY_SIZE, NONCE_SIZE};
-use rusqlite::{Connection, params};
+use rusqlite::{Connection, Error as rusqliteError, params};
 use r2d2_sqlite::SqliteConnectionManager;
 use r2d2::Pool;
 use std::{fs, path::Path};
-use anyhow::anyhow;
+use anyhow::{anyhow, Result};
 use lazy_static::lazy_static;
 
 
@@ -50,7 +50,7 @@ pub fn insert_crypt(crypt: &FileCrypt) -> anyhow::Result<()> {
     let conn = get_keeper()
         .map_err(|_| anyhow!("Failed to get keeper"))?;
 
-    //Create insert command and execute
+    //Create insert command and execute -- should handle uuid conflicts
     conn.execute(
         "INSERT INTO crypt (
             uuid,
@@ -80,42 +80,32 @@ pub fn insert_crypt(crypt: &FileCrypt) -> anyhow::Result<()> {
 }
 
 ///Queries the database for the crypt
-pub fn query_crypt(uuid: String) -> anyhow::Result<Vec<FileCrypt>> {
+pub fn query_crypt(uuid: String) -> Result<FileCrypt> {
     //Get the connection
-    let conn = get_keeper()
-        .map_err(|_| anyhow!("Failed to get keeper"))?;
-
-    //TODO: Create sql injection prevention measures
-    
-    //Create the query and execute
-    let mut query = conn.prepare("
-        SELECT *
-        FROM crypt
-        WHERE uuid = ?1"
-    )?;
+    let conn = get_keeper()?;
 
     //Get the results of the query
-    let query_result = query.query_map([uuid], |row| {
-        let key: [u8; KEY_SIZE] = row.get(4)?;
-        let nonce: [u8; NONCE_SIZE] = row.get(5)?;
-        Ok(FileCrypt {
-            uuid: row.get(0)?,
-            filename: row.get(1)?,
-            ext: row.get(2)?,
-            full_path: row.get(3)?,
-            key,
-            nonce,
-        })
-    })?;
-
-    //Convert the results into a vector
-    //--find a method to return a single without vec
-    let mut crypts: Vec<FileCrypt> = Vec::new();
-    for crypt in query_result {
-        crypts.push(crypt.unwrap());
-    }
-    
-    return Ok(crypts);
+    conn.query_row(
+        "SELECT *
+        FROM crypt
+        WHERE uuid = ?1",
+        params![uuid],
+        |row| {
+            Ok(FileCrypt {
+                uuid: row.get(0)?,
+                filename: row.get(1)?,
+                ext: row.get(2)?,
+                full_path: row.get(3)?,
+                key: row.get(4)?,
+                nonce: row.get(5)?,
+            })
+        },
+    ).map_err(|e| match e { //Handle the errors
+        rusqliteError::QueryReturnedNoRows => {
+            anyhow!("No crypt with that uuid exists")
+        }
+        _ => anyhow!("Keeper query failed {}", e),
+    })
 }
 
 ///Queries the database for all crypts
