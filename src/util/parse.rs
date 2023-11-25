@@ -26,7 +26,8 @@ pub fn prepend_uuid(uuid: &String, encrypted_contents: &mut Vec<u8>) -> Vec<u8> 
     uuid_bytes.append(&mut tmp);
     uuid_bytes.append(encrypted_contents);
 
-    println!("printing uuid_bytes");
+    println!("== parse.rs: printing uuid_bytes");
+    print!("    ");
     for i in 0..39 {
         print!("{:?}",uuid_bytes.get(i).unwrap());
     }

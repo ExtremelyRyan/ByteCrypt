@@ -10,9 +10,9 @@ default-run = "bytecrypt"
 
 [dependencies]
 #OAuth2
-oauth2 = "4.4.0" #latest 4.4.2
-reqwest = { version = "0.11", featuers = ["json"] } # HTTP client
-tokio = { version = "1", features = ["full"] } # Async Runtime
+# oauth2 = "4.4.0" #latest 4.4.2
+# reqwest = { version = "0.11", featuers = ["json"] } # HTTP client
+# tokio = { version = "1", features = ["full"] } # Async Runtime
 
 #Database
 rusqlite = { version = "0.30.0", features = ["bundled"] }

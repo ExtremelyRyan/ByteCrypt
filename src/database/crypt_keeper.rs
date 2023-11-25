@@ -1,12 +1,13 @@
-use rusqlite::{Connection, Result, Error};
 use crate::util::encryption::{FileCrypt, KEY_SIZE, NONCE_SIZE};
+use rusqlite::Connection;
 
 
 ///Generates a connection to the database.
 ///Creates the database if one does not exist.
-fn enable_keeper() -> Result<Connection> {
+fn enable_keeper() -> anyhow::Result<Connection> {
+    //Creates/Opens database, change path if desired
     let conn = Connection::open("src/database/crypt_keeper.db")?;
-
+    //Table for tracking the FileCrypt
     conn.execute(
         "CREATE TABLE IF NOT EXISTS crypt (
             uuid TEXT PRIMARY KEY,
@@ -23,7 +24,7 @@ fn enable_keeper() -> Result<Connection> {
 }
 
 ///Insert a crypt into the database
-pub fn insert(crypt: &FileCrypt) -> Result<()> {
+pub fn insert(crypt: &FileCrypt) -> anyhow::Result<()> {
     let conn = enable_keeper()?;
 
     conn.execute(

@@ -15,7 +15,7 @@ fn main() -> Result<()> {
     //Load config file
     config::load_config();
 
-    //Load the UI - CLI only currently
+    //Load the UI 
     //let _ = ui::cli::load_cli();
     //let _ = tui::load_tui();  //Uncomment for TUI
     //let _ = gui::load_gui();
@@ -35,9 +35,8 @@ fn main() -> Result<()> {
 
     // generate random values for key, nonce
     fc.generate();
-    
-    
-    println!("Encrypting {} ", file);
+        
+    println!("== main.rs:\n  Encrypting {} ", file);
     let mut encrypted_contents = util::encryption::encryption(&mut fc, &contents).unwrap();
     assert_ne!(contents, encrypted_contents);
 
@@ -45,33 +44,34 @@ fn main() -> Result<()> {
     encrypted_contents = parse::prepend_uuid(&fc.uuid, &mut encrypted_contents);
 
     println!(
-        "uuid: {} as bytes: {:?}, len: {}",
+        "== main.rs\n  uuid: {}\n  as bytes: {:?}\n  len: {}",
         fc.uuid,
         fc.uuid.as_bytes(),
         fc.uuid.len()
     );
 
-    println!("printing first 39 characters of encrypted_contents:");
+    println!("== main.rs:\n  printing first 39 characters of encrypted_contents:");
+    print!("    ");
     for i in 0..39 {
         print!("{}", encrypted_contents.get(i).unwrap())
     }
     print!("\n");
     //for testing purposes, write to file
-    println!("writing encrypted file to file");
+    println!("== main.rs:\n  writing encrypted file to file");
     let _ = parse::write_contents_to_file("foo.crypt", encrypted_contents);
 
     //write fc to crypt_keeper
     let _ = crypt_keeper::insert(&fc);
 
-    
-    println!("Reading data from the database");
+    println!("== main.rs\n  Reading data from the database");
     let crypt_collection = crypt_keeper::query(fc.uuid.clone())?;
-    println!("FileCrypt:");
+    println!("  FileCrypt:");
     for i in 0..crypt_collection.len() {
-        println!("  uuid: {:#?}\n  filename: {:#?}{:#?}", crypt_collection[i].uuid, crypt_collection[i].filename, crypt_collection[i].ext);
+        println!("  uuid: {:#?}\n    filename: {:#?}{:#?}", crypt_collection[i].uuid, crypt_collection[i].filename, crypt_collection[i].ext);
     }
 
-    println!("reading contents from file");
+    println!("== main.rs\n  reading contents from file");
+    print!("    ");
     let file_content = std::fs::read("foo.crypt").unwrap();
     for i in 0..39 {
         print!("{:?}",file_content.get(i).unwrap());
