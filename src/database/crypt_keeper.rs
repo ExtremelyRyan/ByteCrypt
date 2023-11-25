@@ -6,7 +6,7 @@ use crate::util::encryption::{FileCrypt, KEY_SIZE, NONCE_SIZE};
 ///Generates a connection to the database.
 ///Creates the database if one does not exist.
 fn enable_keeper() -> Result<Connection> {
-    let conn = Connection::open("crypt_keeper.db")?;
+    let conn = Connection::open("src/database/crypt_keeper.db")?;
 
     conn.execute(
         "CREATE TABLE IF NOT EXISTS crypt (
