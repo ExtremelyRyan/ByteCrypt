@@ -35,7 +35,7 @@ pub struct DecryptInfo {
 pub struct CommandLineArgs {
     ///Enable debug mode
     #[arg(short, long)]
-    pub debug: bool,
+    pub debug: bool, //TODO: Implement debug
 
     ///Subcommands
     #[command(subcommand)]
@@ -78,8 +78,11 @@ enum Commands {
 
 ///Runs the CLI and returns a directive to be processed
 pub fn load_cli() -> anyhow::Result<Directive> {
+    //Run the cli and get responses
     let cli = CommandLineArgs::parse();
-
+    //If debug mode was passed
+    if cli.debug { debug_mode()?; }
+    
     match &cli.command {
         Some(Commands::Encrypt {
             path,
@@ -122,4 +125,10 @@ fn process_path(path_in: &str) -> anyhow::Result<(bool, Vec<String>)> {
     let path = crate::path::walk_directory(path_in);
 
     return Ok((is_directory, path.unwrap()));
+}
+
+fn debug_mode() -> anyhow::Result<()> {
+    println!("Why would you do this ._.");
+
+    return Ok(());
 }
