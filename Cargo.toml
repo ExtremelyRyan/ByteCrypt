@@ -1,7 +1,7 @@
 [package]
 name = "bytecrypt"
 version = "0.1.0"
-authors = ["Ryan M", "Josh B"]
+authors = ["Ryan M", "Joshua B"]
 edition = "2021"
 
 default-run = "bytecrypt"

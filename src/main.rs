@@ -28,9 +28,12 @@ fn main() -> Result<()> {
     let _ = crypt_keeper::delete_keeper()?;
 
     //Load the UI 
-    //let _ = ui::cli::load_cli();
+    let operation = ui::cli::load_cli();
     //let _ = tui::load_tui();  //Uncomment for TUI
     //let _ = gui::load_gui();
+
+    println!("{:#?}", operation.unwrap());
+
 
     let file = "foo.txt";
     let index = file.find('.').unwrap();
