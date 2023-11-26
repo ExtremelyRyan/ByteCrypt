@@ -16,7 +16,7 @@ pub enum Directive {
 #[derive(Debug)]
 pub struct EncryptInfo {
     is_directory: bool,
-    path: String,
+    path: Vec<String>,
     include_hidden: bool,
     in_place: bool,
 }
@@ -25,7 +25,7 @@ pub struct EncryptInfo {
 #[derive(Debug)]
 pub struct DecryptInfo {
     is_directory: bool,
-    path: String,
+    path: Vec<String>,
     in_place: bool,
 }
 
@@ -63,14 +63,14 @@ enum Commands {
         #[arg(required = true)]
         path: String,
         //Perform an in-place decryption
-        #[arg(short, long, required = false)]
+        #[arg(short = 'p', long, required = false)]
         in_place: bool,
     },
     ///Upload file or folder to cloud provider
     Upload {
         //TODO: Upload requirements and options
     },
-    ///Change user config -- Default if non set
+    ///Change user config
     Config {
         //TODO: Configuration options
     },
@@ -116,34 +116,10 @@ pub fn load_cli() -> anyhow::Result<Directive> {
 }
 
 ///Determines if valid path, returns if is_dir boolean and full filepath
-fn process_path(path_in: &str) -> anyhow::Result<(bool, String)> {
+fn process_path(path_in: &str) -> anyhow::Result<(bool, Vec<String>)> {
     //Determine the path
-    let path = Path::new(path_in);
-    let mut is_directory: bool = false;
+    let is_directory = Path::new(path_in).is_dir();
+    let path = crate::path::walk_directory(path_in);
 
-    //Check if valid path
-    if path.exists() {
-        if path.is_file() {
-            println!("We got a file, yo: {}", path.display());
-        } else if path.is_dir() {
-            is_directory = true;
-            println!("We got a folder, yo: {}", path.display());
-        } else {
-            println!("How you give neither a file or directory, yo :<");
-        }
-    } else {
-        //Convert to a full path
-        let current_directory = std::env::current_dir().unwrap();
-        let path = current_directory.join(path);
-
-        if path.is_file() {
-            println!("We got a file, yo: {}", path.display());
-        } else if path.is_dir() {
-            is_directory = true;
-            println!("We got a folder, yo: {}", path.display());
-        } else {
-            println!("How you give neither a file or directory, yo :<");
-        }
-    }
-    return Ok((is_directory, path.to_string_lossy().into_owned()));
+    return Ok((is_directory, path.unwrap()));
 }
