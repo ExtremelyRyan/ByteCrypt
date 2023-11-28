@@ -29,8 +29,8 @@ pub fn prepend_uuid(uuid: &String, encrypted_contents: &mut Vec<u8>) -> Vec<u8> 
     for i in 0..39 {
         print!("{:?}",uuid_bytes.get(i).unwrap());
     }
-println!("\n");    uuid_bytes
-
+    println!("\n");   
+    uuid_bytes
 }
 
 pub trait RemoveElem<T> {
