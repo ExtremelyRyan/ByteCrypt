@@ -1,8 +1,0 @@
-{
-  "database_path": "src/database/crypt_keeper.ds",
-  "cloud_services": [],
-  "foo": 5,
-  "bar": true,
-  "baz": "hello",
-  "boom": 1
-}

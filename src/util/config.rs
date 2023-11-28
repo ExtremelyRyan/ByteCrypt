@@ -1,8 +1,8 @@
 use std::{fs, path::Path};
-use serde_json;
+// use toml::Table;
 use serde::{Deserialize, Serialize};
 
-const CONFIG_PATH: &str = "src/util/config.json";
+const CONFIG_PATH: &str = "src/util/config.toml";
 
 #[derive(Deserialize, Serialize, Debug)]
 ///Holds the configuration for the program
@@ -69,7 +69,7 @@ pub fn load_config() -> anyhow::Result<Config> {
 
     //Load the configuration file from stored json
     let config_file = fs::read_to_string(CONFIG_PATH)?;
-    let config: Config = serde_json::from_str(&config_file)?;
+    let config: Config = toml::from_str(&config_file)?;
 
     return Ok(config);
 }
@@ -77,7 +77,7 @@ pub fn load_config() -> anyhow::Result<Config> {
 ///Saves the configuration file
 pub fn save_config(config: &Config) -> anyhow::Result<()> {
     //Serialize config
-    let serialized_config = serde_json::to_string_pretty(&config)?;
+    let serialized_config = toml::to_string_pretty(&config)?;
     fs::write(CONFIG_PATH, serialized_config)?;
 
     return Ok(());
