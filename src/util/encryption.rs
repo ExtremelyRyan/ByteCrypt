@@ -53,17 +53,6 @@ impl FileCrypt {
         self.nonce = n;
     }
 
-    pub fn from_string(s: String) -> Self {
-        let fc: FileCrypt = serde_json::from_str(s.as_str()).unwrap();
-        Self {
-            filename: fc.filename,
-            ext: fc.ext,
-            full_path: fc.full_path,
-            key: fc.key,
-            nonce: fc.nonce,
-            uuid: fc.uuid,
-        }
-    }
 }
 
 /// takes a FileCrypt and encrypts content in place (TODO: for now)
@@ -88,23 +77,13 @@ pub fn decryption(fc: FileCrypt, contents: &Vec<u8>) -> Result<Vec<u8>> {
     Ok(cipher)
 }
 
-// {
-
-//     let extension = fc.filename.find('.').unwrap();
-//     let fname = fc.filename.split_at(extension);
-
-//     std::fs::write(format!("{}.decrypt", fname.0), decrypted_file)?;
-
-//     Ok(())
-// }
-
 // cargo nextest run
 #[cfg(test)]
 mod test {
     use super::*;
     use crate::util::{
         common,
-        parse::{self, read_crypt_keeper},
+        parse::{self},
     };
 
     #[test]
@@ -136,7 +115,6 @@ mod test {
         let _ = parse::write_contents_to_file("foo.crypt", encrypted_contents);
 
         //write fc to crypt_keeper
-        let _ = parse::write_to_crypt_keeper(fc);
     }
 
     #[test]
@@ -151,16 +129,10 @@ mod test {
             .unwrap()
             .to_string();
         let contents: Vec<u8> = std::fs::read(file).unwrap();
-        let crypts = read_crypt_keeper().unwrap();
 
         let mut fc: FileCrypt =
             FileCrypt::new(filename.to_string(), extension.to_string(), fp.clone());
 
-        for c in crypts {
-            if c.uuid == fp {
-                fc.uuid = c.uuid; 
-            }
-        }
 
         dbg!(&fc);
 
