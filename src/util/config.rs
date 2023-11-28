@@ -1,5 +1,4 @@
 use std::{fs, path::Path};
-// use toml::Table;
 use serde::{Deserialize, Serialize};
 
 const CONFIG_PATH: &str = "src/util/config.toml";
