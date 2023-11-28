@@ -5,9 +5,7 @@ use chacha20poly1305::{
 };
 use rand::RngCore;
 use serde::{Deserialize, Serialize};
-
-use super::uuid::generate_uuid;
-
+ 
 pub const KEY_SIZE: usize = 32;
 pub const NONCE_SIZE: usize = 12;
 
@@ -51,19 +49,7 @@ impl FileCrypt {
 
         self.key = k;
         self.nonce = n;
-    }
-
-    pub fn from_string(s: String) -> Self {
-        let fc: FileCrypt = serde_json::from_str(s.as_str()).unwrap();
-        Self {
-            filename: fc.filename,
-            ext: fc.ext,
-            full_path: fc.full_path,
-            key: fc.key,
-            nonce: fc.nonce,
-            uuid: fc.uuid,
-        }
-    }
+    } 
 }
 
 /// takes a FileCrypt and encrypts content in place (TODO: for now)
@@ -88,15 +74,20 @@ pub fn decryption(fc: FileCrypt, contents: &Vec<u8>) -> Result<Vec<u8>> {
     Ok(cipher)
 }
 
-// {
+/// generates a UUID 7 string using a unix timestamp and random bytes.
+pub fn generate_uuid() -> String {
+    let ts = std::time::SystemTime::now()
+        .duration_since(std::time::SystemTime::UNIX_EPOCH)
+        .unwrap();
 
-//     let extension = fc.filename.find('.').unwrap();
-//     let fname = fc.filename.split_at(extension);
+    let mut random_bytes = [0u8; 10];
+    chacha20poly1305::aead::OsRng.fill_bytes(&mut random_bytes);
 
-//     std::fs::write(format!("{}.decrypt", fname.0), decrypted_file)?;
-
-//     Ok(())
-// }
+    uuid::Builder::from_unix_timestamp_millis(ts.as_millis().try_into().unwrap(), &random_bytes)
+        .into_uuid()
+        .to_string()
+}
+ 
 
 // cargo nextest run
 #[cfg(test)]
@@ -104,12 +95,12 @@ mod test {
     use super::*;
     use crate::util::{
         common,
-        parse::{self, read_crypt_keeper},
+        parse,
     };
 
     #[test]
     fn test_encrypt() {
-        let file = "foo.txt";
+        let file = "dracula.txt";
         let index = file.find('.').unwrap();
         let (filename, extension) = file.split_at(index);
 
@@ -133,7 +124,7 @@ mod test {
         encrypted_contents = parse::prepend_uuid(&fc.uuid, &mut encrypted_contents);
 
         //for testing purposes, write to file
-        let _ = parse::write_contents_to_file("foo.crypt", encrypted_contents);
+        let _ = parse::write_contents_to_file("dracula.crypt", encrypted_contents);
 
         //write fc to crypt_keeper
         let _ = parse::write_to_crypt_keeper(fc);
@@ -141,7 +132,7 @@ mod test {
 
     #[test]
     fn test_decrypt() {
-        let file = "foo.crypt";
+        let file = "dracula.crypt";
         let index = file.find('.').unwrap();
         let (filename, extension) = file.split_at(index);
 
@@ -167,7 +158,7 @@ mod test {
         println!("Encrypting {} ", file);
         let decryped_contents = decryption(fc, &contents).expect("decrypt failure");
 
-        let src = common::read_to_vec_u8("foo.txt");
+        let src = common::read_to_vec_u8("dracula.txt");
 
         assert_eq!(src, decryped_contents);
     }

@@ -39,7 +39,7 @@ mod tests {
     #[test]
     fn test_read_to_vec_string() {
         let s = String::from("The Project Gutenberg eBook of Dracula");
-        let dracula = "./test.txt";
+        let dracula = "./dracula.txt";
         let res = read_to_vec_string(dracula);
         assert_eq!(s, res[0]);
     }

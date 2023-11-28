@@ -3,7 +3,7 @@ use std::env;
 use anyhow::Ok;
 use clap::{Parser, Subcommand};
 
-use crate::util;
+use crate::util::{self, path::walk_directory};
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -69,8 +69,14 @@ pub fn load_cli() -> anyhow::Result<()> {
             name: _,
             // copy: _,
         }) => {
-            let path = env::current_dir().unwrap();
+            let path = env::current_dir().expect("cannot access current directory! does it exist?");
             println!("The current directory is {}", path.display());
+            let p = walk_directory(path.to_str().unwrap()).unwrap();
+
+            for dir in p {
+                println!("{}", dir);
+            }
+            
 
             Ok(())
         }

@@ -5,25 +5,25 @@ mod database;
 //use std::rc::Rc;
 use anyhow::{self, Ok, Result};
 use util::*;
+
+use crate::database::crypt_keeper;
 //use ui::*;         //UNCOMMENT FOR TESTING 
-use database::*;
-
-
-use crate::util::encryption::FileCrypt;
+// use database::*;
+ 
 
 fn main() -> Result<()> {
     //Load config file
     config::load_config();
 
     //Resets the database (TEMPORARY) -- keeps filling up with new files
-    let _ = crypt_keeper::delete_keeper()?;
+    // let _ = crypt_keeper::delete_keeper()?;
 
     //Load the UI 
-    //let _ = ui::cli::load_cli();
+    let _ = ui::cli::load_cli();
     //let _ = tui::load_tui();  //Uncomment for TUI
     //let _ = gui::load_gui();
 
-    let file = "foo.txt";
+    let file = "dracula.txt";
     let index = file.find('.').unwrap();
     let (filename, extension) = file.split_at(index);
 
@@ -48,7 +48,7 @@ fn main() -> Result<()> {
 
     //for testing purposes, write to file
     println!("== main.rs:\n  writing encrypted file to file");
-    let _ = parse::write_contents_to_file("foo.crypt", encrypted_contents);
+    let _ = parse::write_contents_to_file("dracula.crypt", encrypted_contents);
 
     //write fc to crypt_keeper
     let _ = crypt_keeper::insert_crypt(&fc);
@@ -62,7 +62,7 @@ fn main() -> Result<()> {
 
     println!("== main.rs\n  reading contents from file");
     print!("    ");
-    let file_content = std::fs::read("foo.crypt").unwrap();
+    let file_content = std::fs::read("dracula.crypt").unwrap();
     for i in 0..39 {
         print!("{:?}",file_content.get(i).unwrap());
     }
