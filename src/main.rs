@@ -34,7 +34,7 @@ fn main() -> Result<()> {
         .to_string();
     let contents: Vec<u8> = std::fs::read(file).unwrap();
 
-    let mut fc = FileCrypt::new(filename.to_owned(), extension.to_owned(), fp);
+    let mut fc = encryption::FileCrypt::new(filename.to_owned(), extension.to_owned(), fp);
 
     // generate random values for key, nonce
     fc.generate();
@@ -81,7 +81,7 @@ fn main() -> Result<()> {
         .to_string();
     let contents2: Vec<u8> = std::fs::read(file2).unwrap();
 
-    let mut fc2 = FileCrypt::new(filename2.to_owned(), extension2.to_owned(), fp2);
+    let mut fc2 = encryption::FileCrypt::new(filename2.to_owned(), extension2.to_owned(), fp2);
 
     // generate random values for key, nonce
     fc2.generate();

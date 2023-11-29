@@ -6,37 +6,42 @@
  
 file / directory encryption with future to upload and download encrypted files to cloud storage.
 
-## Description
+<h2 align="center">CAUTION</h2>
+this is very much a work in progress, and is undergoing rapid development that may break between commits.
 
-An in-depth paragraph about your project and overview of use.
+## What is ByteCrypt?
+
+ByteCrypt came about because I wanted the conveience of using all of the popular cloud file storage options, without the worry of storing my documents that contained PII (personally identifiable information). 
 
 ## Getting Started
 
 ### Dependencies
 
-* Describe any prerequisites, libraries, OS version, etc., needed before installing program.
-* ex. Windows 10
+currently being tested on windows 10, Arch linux.
+requires min Rust 1.xx.
 
 ### Installing
 
-* How/where to download your program
-* Any modifications needed to be made to files/folders
+* Clone the repository, and go to the root project directory. Run `cargo install --path .`
+
+will publish crate once MVP is finished.
 
 ### Executing program
 
-* How to run the program
-* Step-by-step bullets
+By default, we will create a new file with the encrypted contents. 
+
+* Encrypt a file with
 ```
-code blocks for commands
+crypt encrypt foo.txt
+```
+* encrypt a whole directory with a path!
+```
+crypt encrypt /some/dir
+crypt encrypt -i /some/dir (include hidden files)
+
 ```
 
-## Help
-
-Any advise for common problems or issues.
-```
-command to run if program contains helper info
-```
-
+ 
 ## Authors 
 
 Ryan : Twitter [@Extremely_Ryan](https://twitter.com/Extremely_Ryan)
@@ -54,8 +59,4 @@ This project is licensed under the [MIT] License - see the LICENSE.md file for d
 ## Acknowledgments
 
 Inspiration, code snippets, etc.
-* [awesome-readme](https://github.com/matiassingers/awesome-readme)
-* [PurpleBooth](https://gist.github.com/PurpleBooth/109311bb0361f32d87a2)
-* [dbader](https://github.com/dbader/readme-template)
-* [zenorocha](https://gist.github.com/zenorocha/4526327)
-* [fvcproductions](https://gist.github.com/fvcproductions/1bfc2d4aecb01a834b46)
+* [awesome-readme](https://github.com/matiassingers/awesome-readme) 

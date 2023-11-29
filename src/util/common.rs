@@ -1,10 +1,11 @@
+use crate::util;
 use std::{
     fs::File,
     io::{BufRead, BufReader},
     path::Path,
 };
 
-use crate::util;
+
 
 /// read file, and return values within a Vector of Strings.
 pub fn read_to_vec_string(path: &str) -> Vec<String> {

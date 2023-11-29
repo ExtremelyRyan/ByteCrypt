@@ -3,8 +3,20 @@ name = "bytecrypt"
 version = "0.1.0"
 authors = ["Ryan M", "Josh B"]
 edition = "2021"
+documentation = "https://github.com/ExtremelyRyan/ByteCrypt"
+homepage = "https://github.com/ExtremelyRyan/ByteCrypt"
+repository = "https://github.com/ExtremelyRyan/ByteCrypt"
+readme = "README.md"
+keywords = ["encryption", "files"]
+categories = ["command-line-utilities", "file-encryption"]
+license = "MIT"
 
-default-run = "bytecrypt"
+[[bin]]
+bench = false
+path = "src/main.rs"
+name = "crypt"
+
+# default-run = "bytecrypt"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

@@ -74,7 +74,7 @@ pub fn load_cli() -> anyhow::Result<()> {
             let p = walk_directory(path.to_str().unwrap()).unwrap();
 
             for dir in p {
-                println!("{}", dir);
+                println!("{}", dir.display());
             }
             
 
