@@ -1,7 +1,7 @@
 use clap::{Parser, Subcommand};
 use std::path::Path;
 use anyhow::Ok;
-use crate::util;
+use crate::util::*;
 
 
 
@@ -122,7 +122,7 @@ pub fn load_cli() -> anyhow::Result<Directive> {
 fn process_path(path_in: &str) -> anyhow::Result<(bool, Vec<String>)> {
     //Determine the path
     let is_directory = Path::new(path_in).is_dir();
-    let path = crate::path::walk_directory(path_in);
+    let path = path::walk_directory(path_in);
 
     return Ok((is_directory, path.unwrap()));
 }

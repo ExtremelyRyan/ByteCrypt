@@ -130,9 +130,9 @@ mod test {
             .to_string();
         let contents: Vec<u8> = std::fs::read(file).unwrap();
 
-        let mut fc: FileCrypt =
-            FileCrypt::new(filename.to_string(), extension.to_string(), fp.clone());
-
+        let mut fc: FileCrypt = /*crate::database::crypt_keeper::query_crypt(fc.uuid.clone())?;*/
+             FileCrypt::new(filename.to_string(), extension.to_string(), fp.clone());
+            
 
         dbg!(&fc);
 
