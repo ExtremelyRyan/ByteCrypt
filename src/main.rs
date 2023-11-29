@@ -7,27 +7,41 @@ use anyhow::{self, Ok, Result};
 use util::*;
 
 use crate::database::crypt_keeper;
-//use ui::*;         //UNCOMMENT FOR TESTING 
+use ui::*;         //UNCOMMENT FOR TESTING 
 // use database::*;
  
 
+use crate::util::encryption::FileCrypt;
+
 fn main() -> Result<()> {
     //Load config file
-    config::load_config();
+    let mut config = config::load_config().unwrap();
+    println!("{:#?}", config);
+
+    config.add_cloud_service("google".to_string());
+
+    println!("Add google {:#?}", config.cloud_services);
+
+    config.remove_cloud_service("google".to_string());
+
+    println!("Remove google {:#?}", config.cloud_services);
 
     //Resets the database (TEMPORARY) -- keeps filling up with new files
     // let _ = crypt_keeper::delete_keeper()?;
 
     //Load the UI 
-    let _ = ui::cli::load_cli();
+    let operation = cli::load_cli();
     //let _ = tui::load_tui();  //Uncomment for TUI
     //let _ = gui::load_gui();
+
+    println!("{:#?}", operation.unwrap());
+
 
     let file = "dracula.txt";
     let index = file.find('.').unwrap();
     let (filename, extension) = file.split_at(index);
 
-    let fp = crate::util::path::get_full_file_path(file)
+    let fp = util::path::get_full_file_path(file)
         .unwrap()
         .to_str()
         .unwrap()
@@ -55,7 +69,6 @@ fn main() -> Result<()> {
 
     println!("== main.rs  Query crypt by uuid ==");
     let crypt = crypt_keeper::query_crypt(fc.uuid.clone())?;
-    //let crypt_collection = crypt_keeper::query_keeper()?;
     println!("  FileCrypt:");
     println!("    uuid: {:#?}\n    filename: {:#?}{:#?}", crypt.uuid, crypt.filename, crypt.ext);
     println!("    nonce_seed: {:?}", crypt.nonce);

@@ -6,8 +6,6 @@ use std::{
     io::Write,
 };
 
-/// our (temp) file to store FileCrypts
-pub const CRYPT: &str = "crypt_keeper";
 
 pub fn write_contents_to_file(file: &str, encrypted_contents: Vec<u8>) -> Result<()> {
     let mut f = OpenOptions::new()
@@ -31,6 +29,7 @@ pub fn prepend_uuid(uuid: &String, encrypted_contents: &mut Vec<u8>) -> Vec<u8> 
     for i in 0..39 {
         print!("{:?}",uuid_bytes.get(i).unwrap());
     }
-println!("\n");    uuid_bytes
-
+    println!("\n");   
+    uuid_bytes
 }
+

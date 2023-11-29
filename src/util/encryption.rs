@@ -49,7 +49,8 @@ impl FileCrypt {
 
         self.key = k;
         self.nonce = n;
-    } 
+    }
+
 }
 
 /// takes a FileCrypt and encrypts content in place (TODO: for now)
@@ -127,7 +128,6 @@ mod test {
         let _ = parse::write_contents_to_file("dracula.crypt", encrypted_contents);
 
         //write fc to crypt_keeper
-        let _ = parse::write_to_crypt_keeper(fc);
     }
 
     #[test]
@@ -142,16 +142,10 @@ mod test {
             .unwrap()
             .to_string();
         let contents: Vec<u8> = std::fs::read(file).unwrap();
-        let crypts = read_crypt_keeper().unwrap();
 
-        let mut fc: FileCrypt =
-            FileCrypt::new(filename.to_string(), extension.to_string(), fp.clone());
-
-        for c in crypts {
-            if c.uuid == fp {
-                fc.uuid = c.uuid; 
-            }
-        }
+        let mut fc: FileCrypt = /*crate::database::crypt_keeper::query_crypt(fc.uuid.clone())?;*/
+             FileCrypt::new(filename.to_string(), extension.to_string(), fp.clone());
+            
 
         dbg!(&fc);
 
