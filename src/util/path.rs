@@ -46,22 +46,22 @@ pub fn generate_directory(/*base_path: &str,*/ current_directory: &PathBuf) -> a
     return Ok(root);
 }
 
-
-pub fn walk_directory(path_in: &str) -> Result<Vec<String>> {
+/// takes in a path, and recursively walks the subdirectories and returns a vec<pathbuf>
+pub fn walk_directory(path_in: &str) -> Result<Vec<PathBuf>> {
     let path = match path_in.is_empty() {
         true => std::env::current_dir()?,
         false => get_full_file_path(path_in)?,
     };
 
     let walker = WalkDir::new(path).into_iter();
-    let mut pathlist: Vec<String> = Vec::new();
+    let mut pathlist: Vec<PathBuf> = Vec::new();
 
     for entry in walker.filter_entry(|e| !is_hidden(e)) {
         let entry = entry.unwrap();
-        // we only want to save paths that are towards a file.
-        if entry.path().display().to_string().find('.').is_some() {
-            pathlist.push(entry.path().display().to_string());
-        }
+        // we only want to save paths that are towards a file. 
+        if entry.path().display().to_string().find('.').is_some() { 
+            pathlist.push(PathBuf::from(entry.path().display().to_string()));
+        } 
     }
     Ok(pathlist)
 }
@@ -79,5 +79,4 @@ pub fn is_hidden(entry: &walkdir::DirEntry) -> bool {
         .to_str()
         .map(|s| s.starts_with('.') || s.starts_with("target"))
         .unwrap_or(false)
-} 
- 
+}  

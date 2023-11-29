@@ -4,3 +4,4 @@
 *.decrypt
 db.txt
 .env
+src/database/crypt_keeper.db

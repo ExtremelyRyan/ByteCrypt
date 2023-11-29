@@ -1,5 +1,8 @@
-# ByteCrypt
 
+<img src=images/ByteCrypt.png />
+<br/>
+
+# ByteCrypt
 file / directory encryption with future to upload and download encrypted files to cloud storage.
 
 ## Description
