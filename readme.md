@@ -1,8 +1,9 @@
-
-<img src=images/ByteCrypt.png />
+<p align="center">
+<img src=images/ByteCrypt.png align="center" />
+<h1 align="center">ByteCrypt</h1>
+</p>
 <br/>
-
-# ByteCrypt
+ 
 file / directory encryption with future to upload and download encrypted files to cloud storage.
 
 ## Description
