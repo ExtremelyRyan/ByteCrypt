@@ -111,10 +111,12 @@ pub fn load_cli(conf: Config) -> anyhow::Result<()> {
                 false => {
                     // get filename, extension, and full path info
                     let fp = util::path::get_full_file_path(path).unwrap();
-                    let contents: Vec<u8> = std::fs::read(&fp).unwrap();
+                    let parent_dir = &fp.parent().unwrap().to_owned();
                     let name = fp.file_name().unwrap();
                     let index = name.to_str().unwrap().find(".").unwrap();
                     let (filename, extension) = name.to_str().unwrap().split_at(index);
+
+                    let contents: Vec<u8> = std::fs::read(&fp).unwrap();
 
                     let mut fc =
                         encryption::FileCrypt::new(filename.to_string(), extension.to_string(), fp);
@@ -128,10 +130,11 @@ pub fn load_cli(conf: Config) -> anyhow::Result<()> {
                     // prepend uuid to contents
                     encrypted_contents = parse::prepend_uuid(&fc.uuid, &mut encrypted_contents);
 
-                    let mut crypt_file = format!("{}.crypt", fc.filename);
+                    let mut crypt_file = format!("{}\\{}.crypt", &parent_dir.display(), fc.filename);
+                    dbg!(&crypt_file);
 
                     if *in_place {
-                        crypt_file = format!("{}{}", fc.filename, fc.ext);
+                        crypt_file = format!("{}\\{}{}", parent_dir.display(), fc.filename, fc.ext);
                     }
                     parse::write_contents_to_file(&crypt_file, encrypted_contents)
                         .expect("failed to write contents to file!");
@@ -151,20 +154,22 @@ pub fn load_cli(conf: Config) -> anyhow::Result<()> {
 
             // get path to encrypted file
             let fp = util::path::get_full_file_path(path).unwrap();
-            let contents: Vec<u8> = std::fs::read(&fp).unwrap();
+            let parent_dir = &fp.parent().unwrap().to_owned();
 
             // rip out uuid from contents
+            let contents: Vec<u8> = std::fs::read(&fp).unwrap();
             let (uuid, content) = contents.split_at(36);
             let uuid_str = String::from_utf8(uuid.to_vec()).unwrap();
 
             // query db with uuid
             let fc = crypt_keeper::query_crypt(uuid_str).unwrap();
-            let mut file = format!("{}{}", &fc.filename, &fc.ext);
+            let mut file = format!("{}\\{}{}", &parent_dir.display(), &fc.filename, &fc.ext);
+            dbg!(&file);
 
             if Path::new(&file).exists() {
                 // for now, we are going to just append the
                 // filename with -decrypted to delineate between the two.
-                file = format!("{}-decrypted{}", &fc.filename, &fc.ext);
+                file = format!("{}\\{}-decrypted{}", &parent_dir.display(), &fc.filename, &fc.ext);
             }
 
             let decrypted_content =

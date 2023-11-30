@@ -1,7 +1,7 @@
 use anyhow::{Ok, Result};
 use std::{
     env, fs,
-    path::{Path, PathBuf},
+    path::{Path, PathBuf, self},
 };
 use walkdir::WalkDir;
 
