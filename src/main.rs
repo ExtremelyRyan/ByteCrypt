@@ -18,19 +18,6 @@ fn main() -> Result<()> {
 
     //Load the UI
     let operation = cli::load_cli(config);
-
-    // let path = "dracula.txt";
-    // let fp = get_full_file_path(path).unwrap();
  
-    // let parent = fp.parent().unwrap();
-
-    // dbg!(parent);
-
- 
-    let mut hasher = Blake2s256::new();
-    hasher.update(b"hello world");
-    let res = hasher.finalize();  
-    dbg!(&res, res.len());
-
     Ok(())
 }
