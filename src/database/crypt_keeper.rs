@@ -32,7 +32,8 @@ fn init_keeper(conn: &Connection) -> anyhow::Result<()> {
             extension TEXT NOT NULL,
             full_path TEXT NOT NULL,
             key_seed BLOB NOT NULL,
-            nonce_seed BLOB NOT NULL
+            nonce_seed BLOB NOT NULL,
+            hash BLOB NOT NULL
         )",
         [],
     )?;
@@ -59,14 +60,17 @@ pub fn insert_crypt(crypt: &FileCrypt) -> anyhow::Result<()> {
             extension,
             full_path,
             key_seed,
-            nonce_seed
-        ) VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+            nonce_seed,
+            hash
+        ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
         ON CONFLICT(uuid) DO UPDATE SET
             filename = excluded.filename,
             extension = excluded.extension,
             full_path = excluded.full_path,
             key_seed = excluded.key_seed,
-            nonce_seed = excluded.nonce_seed",
+            nonce_seed = excluded.nonce_seed
+            hash = excluded.hash",
+
         params![
             &crypt.uuid,
             &crypt.filename,
@@ -74,6 +78,7 @@ pub fn insert_crypt(crypt: &FileCrypt) -> anyhow::Result<()> {
             &crypt.full_path.to_str().unwrap(),
             &crypt.key.to_owned().as_ref(),
             &crypt.nonce.as_ref(),
+            &crypt.hash.to_owned().as_ref(),
         ],
     )
     .map_err(|e| anyhow!("Failed to insert crypt {} into keeper", e))?;
@@ -101,6 +106,7 @@ pub fn query_crypt(uuid: String) -> Result<FileCrypt> {
                 full_path: PathBuf::from(get),
                 key: row.get(4)?,
                 nonce: row.get(5)?,
+                hash: row.get(6)?,
             })
         },
     )
@@ -127,9 +133,11 @@ pub fn query_keeper() -> anyhow::Result<Vec<FileCrypt>> {
 
     //Get the results of the query
     let query_result = query.query_map([], |row| {
+        let get: String = row.get(3)?;
         let key: [u8; KEY_SIZE] = row.get(4)?;
         let nonce: [u8; NONCE_SIZE] = row.get(5)?;
-        let get: String = row.get(3)?;
+        let hash: [u8; KEY_SIZE] = row.get(6)?;
+
         Ok(FileCrypt {
             uuid: row.get(0)?,
             filename: row.get(1)?,
@@ -137,6 +145,7 @@ pub fn query_keeper() -> anyhow::Result<Vec<FileCrypt>> {
             full_path: PathBuf::from(get),
             key,
             nonce,
+            hash,
         })
     })?;
 

@@ -7,6 +7,9 @@ use ui::cli;
 use util::*;
 use std::path::PathBuf;
 
+use blake2::{Blake2s256, Digest};
+use hex_literal::hex;
+
 use crate::util::path::get_full_file_path;
 
 fn main() -> Result<()> {
@@ -22,6 +25,12 @@ fn main() -> Result<()> {
     // let parent = fp.parent().unwrap();
 
     // dbg!(parent);
+
+ 
+    let mut hasher = Blake2s256::new();
+    hasher.update(b"hello world");
+    let res = hasher.finalize();  
+    dbg!(&res, res.len());
 
     Ok(())
 }

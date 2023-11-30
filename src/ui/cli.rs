@@ -2,10 +2,10 @@ use crate::{
     database::crypt_keeper,
     util::{self, parse::write_contents_to_file, *, config::Config},
 };
-use anyhow::{Ok, Result};
+use anyhow::{Ok, Result}; 
+use blake2::{Blake2s256, Digest};
 use clap::{Parser, Subcommand};
-use std::path::{Path, PathBuf};
-
+use std::path::{Path, PathBuf}; 
 use super::tui;
 
 ///Passes the directive to the caller
@@ -116,14 +116,18 @@ pub fn load_cli(conf: Config) -> anyhow::Result<()> {
                     let index = name.to_str().unwrap().find(".").unwrap();
                     let (filename, extension) = name.to_str().unwrap().split_at(index);
 
+                    // get contents of file
                     let contents: Vec<u8> = std::fs::read(&fp).unwrap();
 
+                    // compute hash on contents
+                    let mut hasher = Blake2s256::new();
+                    hasher.update(&contents);
+                    let res = hasher.finalize();
+                    let hash: [u8; 32] = res.into(); 
+
                     let mut fc =
-                        encryption::FileCrypt::new(filename.to_string(), extension.to_string(), fp);
-
-                    // generate key, nonce
-                    fc.generate();
-
+                        encryption::FileCrypt::new(filename.to_string(), extension.to_string(), fp, hash);
+ 
                     let mut encrypted_contents =
                         util::encryption::encryption(&mut fc, &contents).unwrap();
 
@@ -163,6 +167,7 @@ pub fn load_cli(conf: Config) -> anyhow::Result<()> {
 
             // query db with uuid
             let fc = crypt_keeper::query_crypt(uuid_str).unwrap();
+            let fc_hash: [u8; 32] = fc.hash.to_owned();
             let mut file = format!("{}/{}{}", &parent_dir.display(), &fc.filename, &fc.ext);
             dbg!(&file);
 
@@ -174,6 +179,18 @@ pub fn load_cli(conf: Config) -> anyhow::Result<()> {
 
             let decrypted_content =
                 encryption::decryption(fc, &content.to_vec()).expect("failed decryption");
+
+            // compute hash on contents
+            let mut hasher = Blake2s256::new();
+            hasher.update(&decrypted_content);
+            let res = hasher.finalize();
+            let hash: [u8; 32] = res.into(); 
+
+            if res != fc_hash.into() {
+                eprintln!("HASH COMPARISON FAILED");
+                return Ok(());
+            }
+            println!("hash comparison sucessful");
 
             write_contents_to_file(&file, decrypted_content)
                 .expect("failed writing content to file!");

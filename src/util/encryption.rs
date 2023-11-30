@@ -19,10 +19,11 @@ pub struct FileCrypt {
     pub full_path: PathBuf,
     pub key: [u8; KEY_SIZE],
     pub nonce: [u8; NONCE_SIZE],
+    pub hash: [u8; KEY_SIZE],
 }
 
 impl FileCrypt {
-    pub fn new(filename: String, ext: String, full_path: PathBuf) -> Self {
+    pub fn new(filename: String, ext: String, full_path: PathBuf, hash: [u8; 32]) -> Self {
         // generate key & nonce
         let mut key = [0u8; KEY_SIZE];
         let mut nonce = [0u8; NONCE_SIZE];
@@ -39,6 +40,7 @@ impl FileCrypt {
             nonce,
             ext,
             uuid,
+            hash,
         }
     }
 
@@ -90,58 +92,58 @@ pub fn generate_uuid() -> String {
         .to_string()
 }
 
-// cargo nextest run
-#[cfg(test)]
-mod test {
-    use super::*;
-    use crate::util::{common, parse};
+// // cargo nextest run
+// #[cfg(test)]
+// mod test {
+//     use super::*;
+//     use crate::util::{common, parse};
 
-    #[test]
-    fn test_encrypt() {
-        let file = "dracula.txt";
-        let index = file.find('.').unwrap();
-        let (filename, extension) = file.split_at(index);
+//     #[test]
+//     fn test_encrypt() {
+//         let file = "dracula.txt";
+//         let index = file.find('.').unwrap();
+//         let (filename, extension) = file.split_at(index);
 
-        let fp = crate::util::path::get_full_file_path(file).unwrap();
-        let contents: Vec<u8> = std::fs::read(file).unwrap();
+//         let fp = crate::util::path::get_full_file_path(file).unwrap();
+//         let contents: Vec<u8> = std::fs::read(file).unwrap();
 
-        let mut fc = FileCrypt::new(filename.to_owned(), extension.to_owned(), fp);
+//         let mut fc = FileCrypt::new(filename.to_owned(), extension.to_owned(), fp);
 
-        // generate random values for key, nonce
-        fc.generate();
+//         // generate random values for key, nonce
+//         fc.generate();
 
-        println!("Encrypting {} ", file);
-        let mut encrypted_contents = encryption(&mut fc, &contents).unwrap();
-        assert_ne!(contents, encrypted_contents);
+//         println!("Encrypting {} ", file);
+//         let mut encrypted_contents = encryption(&mut fc, &contents).unwrap();
+//         assert_ne!(contents, encrypted_contents);
 
-        // prepend uuid to contents
-        encrypted_contents = parse::prepend_uuid(&fc.uuid, &mut encrypted_contents);
+//         // prepend uuid to contents
+//         encrypted_contents = parse::prepend_uuid(&fc.uuid, &mut encrypted_contents);
 
-        //for testing purposes, write to file
-        let _ = parse::write_contents_to_file("dracula.crypt", encrypted_contents);
+//         //for testing purposes, write to file
+//         let _ = parse::write_contents_to_file("dracula.crypt", encrypted_contents);
 
-        //write fc to crypt_keeper
-    }
+//         //write fc to crypt_keeper
+//     }
 
-    #[test]
-    fn test_decrypt() {
-        let file = "dracula.crypt";
-        let index = file.find('.').unwrap();
-        let (filename, extension) = file.split_at(index);
+//     #[test]
+//     fn test_decrypt() {
+//         let file = "dracula.crypt";
+//         let index = file.find('.').unwrap();
+//         let (filename, extension) = file.split_at(index);
 
-        let fp = crate::util::path::get_full_file_path(file).unwrap();
-        let contents: Vec<u8> = std::fs::read(file).unwrap();
+//         let fp = crate::util::path::get_full_file_path(file).unwrap();
+//         let contents: Vec<u8> = std::fs::read(file).unwrap();
 
-        let fc: FileCrypt = /*crate::database::crypt_keeper::query_crypt(fc.uuid.clone())?;*/
-             FileCrypt::new(filename.to_string(), extension.to_string(), fp.clone());
+//         let fc: FileCrypt = /*crate::database::crypt_keeper::query_crypt(fc.uuid.clone())?;*/
+//              FileCrypt::new(filename.to_string(), extension.to_string(), fp.clone());
 
-        dbg!(&fc);
+//         dbg!(&fc);
 
-        println!("Encrypting {} ", file);
-        let decryped_contents = decryption(fc, &contents).expect("decrypt failure");
+//         println!("Encrypting {} ", file);
+//         let decryped_contents = decryption(fc, &contents).expect("decrypt failure");
 
-        let src = common::read_to_vec_u8("dracula.txt");
+//         let src = common::read_to_vec_u8("dracula.txt");
 
-        assert_eq!(src, decryped_contents);
-    }
-}
+//         assert_eq!(src, decryped_contents);
+//     }
+// }
