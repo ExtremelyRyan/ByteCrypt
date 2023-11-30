@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use anyhow::{Ok, Result};
 use chacha20poly1305::{
     aead::{Aead, KeyInit, OsRng},
@@ -5,7 +7,7 @@ use chacha20poly1305::{
 };
 use rand::RngCore;
 use serde::{Deserialize, Serialize};
- 
+
 pub const KEY_SIZE: usize = 32;
 pub const NONCE_SIZE: usize = 12;
 
@@ -14,13 +16,13 @@ pub struct FileCrypt {
     pub uuid: String,
     pub filename: String,
     pub ext: String,
-    pub full_path: String,
+    pub full_path: PathBuf,
     pub key: [u8; KEY_SIZE],
     pub nonce: [u8; NONCE_SIZE],
 }
 
 impl FileCrypt {
-    pub fn new(filename: String, ext: String, full_path: String) -> Self {
+    pub fn new(filename: String, ext: String, full_path: PathBuf) -> Self {
         // generate key & nonce
         let mut key = [0u8; KEY_SIZE];
         let mut nonce = [0u8; NONCE_SIZE];
@@ -50,7 +52,6 @@ impl FileCrypt {
         self.key = k;
         self.nonce = n;
     }
-
 }
 
 /// takes a FileCrypt and encrypts content in place (TODO: for now)
@@ -88,16 +89,12 @@ pub fn generate_uuid() -> String {
         .into_uuid()
         .to_string()
 }
- 
 
 // cargo nextest run
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::util::{
-        common,
-        parse,
-    };
+    use crate::util::{common, parse};
 
     #[test]
     fn test_encrypt() {
@@ -106,10 +103,7 @@ mod test {
         let (filename, extension) = file.split_at(index);
 
         let fp = crate::util::path::get_full_file_path(file)
-            .unwrap()
-            .to_str()
-            .unwrap()
-            .to_string();
+            .unwrap();
         let contents: Vec<u8> = std::fs::read(file).unwrap();
 
         let mut fc = FileCrypt::new(filename.to_owned(), extension.to_owned(), fp);
@@ -137,15 +131,11 @@ mod test {
         let (filename, extension) = file.split_at(index);
 
         let fp = crate::util::path::get_full_file_path(file)
-            .unwrap()
-            .to_str()
-            .unwrap()
-            .to_string();
+            .unwrap();
         let contents: Vec<u8> = std::fs::read(file).unwrap();
 
-        let mut fc: FileCrypt = /*crate::database::crypt_keeper::query_crypt(fc.uuid.clone())?;*/
+        let fc: FileCrypt = /*crate::database::crypt_keeper::query_crypt(fc.uuid.clone())?;*/
              FileCrypt::new(filename.to_string(), extension.to_string(), fp.clone());
-            
 
         dbg!(&fc);
 

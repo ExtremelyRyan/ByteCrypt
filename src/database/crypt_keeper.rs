@@ -1,11 +1,10 @@
 use crate::util::encryption::{FileCrypt, KEY_SIZE, NONCE_SIZE};
-use rusqlite::{Connection, Error as rusqliteError, params};
-use r2d2_sqlite::SqliteConnectionManager;
-use r2d2::Pool;
-use std::{fs, path::Path};
 use anyhow::{anyhow, Result};
 use lazy_static::lazy_static;
-
+use r2d2::Pool;
+use r2d2_sqlite::SqliteConnectionManager;
+use rusqlite::{params, Connection, Error as rusqliteError};
+use std::{fs, path::{Path, PathBuf}};
 
 //Connection pool maintains a single connection to db for life of program
 lazy_static! {
@@ -47,8 +46,7 @@ fn get_keeper() -> anyhow::Result<r2d2::PooledConnection<r2d2_sqlite::SqliteConn
 ///Insert a crypt into the database
 pub fn insert_crypt(crypt: &FileCrypt) -> anyhow::Result<()> {
     //Get the connection
-    let conn = get_keeper()
-        .map_err(|_| anyhow!("Failed to get keeper"))?;
+    let conn = get_keeper().map_err(|_| anyhow!("Failed to get keeper"))?;
 
     //Create insert command and execute -- should handle uuid conflicts
     conn.execute(
@@ -70,11 +68,12 @@ pub fn insert_crypt(crypt: &FileCrypt) -> anyhow::Result<()> {
             &crypt.uuid,
             &crypt.filename,
             &crypt.ext,
-            &crypt.full_path,
+            &crypt.full_path.to_str().unwrap(),
             &crypt.key.to_owned().as_ref(),
             &crypt.nonce.as_ref(),
-        ]
-    ).map_err(|e| anyhow!("Failed to insert crypt {} into keeper", e))?;
+        ],
+    )
+    .map_err(|e| anyhow!("Failed to insert crypt {} into keeper", e))?;
 
     return Ok(());
 }
@@ -91,16 +90,19 @@ pub fn query_crypt(uuid: String) -> Result<FileCrypt> {
         WHERE uuid = ?1",
         params![uuid],
         |row| {
+            let get: String = row.get(3)?;
             Ok(FileCrypt {
                 uuid: row.get(0)?,
                 filename: row.get(1)?,
                 ext: row.get(2)?,
-                full_path: row.get(3)?,
+                full_path: PathBuf::from(get),
                 key: row.get(4)?,
                 nonce: row.get(5)?,
             })
         },
-    ).map_err(|e| match e { //Handle the errors
+    )
+    .map_err(|e| match e {
+        //Handle the errors
         rusqliteError::QueryReturnedNoRows => {
             anyhow!("No crypt with that uuid exists")
         }
@@ -111,24 +113,25 @@ pub fn query_crypt(uuid: String) -> Result<FileCrypt> {
 ///Queries the database for all crypts
 pub fn query_keeper() -> anyhow::Result<Vec<FileCrypt>> {
     //Get the connection
-    let conn = get_keeper()
-        .map_err(|_| anyhow!("Failed to get keeper"))?;
+    let conn = get_keeper().map_err(|_| anyhow!("Failed to get keeper"))?;
 
     //Create the query and execute
-    let mut query = conn.prepare("
+    let mut query = conn.prepare(
+        "
         SELECT *
-        FROM crypt"
+        FROM crypt",
     )?;
 
     //Get the results of the query
     let query_result = query.query_map([], |row| {
         let key: [u8; KEY_SIZE] = row.get(4)?;
         let nonce: [u8; NONCE_SIZE] = row.get(5)?;
+        let get: String = row.get(3)?;
         Ok(FileCrypt {
             uuid: row.get(0)?,
             filename: row.get(1)?,
             ext: row.get(2)?,
-            full_path: row.get(3)?,
+            full_path: PathBuf::from(get),
             key,
             nonce,
         })
@@ -139,20 +142,20 @@ pub fn query_keeper() -> anyhow::Result<Vec<FileCrypt>> {
     for crypt in query_result {
         crypts.push(crypt.unwrap());
     }
-    
+
     return Ok(crypts);
 }
 
 ///Deletes the crypt
 pub fn delete_crypt(uuid: String) -> anyhow::Result<()> {
     //Get the connection
-    let conn = get_keeper()
-        .map_err(|_| anyhow!("Failed to get keeper"))?;
+    let conn = get_keeper().map_err(|_| anyhow!("Failed to get keeper"))?;
 
-    conn.execute("
+    conn.execute(
+        "
             DELETE FROM crypt WHERE uuid = ?
-        ", 
-        params![uuid]
+        ",
+        params![uuid],
     )?;
 
     return Ok(());

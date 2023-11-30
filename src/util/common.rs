@@ -5,8 +5,6 @@ use std::{
     path::Path,
 };
 
-
-
 /// read file, and return values within a Vector of Strings.
 pub fn read_to_vec_string(path: &str) -> Vec<String> {
     let f = File::options()

@@ -1,5 +1,8 @@
 use anyhow::{Ok, Result};
-use std::{env, fs, path::{PathBuf, Path}};
+use std::{
+    env, fs,
+    path::{Path, PathBuf},
+};
 use walkdir::WalkDir;
 
 ///Directory struct
@@ -16,7 +19,9 @@ pub enum FileSystemEntity {
 }
 
 ///Generates a directory to convert into strings
-pub fn generate_directory(/*base_path: &str,*/ current_directory: &PathBuf) -> anyhow::Result<Directory> {
+pub fn generate_directory(
+    /*base_path: &str,*/ current_directory: &PathBuf,
+) -> anyhow::Result<Directory> {
     //Create root
     let mut root = Directory {
         path: current_directory.clone(),
@@ -58,10 +63,10 @@ pub fn walk_directory(path_in: &str) -> Result<Vec<PathBuf>> {
 
     for entry in walker.filter_entry(|e| !is_hidden(e)) {
         let entry = entry.unwrap();
-        // we only want to save paths that are towards a file. 
-        if entry.path().display().to_string().find('.').is_some() { 
+        // we only want to save paths that are towards a file.
+        if entry.path().display().to_string().find('.').is_some() {
             pathlist.push(PathBuf::from(entry.path().display().to_string()));
-        } 
+        }
     }
     Ok(pathlist)
 }
@@ -79,4 +84,4 @@ pub fn is_hidden(entry: &walkdir::DirEntry) -> bool {
         .to_str()
         .map(|s| s.starts_with('.') || s.starts_with("target"))
         .unwrap_or(false)
-}  
+}

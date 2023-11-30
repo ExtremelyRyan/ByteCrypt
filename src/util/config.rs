@@ -1,5 +1,5 @@
-use std::{fs, path::Path};
 use serde::{Deserialize, Serialize};
+use std::{fs, path::Path};
 
 const CONFIG_PATH: &str = "src/util/config.toml";
 
@@ -28,24 +28,31 @@ impl Default for Config {
     }
 }
 
-impl Config { //Should I be returning anyhow error handling things?
-    fn new(database_path: String, cloud_services: Vec<String>, 
-        foo: u16, bar: bool, baz: String, boom: Option<u64>) -> Self {
-         Self {
+impl Config {
+    //Should I be returning anyhow error handling things?
+    fn new(
+        database_path: String,
+        cloud_services: Vec<String>,
+        foo: u16,
+        bar: bool,
+        baz: String,
+        boom: Option<u64>,
+    ) -> Self {
+        Self {
             database_path,
             cloud_services,
             foo,
             bar,
             baz,
             boom,
-        }   
+        }
     }
-    
+
     ///Changes the database path
     pub fn change_db_path(&mut self, path: String) {
         self.database_path = path;
     }
-    
+
     ///Adds a cloud service to the list
     pub fn add_cloud_service(&mut self, service: String) {
         self.cloud_services.push(service);
@@ -81,4 +88,3 @@ pub fn save_config(config: &Config) -> anyhow::Result<()> {
 
     return Ok(());
 }
-
