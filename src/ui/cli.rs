@@ -1,5 +1,5 @@
 use clap::{Parser, Subcommand};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use anyhow::Ok;
 use crate::util::*;
 
@@ -16,7 +16,7 @@ pub enum Directive {
 #[derive(Debug)]
 pub struct EncryptInfo {
     is_directory: bool,
-    path: Vec<String>,
+    path: Vec<PathBuf>,
     include_hidden: bool,
     in_place: bool,
 }
@@ -25,7 +25,7 @@ pub struct EncryptInfo {
 #[derive(Debug)]
 pub struct DecryptInfo {
     is_directory: bool,
-    path: Vec<String>,
+    path: Vec<PathBuf>,
     in_place: bool,
 }
 
@@ -119,7 +119,7 @@ pub fn load_cli() -> anyhow::Result<Directive> {
 }
 
 ///Determines if valid path, returns if is_dir boolean and full filepath
-fn process_path(path_in: &str) -> anyhow::Result<(bool, Vec<String>)> {
+fn process_path(path_in: &str) -> anyhow::Result<(bool, Vec<PathBuf>)> {
     //Determine the path
     let is_directory = Path::new(path_in).is_dir();
     let path = path::walk_directory(path_in);
