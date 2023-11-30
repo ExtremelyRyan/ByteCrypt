@@ -186,7 +186,7 @@ pub fn load_cli(conf: Config) -> anyhow::Result<()> {
         Some(Commands::Config {}) => {
             todo!();
         }
-        None => todo!(),
+        None => {Ok(())},
     }
 }
 
