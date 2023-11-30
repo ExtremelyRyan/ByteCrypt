@@ -130,11 +130,11 @@ pub fn load_cli(conf: Config) -> anyhow::Result<()> {
                     // prepend uuid to contents
                     encrypted_contents = parse::prepend_uuid(&fc.uuid, &mut encrypted_contents);
 
-                    let mut crypt_file = format!("{}\\{}.crypt", &parent_dir.display(), fc.filename);
+                    let mut crypt_file = format!("{}/{}.crypt", &parent_dir.display(), fc.filename);
                     dbg!(&crypt_file);
 
                     if *in_place {
-                        crypt_file = format!("{}\\{}{}", parent_dir.display(), fc.filename, fc.ext);
+                        crypt_file = format!("{}/{}{}", parent_dir.display(), fc.filename, fc.ext);
                     }
                     parse::write_contents_to_file(&crypt_file, encrypted_contents)
                         .expect("failed to write contents to file!");
@@ -163,13 +163,13 @@ pub fn load_cli(conf: Config) -> anyhow::Result<()> {
 
             // query db with uuid
             let fc = crypt_keeper::query_crypt(uuid_str).unwrap();
-            let mut file = format!("{}\\{}{}", &parent_dir.display(), &fc.filename, &fc.ext);
+            let mut file = format!("{}/{}{}", &parent_dir.display(), &fc.filename, &fc.ext);
             dbg!(&file);
 
             if Path::new(&file).exists() {
                 // for now, we are going to just append the
                 // filename with -decrypted to delineate between the two.
-                file = format!("{}\\{}-decrypted{}", &parent_dir.display(), &fc.filename, &fc.ext);
+                file = format!("{}/{}-decrypted{}", &parent_dir.display(), &fc.filename, &fc.ext);
             }
 
             let decrypted_content =
