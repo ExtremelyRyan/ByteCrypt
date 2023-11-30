@@ -4,7 +4,10 @@ use lazy_static::lazy_static;
 use r2d2::Pool;
 use r2d2_sqlite::SqliteConnectionManager;
 use rusqlite::{params, Connection, Error as rusqliteError};
-use std::{fs, path::{Path, PathBuf}};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+};
 
 //Connection pool maintains a single connection to db for life of program
 lazy_static! {

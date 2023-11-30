@@ -1,6 +1,6 @@
 use crate::{
     database::crypt_keeper,
-    util::{self, *, parse::write_contents_to_file},
+    util::{self, parse::write_contents_to_file, *, config::Config},
 };
 use anyhow::{Ok, Result};
 use clap::{Parser, Subcommand};
@@ -84,12 +84,12 @@ enum Commands {
 }
 
 ///Runs the CLI and returns a directive to be processed
-pub fn load_cli() -> anyhow::Result<()> {
+pub fn load_cli(conf: Config) -> anyhow::Result<()> {
     //Run the cli and get responses
     let cli = CommandLineArgs::parse();
     //If debug mode was passed
     if cli.debug {
-        debug_mode()?;
+        debug_mode();
     }
 
     // raise TUI if flag was passed
@@ -139,43 +139,45 @@ pub fn load_cli() -> anyhow::Result<()> {
                     //write fc to crypt_keeper
                     crypt_keeper::insert_crypt(&fc)
                         .expect("failed to insert FileCrypt data into database!");
+
+                    if !conf.retain {
+                        std::fs::remove_file(path).expect(format!("failed to delete {}", path).as_str());
+                    }
                 }
             };
             Ok(())
         }
-        Some(Commands::Decrypt { path, in_place }) => {
-            // let (is_directory, path) = process_path(&path)?;
-            // Ok(Directive::Decrypt(DecryptInfo {
-            //     is_directory,
-            //     path,
-            //     in_place: in_place.to_owned(),
-            // }))
-            dbg!(&path, &in_place);
+        Some(Commands::Decrypt { path, in_place }) => { 
 
             // get path to encrypted file
             let fp = util::path::get_full_file_path(path).unwrap();
             let contents: Vec<u8> = std::fs::read(&fp).unwrap();
 
             // rip out uuid from contents
-            let (uuid, content) = contents.split_at(39);
-            let uuid_str = String::from_utf8(uuid[0..36].to_vec()).unwrap();
+            let (uuid, content) = contents.split_at(36);
+            let uuid_str = String::from_utf8(uuid.to_vec()).unwrap();
 
             // query db with uuid
             let fc = crypt_keeper::query_crypt(uuid_str).unwrap();
-            let file = format!("{}{}", fc.filename, fc.ext);
+            let mut file = format!("{}{}", &fc.filename, &fc.ext);
 
-            // decrypt file
-            let decrypted_content = encryption::decryption(fc, &content.to_vec()).expect("failed decryption");
-
-            //write back to original file.ext
-            //? if file exists, what do we do?
             if Path::new(&file).exists() {
-                todo!();
+                // for now, we are going to just append the
+                // filename with -decrypted to delineate between the two.
+                file = format!("{}-decrypted{}", &fc.filename, &fc.ext);
             }
-            write_contents_to_file(&file, decrypted_content).expect("failed writing content to file!");
+
+            let decrypted_content =
+                encryption::decryption(fc, &content.to_vec()).expect("failed decryption");
+
+            write_contents_to_file(&file, decrypted_content)
+                .expect("failed writing content to file!");
 
             //? delete crypt file?
-            std::fs::remove_file(path).expect("failed deleting .crypt file");
+            if !conf.retain {
+                std::fs::remove_file(path).expect("failed deleting .crypt file");
+            }
+            
 
             Ok(())
         }
@@ -189,8 +191,6 @@ pub fn load_cli() -> anyhow::Result<()> {
     }
 }
 
-fn debug_mode() -> anyhow::Result<()> {
+fn debug_mode() {
     println!("Why would you do this ._.");
-
-    return Ok(());
 }

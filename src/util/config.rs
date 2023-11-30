@@ -6,12 +6,17 @@ const CONFIG_PATH: &str = "src/util/config.toml";
 #[derive(Deserialize, Serialize, Debug)]
 ///Holds the configuration for the program
 pub struct Config {
+    /// serves as the default location for the SQLite database path.
     pub database_path: String,
+    /// collection of cloud services currently holding crypt files.
     pub cloud_services: Vec<String>,
-    pub foo: u16,
-    pub bar: bool,
-    pub baz: String,
-    pub boom: Option<u64>,
+    /// option to retain both the original file after encryption, 
+    /// as well as the .crypt file after decryption.
+    /// if true, retains original file and encrypted file.
+    /// if false, deletes files after encryption / decryption.
+    pub retain: bool, 
+    // collection of any directories to ignore during folder encryption.
+    pub ignore_directories: Vec<String>,
 }
 
 ///Default configuration
@@ -19,11 +24,9 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             database_path: "src/database/crypt_keeper.ds".to_string(),
-            cloud_services: Vec::new(),
-            foo: 5,
-            bar: true,
-            baz: "hello".to_string(),
-            boom: Some(1),
+            cloud_services: Vec::new(), 
+            retain: true,
+            ignore_directories: Vec::new(),
         }
     }
 }
@@ -33,18 +36,14 @@ impl Config {
     fn new(
         database_path: String,
         cloud_services: Vec<String>,
-        foo: u16,
-        bar: bool,
-        baz: String,
-        boom: Option<u64>,
+        retain: bool,
+        hidden_directories: Vec<String>,
     ) -> Self {
         Self {
             database_path,
             cloud_services,
-            foo,
-            bar,
-            baz,
-            boom,
+            retain,
+            ignore_directories: hidden_directories, 
         }
     }
 

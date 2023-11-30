@@ -5,6 +5,8 @@ use std::{
 };
 use walkdir::WalkDir;
 
+use super::config::Config;
+
 ///Directory struct
 pub struct Directory {
     pub path: PathBuf,
@@ -52,7 +54,7 @@ pub fn generate_directory(
 }
 
 /// takes in a path, and recursively walks the subdirectories and returns a vec<pathbuf>
-pub fn walk_directory(path_in: &str) -> Result<Vec<PathBuf>> {
+pub fn walk_directory(path_in: &str, conf: Config) -> Result<Vec<PathBuf>> {
     let path = match path_in.is_empty() {
         true => std::env::current_dir()?,
         false => get_full_file_path(path_in)?,
@@ -61,7 +63,7 @@ pub fn walk_directory(path_in: &str) -> Result<Vec<PathBuf>> {
     let walker = WalkDir::new(path).into_iter();
     let mut pathlist: Vec<PathBuf> = Vec::new();
 
-    for entry in walker.filter_entry(|e| !is_hidden(e)) {
+    for entry in walker.filter_entry(|e| !is_hidden(e, conf)) {
         let entry = entry.unwrap();
         // we only want to save paths that are towards a file.
         if entry.path().display().to_string().find('.').is_some() {
@@ -76,12 +78,10 @@ pub fn get_full_file_path(path: &str) -> Result<PathBuf> {
     Ok(dunce::canonicalize(path)?)
 }
 
-pub fn is_hidden(entry: &walkdir::DirEntry) -> bool {
-    //? add configurable hidden extensions here
-    //? something like: vec!["target", "another", "and another"], etc.
+pub fn is_hidden(entry: &walkdir::DirEntry, conf: Config) -> bool { 
     entry
         .file_name()
         .to_str()
-        .map(|s| s.starts_with('.') || s.starts_with("target"))
+        .map(|s| conf.ignore_directories.contains(s))
         .unwrap_or(false)
 }

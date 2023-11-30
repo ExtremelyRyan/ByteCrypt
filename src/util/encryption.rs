@@ -102,8 +102,7 @@ mod test {
         let index = file.find('.').unwrap();
         let (filename, extension) = file.split_at(index);
 
-        let fp = crate::util::path::get_full_file_path(file)
-            .unwrap();
+        let fp = crate::util::path::get_full_file_path(file).unwrap();
         let contents: Vec<u8> = std::fs::read(file).unwrap();
 
         let mut fc = FileCrypt::new(filename.to_owned(), extension.to_owned(), fp);
@@ -130,8 +129,7 @@ mod test {
         let index = file.find('.').unwrap();
         let (filename, extension) = file.split_at(index);
 
-        let fp = crate::util::path::get_full_file_path(file)
-            .unwrap();
+        let fp = crate::util::path::get_full_file_path(file).unwrap();
         let contents: Vec<u8> = std::fs::read(file).unwrap();
 
         let fc: FileCrypt = /*crate::database::crypt_keeper::query_crypt(fc.uuid.clone())?;*/

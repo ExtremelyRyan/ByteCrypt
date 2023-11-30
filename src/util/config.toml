@@ -1,6 +1,4 @@
 database_path = "src/database/crypt_keeper.ds"
-cloud_services = []
-foo = 5
-bar = true
-baz = "hello"
-boom = 1
+retain = false
+cloud_services = [] 
+hidden_directories = [".", "target"]

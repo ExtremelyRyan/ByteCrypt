@@ -12,7 +12,7 @@ use ui::*; //UNCOMMENT FOR TESTING
 
 fn main() -> Result<()> {
     //Load config file
-    let mut config = config::load_config().unwrap();
+    let config = config::load_config().unwrap();
     // println!("{:#?}", config);
 
     // config.add_cloud_service("google".to_string());
@@ -27,12 +27,10 @@ fn main() -> Result<()> {
     // let _ = crypt_keeper::delete_keeper()?;
 
     //Load the UI
-    let operation = cli::load_cli();
-
+    let operation = cli::load_cli(config);
 
     //////// test
     // let path = "dracula.crypt";
-
 
     // let fp = util::path::get_full_file_path(path).unwrap();
     // let contents: Vec<u8> = std::fs::read(&fp).unwrap();
