@@ -63,7 +63,7 @@ pub fn walk_directory(path_in: &str, conf: Config) -> Result<Vec<PathBuf>> {
     let walker = WalkDir::new(path).into_iter();
     let mut pathlist: Vec<PathBuf> = Vec::new();
 
-    for entry in walker.filter_entry(|e| !is_hidden(e, conf)) {
+    for entry in walker.filter_entry(|e| !is_hidden(e, &conf)) {
         let entry = entry.unwrap();
         // we only want to save paths that are towards a file.
         if entry.path().display().to_string().find('.').is_some() {
@@ -78,10 +78,10 @@ pub fn get_full_file_path(path: &str) -> Result<PathBuf> {
     Ok(dunce::canonicalize(path)?)
 }
 
-pub fn is_hidden(entry: &walkdir::DirEntry, conf: Config) -> bool { 
+pub fn is_hidden(entry: &walkdir::DirEntry, conf: &Config) -> bool { 
     entry
         .file_name()
         .to_str()
-        .map(|s| conf.ignore_directories.contains(s))
+        .map(|s| conf.ignore_directories.contains(&s.to_string()))
         .unwrap_or(false)
 }

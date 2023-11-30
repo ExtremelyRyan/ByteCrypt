@@ -177,7 +177,6 @@ pub fn load_cli(conf: Config) -> anyhow::Result<()> {
             if !conf.retain {
                 std::fs::remove_file(path).expect("failed deleting .crypt file");
             }
-            
 
             Ok(())
         }

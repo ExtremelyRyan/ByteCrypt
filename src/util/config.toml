@@ -1,4 +1,4 @@
 database_path = "src/database/crypt_keeper.ds"
 retain = false
 cloud_services = [] 
-hidden_directories = [".", "target"]
+ignore_directories = [".", "target"]
