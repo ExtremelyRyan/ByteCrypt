@@ -1,4 +1,4 @@
-use crate::util::encryption::{FileCrypt, KEY_SIZE, NONCE_SIZE};
+use crate::util::{encryption::{FileCrypt, KEY_SIZE, NONCE_SIZE}, config::{Config, self}};
 use anyhow::{anyhow, Result};
 use lazy_static::lazy_static;
 use r2d2::Pool;
@@ -12,7 +12,8 @@ use std::{
 //Connection pool maintains a single connection to db for life of program
 lazy_static! {
     static ref KEEPER: Pool<SqliteConnectionManager> = {
-        let manager = SqliteConnectionManager::file("src/database/crypt_keeper.db");
+        let config = config::load_config().unwrap(); 
+        let manager = SqliteConnectionManager::file(config.get_database_path());
         let pool = Pool::new(manager).expect("Failed to generate pool");
 
         init_keeper(&pool.get().unwrap()).expect("Failed to initialize keeper");
@@ -174,6 +175,7 @@ pub fn delete_crypt(uuid: String) -> anyhow::Result<()> {
 
 ///Delete the database
 pub fn delete_keeper() -> anyhow::Result<()> {
+    // TODO remove hardcoded pathways for this
     if Path::new("src/database/crypt_keeper.db").exists() {
         fs::remove_file("src/database/crypt_keeper.db")?;
     }

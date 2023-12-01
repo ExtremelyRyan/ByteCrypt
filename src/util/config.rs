@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::{fs, path::Path};
 
-const CONFIG_PATH: &str = "src/util/config.toml";
+const CONFIG_PATH: &str = "config.toml";
 
 #[derive(Deserialize, Serialize, Debug)]
 ///Holds the configuration for the program
@@ -23,7 +23,7 @@ pub struct Config {
 impl Default for Config {
     fn default() -> Self {
         Self {
-            database_path: "src/database/crypt_keeper.ds".to_string(),
+            database_path: "crypt_keeper.db".to_string(),
             cloud_services: Vec::new(),
             retain: true,
             ignore_directories: Vec::new(),
@@ -60,6 +60,10 @@ impl Config {
     ///Removes a cloud service from the list
     pub fn remove_cloud_service(&mut self, service: String) {
         self.cloud_services.retain(|s| s != &service);
+    }
+
+    pub fn get_database_path(&self) -> &str {
+        self.database_path.as_ref()
     }
 }
 
