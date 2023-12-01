@@ -54,7 +54,7 @@ pub fn generate_directory(
 }
 
 /// takes in a path, and recursively walks the subdirectories and returns a vec<pathbuf>
-pub fn walk_directory(path_in: &str, conf: Config) -> Result<Vec<PathBuf>> {
+pub fn walk_directory(path_in: &str, conf: &Config) -> Result<Vec<PathBuf>> {
     let path = match path_in.is_empty() {
         true => std::env::current_dir()?,
         false => get_full_file_path(path_in)?,

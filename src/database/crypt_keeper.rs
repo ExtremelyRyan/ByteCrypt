@@ -1,4 +1,4 @@
-use crate::util::{encryption::{FileCrypt, KEY_SIZE, NONCE_SIZE}, config::{Config, self}};
+use crate::util::{encryption::{FileCrypt, KEY_SIZE, NONCE_SIZE}, config};
 use anyhow::{anyhow, Result};
 use lazy_static::lazy_static;
 use r2d2::Pool;

@@ -100,7 +100,7 @@ pub enum EncryptErrors {
     HashFail(String),
 }
 
-pub fn encrypt_file(conf: Config, path: &str, in_place: bool) {
+pub fn encrypt_file(conf: &Config, path: &str, in_place: bool) {
     // get filename, extension, and full path info
     let fp = util::path::get_full_file_path(path).unwrap();
     let parent_dir = &fp.parent().unwrap().to_owned();
@@ -125,7 +125,7 @@ pub fn encrypt_file(conf: Config, path: &str, in_place: bool) {
     encrypted_contents = parse::prepend_uuid(&fc.uuid, &mut encrypted_contents);
 
     let mut crypt_file = format!("{}/{}.crypt", &parent_dir.display(), fc.filename);
-    dbg!(&crypt_file);
+    // dbg!(&crypt_file);
 
     if in_place {
         crypt_file = format!("{}/{}{}", parent_dir.display(), fc.filename, fc.ext);
@@ -141,7 +141,7 @@ pub fn encrypt_file(conf: Config, path: &str, in_place: bool) {
     }
 }
 
-pub fn decrypt_file(conf: Config, path: &str, _output: Option<String>) -> Result<(), EncryptErrors> {
+pub fn decrypt_file(conf: &Config, path: &str, _output: Option<String>) -> Result<(), EncryptErrors> {
     // get path to encrypted file
     let fp = util::path::get_full_file_path(path).unwrap();
     let parent_dir = &fp.parent().unwrap().to_owned();
@@ -157,7 +157,7 @@ pub fn decrypt_file(conf: Config, path: &str, _output: Option<String>) -> Result
 
 
     let mut file = format!("{}/{}{}", &parent_dir.display(), &fc.filename, &fc.ext);
-    dbg!(&file);
+    // dbg!(&file);
 
     if Path::new(&file).exists() {
         // for now, we are going to just append the

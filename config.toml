@@ -1,4 +1,4 @@
 database_path = "crypt_keeper.db"
-retain = false
+retain = true
 cloud_services = [] 
 ignore_directories = [".", "target"]

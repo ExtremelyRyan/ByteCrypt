@@ -6,12 +6,12 @@ use crate::{
         config::Config,
         encryption::{decrypt_file, encrypt_file},
         parse::write_contents_to_file,
-        *,
+        *, path::walk_directory,
     },
 };
 use anyhow::{Ok, Result};
 use blake2::{Blake2s256, Digest};
-use clap::{Parser, Subcommand};
+use clap::{Parser, Subcommand, builder::OsStr};
 use std::path::{Path, PathBuf};
 
 ///Passes the directive to the caller
@@ -104,17 +104,41 @@ pub fn load_cli(conf: Config) -> anyhow::Result<()> {
         Some(Commands::Encrypt { path, in_place }) => {
             match PathBuf::from(path).is_dir() {
                 true => {
-                    todo!();
+                    // get vec of dir
+                    let dir = walk_directory(&path, &conf).expect("could not find directory!");
+                    // dbg!(&dir);
+                    for path in dir {
+                        println!("Encrypting file: {}", path.display());
+                        encrypt_file(&conf, path.display().to_string().as_str(), in_place.to_owned())
+                    }
                 }
                 // is a file
                 false => {
-                    encrypt_file(conf, path, *in_place);
+                    encrypt_file(&conf, path, *in_place);
                 }
             };
             Ok(())
         }
         Some(Commands::Decrypt { path, output }) => {
-            let _res = decrypt_file(conf, path, output.to_owned());
+            match PathBuf::from(path).is_dir() {
+                true => {
+                    // get vec of dir
+                    let dir = walk_directory(&path, &conf).expect("could not find directory!");
+                    // dbg!(&dir);
+                    for path in dir {
+                        if path.extension() == Some(&OsStr::from("crypt")) {
+                            println!("Decrypting file: {}", path.display());
+                            decrypt_file(&conf, path.display().to_string().as_str(), output.to_owned());
+                        }
+                        
+                    }
+                }
+                // is a file
+                false => {
+                    let _res = decrypt_file(&conf, path, output.to_owned());
+                }
+            };
+            
             Ok(())
         }
 
