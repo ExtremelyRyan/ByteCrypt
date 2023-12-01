@@ -244,7 +244,7 @@ fn event_handler(cursor: &mut Cursor) -> anyhow::Result<bool> {
         }
     }
 
-    return Ok(false);
+    Ok(false)
 }
 
 ///Takes in the current directory and formats it into a string
@@ -305,5 +305,5 @@ pub fn format_directory<'a>(directory: &Directory, depth: usize, cursor: &Cursor
         line_spans.push(selected_text);
         lines.push(Line::from(line_spans));
     }
-    return Text::from(lines);
+    Text::from(lines)
 }

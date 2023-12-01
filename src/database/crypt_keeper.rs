@@ -38,13 +38,13 @@ fn init_keeper(conn: &Connection) -> anyhow::Result<()> {
         [],
     )?;
 
-    return Ok(());
+    Ok(())
 }
 
 ///Grabs the connection
 fn get_keeper() -> anyhow::Result<r2d2::PooledConnection<r2d2_sqlite::SqliteConnectionManager>> {
     //Returns the static connection
-    return KEEPER.get().map_err(|e| e.into());
+    KEEPER.get().map_err(|e| e.into())
 }
 
 ///Insert a crypt into the database
@@ -70,7 +70,6 @@ pub fn insert_crypt(crypt: &FileCrypt) -> anyhow::Result<()> {
             key_seed = excluded.key_seed,
             nonce_seed = excluded.nonce_seed,
             hash = excluded.hash",
-
         params![
             &crypt.uuid,
             &crypt.filename,
@@ -83,7 +82,7 @@ pub fn insert_crypt(crypt: &FileCrypt) -> anyhow::Result<()> {
     )
     .map_err(|e| anyhow!("Failed to insert crypt {} into keeper", e))?;
 
-    return Ok(());
+    Ok(())
 }
 
 ///Queries the database for the crypt
@@ -155,7 +154,7 @@ pub fn query_keeper() -> anyhow::Result<Vec<FileCrypt>> {
         crypts.push(crypt.unwrap());
     }
 
-    return Ok(crypts);
+    Ok(crypts)
 }
 
 ///Deletes the crypt
@@ -170,7 +169,7 @@ pub fn delete_crypt(uuid: String) -> anyhow::Result<()> {
         params![uuid],
     )?;
 
-    return Ok(());
+    Ok(())
 }
 
 ///Delete the database
@@ -178,5 +177,5 @@ pub fn delete_keeper() -> anyhow::Result<()> {
     if Path::new("src/database/crypt_keeper.db").exists() {
         fs::remove_file("src/database/crypt_keeper.db")?;
     }
-    return Ok(());
+    Ok(())
 }

@@ -10,11 +10,11 @@ pub struct Config {
     pub database_path: String,
     /// collection of cloud services currently holding crypt files.
     pub cloud_services: Vec<String>,
-    /// option to retain both the original file after encryption, 
+    /// option to retain both the original file after encryption,
     /// as well as the .crypt file after decryption.
     /// if true, retains original file and encrypted file.
     /// if false, deletes files after encryption / decryption.
-    pub retain: bool, 
+    pub retain: bool,
     // collection of any directories to ignore during folder encryption.
     pub ignore_directories: Vec<String>,
 }
@@ -24,7 +24,7 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             database_path: "src/database/crypt_keeper.ds".to_string(),
-            cloud_services: Vec::new(), 
+            cloud_services: Vec::new(),
             retain: true,
             ignore_directories: Vec::new(),
         }
@@ -43,7 +43,7 @@ impl Config {
             database_path,
             cloud_services,
             retain,
-            ignore_directories: hidden_directories, 
+            ignore_directories: hidden_directories,
         }
     }
 
@@ -76,7 +76,7 @@ pub fn load_config() -> anyhow::Result<Config> {
     let config_file = fs::read_to_string(CONFIG_PATH)?;
     let config: Config = toml::from_str(&config_file)?;
 
-    return Ok(config);
+    Ok(config)
 }
 
 ///Saves the configuration file
@@ -85,5 +85,5 @@ pub fn save_config(config: &Config) -> anyhow::Result<()> {
     let serialized_config = toml::to_string_pretty(&config)?;
     fs::write(CONFIG_PATH, serialized_config)?;
 
-    return Ok(());
+    Ok(())
 }

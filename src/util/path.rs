@@ -1,7 +1,7 @@
 use anyhow::{Ok, Result};
 use std::{
     env, fs,
-    path::{Path, PathBuf, self},
+    path::{self, Path, PathBuf},
 };
 use walkdir::WalkDir;
 
@@ -50,7 +50,7 @@ pub fn generate_directory(
             }
         }
     }
-    return Ok(root);
+    Ok(root)
 }
 
 /// takes in a path, and recursively walks the subdirectories and returns a vec<pathbuf>
@@ -78,7 +78,7 @@ pub fn get_full_file_path(path: &str) -> Result<PathBuf> {
     Ok(dunce::canonicalize(path)?)
 }
 
-pub fn is_hidden(entry: &walkdir::DirEntry, conf: &Config) -> bool { 
+pub fn is_hidden(entry: &walkdir::DirEntry, conf: &Config) -> bool {
     entry
         .file_name()
         .to_str()

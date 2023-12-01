@@ -1,12 +1,18 @@
+use super::tui;
 use crate::{
     database::crypt_keeper,
-    util::{self, parse::write_contents_to_file, *, config::Config},
+    util::{
+        self,
+        config::Config,
+        encryption::{decrypt_file, encrypt_file},
+        parse::write_contents_to_file,
+        *,
+    },
 };
-use anyhow::{Ok, Result}; 
+use anyhow::{Ok, Result};
 use blake2::{Blake2s256, Digest};
 use clap::{Parser, Subcommand};
-use std::path::{Path, PathBuf}; 
-use super::tui;
+use std::path::{Path, PathBuf};
 
 ///Passes the directive to the caller
 #[derive(Debug)]
@@ -56,7 +62,7 @@ enum Commands {
     Encrypt {
         ///Path to File or Directory
         #[arg(required = true)]
-        path: String, 
+        path: String,
         //Perform an in-place encryption
         #[arg(short = 'p', long, default_value_t = false)]
         in_place: bool,
@@ -68,7 +74,7 @@ enum Commands {
         path: String,
         //Perform an in-place decryption
         #[arg(short = 'o', long, required = false)]
-        output: String,
+        output: Option<String>,
     },
     ///Upload file or folder to cloud provider
     Upload {
@@ -95,116 +101,31 @@ pub fn load_cli(conf: Config) -> anyhow::Result<()> {
     }
 
     match &cli.command {
-        Some(Commands::Encrypt {
-            path, 
-            in_place,
-        }) => {
+        Some(Commands::Encrypt { path, in_place }) => {
             match PathBuf::from(path).is_dir() {
                 true => {
                     todo!();
                 }
                 // is a file
                 false => {
-                    // get filename, extension, and full path info
-                    let fp = util::path::get_full_file_path(path).unwrap();
-                    let parent_dir = &fp.parent().unwrap().to_owned();
-                    let name = fp.file_name().unwrap();
-                    let index = name.to_str().unwrap().find('.').unwrap();
-                    let (filename, extension) = name.to_str().unwrap().split_at(index);
-
-                    // get contents of file
-                    let contents: Vec<u8> = std::fs::read(&fp).unwrap();
-
-                    // compute hash on contents
-                    let mut hasher = Blake2s256::new();
-                    hasher.update(&contents);
-                    let res = hasher.finalize();
-                    let hash: [u8; 32] = res.into(); 
-
-                    let mut fc =
-                        encryption::FileCrypt::new(filename.to_string(), extension.to_string(), fp, hash);
- 
-                    let mut encrypted_contents =
-                        util::encryption::encryption(&mut fc, &contents).unwrap();
-
-                    // prepend uuid to contents
-                    encrypted_contents = parse::prepend_uuid(&fc.uuid, &mut encrypted_contents);
-
-                    let mut crypt_file = format!("{}/{}.crypt", &parent_dir.display(), fc.filename);
-                    dbg!(&crypt_file);
-
-                    if *in_place {
-                        crypt_file = format!("{}/{}{}", parent_dir.display(), fc.filename, fc.ext);
-                    }
-                    parse::write_contents_to_file(&crypt_file, encrypted_contents)
-                        .expect("failed to write contents to file!");
-
-                    //write fc to crypt_keeper
-                    crypt_keeper::insert_crypt(&fc)
-                        .expect("failed to insert FileCrypt data into database!");
-
-                    if !conf.retain {
-                        std::fs::remove_file(path).unwrap_or_else(|_| panic!("failed to delete {}", path));
-                    }
+                    encrypt_file(conf, path, *in_place);
                 }
             };
             Ok(())
         }
-        Some(Commands::Decrypt { path, output }) => { 
-
-            // get path to encrypted file
-            let fp = util::path::get_full_file_path(path).unwrap();
-            let parent_dir = &fp.parent().unwrap().to_owned();
-
-            // rip out uuid from contents
-            let contents: Vec<u8> = std::fs::read(&fp).unwrap();
-            let (uuid, content) = contents.split_at(36);
-            let uuid_str = String::from_utf8(uuid.to_vec()).unwrap();
-
-            // query db with uuid
-            let fc = crypt_keeper::query_crypt(uuid_str).unwrap();
-            let fc_hash: [u8; 32] = fc.hash.to_owned();
-            let mut file = format!("{}/{}{}", &parent_dir.display(), &fc.filename, &fc.ext);
-            dbg!(&file);
-
-            if Path::new(&file).exists() {
-                // for now, we are going to just append the
-                // filename with -decrypted to delineate between the two.
-                file = format!("{}/{}-decrypted{}", &parent_dir.display(), &fc.filename, &fc.ext);
-            }
-
-            let decrypted_content =
-                encryption::decryption(fc, &content.to_vec()).expect("failed decryption");
-
-            // compute hash on contents
-            let mut hasher = Blake2s256::new();
-            hasher.update(&decrypted_content);
-            let res = hasher.finalize(); 
-
-            if res != fc_hash.into() {
-                eprintln!("HASH COMPARISON FAILED");
-                return Ok(());
-            }
-            println!("hash comparison sucessful");
-
-            write_contents_to_file(&file, decrypted_content)
-                .expect("failed writing content to file!");
-
-            //? delete crypt file?
-            if !conf.retain {
-                std::fs::remove_file(path).expect("failed deleting .crypt file");
-            }
+        Some(Commands::Decrypt { path, output }) => {
+            let _res = decrypt_file(conf, path, output.to_owned());
             Ok(())
         }
 
         Some(Commands::Upload {}) => {
             todo!();
         }
-        
+
         Some(Commands::Config {}) => {
             todo!();
         }
-        None => {Ok(())},
+        None => Ok(()),
     }
 }
 
