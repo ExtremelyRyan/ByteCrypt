@@ -6,18 +6,29 @@ const CONFIG_PATH: &str = "config.toml";
 #[derive(Deserialize, Serialize, Debug)]
 ///Holds the configuration for the program
 pub struct Config {
-    /// serves as the default location for the SQLite database path.
-    pub database_path: String,
     /// collection of cloud services currently holding crypt files.
     pub cloud_services: Vec<String>,
+    /// serves as the default location for the SQLite database path.
+    pub database_path: String,
+    // collection of any directories to ignore during folder encryption.
+    pub ignore_directories: Vec<String>,
     /// option to retain both the original file after encryption,
     /// as well as the .crypt file after decryption.
     /// if true, retains original file and encrypted file.
     /// if false, deletes files after encryption / decryption.
     pub retain: bool,
-    // collection of any directories to ignore during folder encryption.
-    pub ignore_directories: Vec<String>,
 }
+
+impl std::fmt::Display for Config {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        _ = write!(f, "cloud_services: {:?}\n", self.cloud_services);
+        _ = write!(f, "database_path: {}\n", self.database_path);
+        _ = write!(f, "ignore_directories: {:?}\n", self.ignore_directories);
+        _ = write!(f, "retain: {}\n", self.retain);
+        std::fmt::Result::Ok(())
+    }
+}
+ 
 
 ///Default configuration
 impl Default for Config {
@@ -47,6 +58,10 @@ impl Config {
         }
     }
 
+    pub fn get_fields() -> Vec<&'static str> {
+        vec!["database_path", "cloud_services", "retain", "hidden_directories"]
+    }
+
     ///Changes the database path
     pub fn change_db_path(&mut self, path: String) {
         self.database_path = path;
@@ -64,6 +79,33 @@ impl Config {
 
     pub fn get_database_path(&self) -> &str {
         self.database_path.as_ref()
+    }
+
+    pub fn retain(&self) -> bool {
+        self.retain
+    }
+
+    pub fn set_retain(&mut self, retain: String) -> bool {
+        match retain.to_lowercase() .as_str(){
+            "true"  | "t" => self.retain = true,
+            "false" | "f" => self.retain = false,
+            _ => return false,
+        } 
+        if save_config(&self).is_err() {
+            return false;
+        }
+        true
+    }
+
+    pub fn ignore_directories(&self) -> &[String] {
+        self.ignore_directories.as_ref()
+    }
+
+    pub fn set_ignore_directories(&mut self, ignore_directories: Vec<String>) {
+        self.ignore_directories = ignore_directories;
+    }
+    pub fn append_ignore_directories(&mut self, item: String) {
+        self.ignore_directories.push(item);
     }
 }
 

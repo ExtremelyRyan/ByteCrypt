@@ -16,8 +16,6 @@ bench = false
 path = "src/main.rs"
 name = "crypt"
 
-# default-run = "bytecrypt"
-
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
@@ -51,15 +49,10 @@ dunce = "1.0.4"
 toml = "0.8.8" 
 serde = { version = "1", features = ["derive"] } 
 
-# configuration mangement 
-
-#===== UI =====
 # --CLI
 clap = { version = "4.4.8", features = ["derive", "cargo"] } 
 # --TUI
 ratatui = "0.24.0"
 crossterm = "0.27.0"
-
-# --GUI
 
 

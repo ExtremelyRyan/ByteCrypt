@@ -41,6 +41,7 @@ pub struct DecryptInfo {
 ///CLI arguments
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
+#[command(arg_required_else_help = true)]
 pub struct CommandLineArgs {
     ///Enable debug mode
     #[arg(short, long)]
@@ -58,7 +59,7 @@ pub struct CommandLineArgs {
 ///CLI commands
 #[derive(Subcommand, Debug)]
 enum Commands {
-    ///Encrypt file or folder of files
+    ///Encrypt file or folder of files 
     Encrypt {
         ///Path to File or Directory
         #[arg(required = true)]
@@ -80,16 +81,27 @@ enum Commands {
     Upload {
         //TODO: Upload requirements and options
     },
-    ///Change user config
+    ///View or change configuration
     Config {
-        //TODO: Configuration options
+        /// show saved configuration options
+        #[arg(short = 's', long, required = false)]
+        show: bool,
+
+        /// select config parameter to update
+        #[arg(short = 'u', long, required = false, default_value_t = String::from(""))]
+        update: String,
+
+        /// value to update config
+        #[arg(required = false, default_value_t = String::from(""))]
+        value: String,
     },
 }
 
 ///Runs the CLI and returns a directive to be processed
-pub fn load_cli(conf: Config) -> anyhow::Result<()> {
+pub fn load_cli(mut conf: Config) -> anyhow::Result<()> {
     //Run the cli and get responses
     let cli = CommandLineArgs::parse();
+ 
     //If debug mode was passed
     if cli.debug {
         debug_mode();
@@ -121,21 +133,21 @@ pub fn load_cli(conf: Config) -> anyhow::Result<()> {
         }
         Some(Commands::Decrypt { path, output }) => {
             match PathBuf::from(path).is_dir() {
-                true => {
+                true => { 
                     // get vec of dir
                     let dir = walk_directory(&path, &conf).expect("could not find directory!");
                     // dbg!(&dir);
                     for path in dir {
                         if path.extension() == Some(&OsStr::from("crypt")) {
                             println!("Decrypting file: {}", path.display());
-                            decrypt_file(&conf, path.display().to_string().as_str(), output.to_owned());
+                            let _ = decrypt_file(&conf, path.display().to_string().as_str(), output.to_owned());
                         }
                         
                     }
                 }
                 // is a file
                 false => {
-                    let _res = decrypt_file(&conf, path, output.to_owned());
+                    let _ = decrypt_file(&conf, path, output.to_owned());
                 }
             };
             
@@ -146,9 +158,36 @@ pub fn load_cli(conf: Config) -> anyhow::Result<()> {
             todo!();
         }
 
-        Some(Commands::Config {}) => {
-            todo!();
+        Some(Commands::Config { show, update, value }) => {
+            if *show {
+                println!("{}", conf);
+                //? not sure how i feel about this, atm I want these to keep seperate. 
+                return Ok(());
+            };
+            let fields = Config::get_fields();
+
+            if !update.is_empty() && fields.contains(&update.as_str()) {
+                if value.is_empty() {
+                    println!("cannot update {}, missing update value", update);
+                    return Ok(()); // TODO: fix this later
+                }
+                match update.as_str() {
+                    "database_path" => todo!(), 
+                    "cloud_services" => todo!(),
+                    "retain" => {
+                        match conf.set_retain(value.to_owned()) {
+                            false => eprintln!("Error occured, please verify parameters."),
+                            true  => println!("{} value changed to: {}", update, value),
+                        }
+                    }, 
+                    "hidden_directories"  => todo!(),
+                    _ => eprintln!("invalid selection!\n use -s to see available config options.")   
+                }
+            } 
+
+            Ok(())
         }
+        // todo: Find some way to print the help screen if nothing is passed.
         None => Ok(()),
     }
 }
