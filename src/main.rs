@@ -1,7 +1,7 @@
 mod cloud_storage;
 mod database;
 mod ui;
-mod util;
+pub mod util;
 use anyhow::{self, Result};
 use ui::cli;
 use util::*;

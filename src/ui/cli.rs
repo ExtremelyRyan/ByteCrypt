@@ -6,12 +6,13 @@ use crate::{
         config::Config,
         encryption::{decrypt_file, encrypt_file},
         parse::write_contents_to_file,
-        *, path::walk_directory,
+        path::walk_directory,
+        *,
     },
 };
 use anyhow::{Ok, Result};
 use blake2::{Blake2s256, Digest};
-use clap::{Parser, Subcommand, builder::OsStr};
+use clap::{builder::OsStr, Parser, Subcommand};
 use std::path::{Path, PathBuf};
 
 ///Passes the directive to the caller
@@ -59,7 +60,7 @@ pub struct CommandLineArgs {
 ///CLI commands
 #[derive(Subcommand, Debug)]
 enum Commands {
-    ///Encrypt file or folder of files 
+    ///Encrypt file or folder of files
     Encrypt {
         ///Path to File or Directory
         #[arg(required = true)]
@@ -101,7 +102,7 @@ enum Commands {
 pub fn load_cli(mut conf: Config) -> anyhow::Result<()> {
     //Run the cli and get responses
     let cli = CommandLineArgs::parse();
- 
+
     //If debug mode was passed
     if cli.debug {
         debug_mode();
@@ -121,7 +122,11 @@ pub fn load_cli(mut conf: Config) -> anyhow::Result<()> {
                     // dbg!(&dir);
                     for path in dir {
                         println!("Encrypting file: {}", path.display());
-                        encrypt_file(&conf, path.display().to_string().as_str(), in_place.to_owned())
+                        encrypt_file(
+                            &conf,
+                            path.display().to_string().as_str(),
+                            in_place.to_owned(),
+                        )
                     }
                 }
                 // is a file
@@ -133,16 +138,19 @@ pub fn load_cli(mut conf: Config) -> anyhow::Result<()> {
         }
         Some(Commands::Decrypt { path, output }) => {
             match PathBuf::from(path).is_dir() {
-                true => { 
+                true => {
                     // get vec of dir
                     let dir = walk_directory(&path, &conf).expect("could not find directory!");
                     // dbg!(&dir);
                     for path in dir {
                         if path.extension() == Some(&OsStr::from("crypt")) {
                             println!("Decrypting file: {}", path.display());
-                            let _ = decrypt_file(&conf, path.display().to_string().as_str(), output.to_owned());
+                            let _ = decrypt_file(
+                                &conf,
+                                path.display().to_string().as_str(),
+                                output.to_owned(),
+                            );
                         }
-                        
                     }
                 }
                 // is a file
@@ -150,7 +158,7 @@ pub fn load_cli(mut conf: Config) -> anyhow::Result<()> {
                     let _ = decrypt_file(&conf, path, output.to_owned());
                 }
             };
-            
+
             Ok(())
         }
 
@@ -158,10 +166,14 @@ pub fn load_cli(mut conf: Config) -> anyhow::Result<()> {
             todo!();
         }
 
-        Some(Commands::Config { show, update, value }) => {
+        Some(Commands::Config {
+            show,
+            update,
+            value,
+        }) => {
             if *show {
                 println!("{}", conf);
-                //? not sure how i feel about this, atm I want these to keep seperate. 
+                //? not sure how i feel about this, atm I want these to keep seperate.
                 return Ok(());
             };
             let fields = Config::get_fields();
@@ -173,20 +185,18 @@ pub fn load_cli(mut conf: Config) -> anyhow::Result<()> {
                 }
                 match update.as_str() {
                     // TODO get / set path
-                    "database_path" => todo!(), 
+                    "database_path" => todo!(),
                     // TODO: add / remove items in list
                     "cloud_services" => todo!(),
-                    "retain" => {
-                        match conf.set_retain(value.to_owned()) {
-                            false => eprintln!("Error occured, please verify parameters."),
-                            true  => println!("{} value changed to: {}", update, value),
-                        }
-                    }, 
+                    "retain" => match conf.set_retain(value.to_owned()) {
+                        false => eprintln!("Error occured, please verify parameters."),
+                        true => println!("{} value changed to: {}", update, value),
+                    },
                     // TODO: add / remove items in list
-                    "hidden_directories"  => todo!(),
-                    _ => eprintln!("invalid selection!\n use -s to see available config options.")   
+                    "hidden_directories" => todo!(),
+                    _ => eprintln!("invalid selection!\n use -s to see available config options."),
                 }
-            } 
+            }
 
             Ok(())
         }

@@ -1,4 +1,7 @@
-use crate::util::{encryption::{FileCrypt, KEY_SIZE, NONCE_SIZE}, config};
+use crate::util::{
+    config,
+    encryption::{FileCrypt, KEY_SIZE, NONCE_SIZE},
+};
 use anyhow::{anyhow, Result};
 use lazy_static::lazy_static;
 use r2d2::Pool;
@@ -12,7 +15,7 @@ use std::{
 //Connection pool maintains a single connection to db for life of program
 lazy_static! {
     static ref KEEPER: Pool<SqliteConnectionManager> = {
-        let config = config::load_config().unwrap(); 
+        let config = config::load_config().unwrap();
         let manager = SqliteConnectionManager::file(config.get_database_path());
         let pool = Pool::new(manager).expect("Failed to generate pool");
 

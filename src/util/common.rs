@@ -2,7 +2,6 @@ use crate::util;
 use std::{
     fs::File,
     io::{BufRead, BufReader},
-    path::Path,
 };
 
 /// read file, and return values within a Vector of Strings.

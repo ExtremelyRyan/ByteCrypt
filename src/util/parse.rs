@@ -1,8 +1,7 @@
 use super::encryption::FileCrypt;
 use anyhow::{Ok, Result};
 use std::{
-    fs::{File, OpenOptions},
-    io::Read,
+    fs::OpenOptions,
     io::Write,
 };
 

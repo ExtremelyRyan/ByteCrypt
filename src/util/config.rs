@@ -28,7 +28,6 @@ impl std::fmt::Display for Config {
         std::fmt::Result::Ok(())
     }
 }
- 
 
 ///Default configuration
 impl Default for Config {
@@ -59,7 +58,12 @@ impl Config {
     }
 
     pub fn get_fields() -> Vec<&'static str> {
-        vec!["database_path", "cloud_services", "retain", "hidden_directories"]
+        vec![
+            "database_path",
+            "cloud_services",
+            "retain",
+            "hidden_directories",
+        ]
     }
 
     ///Changes the database path
@@ -86,11 +90,11 @@ impl Config {
     }
 
     pub fn set_retain(&mut self, retain: String) -> bool {
-        match retain.to_lowercase() .as_str(){
-            "true"  | "t" => self.retain = true,
+        match retain.to_lowercase().as_str() {
+            "true" | "t" => self.retain = true,
             "false" | "f" => self.retain = false,
             _ => return false,
-        } 
+        }
         if save_config(&self).is_err() {
             return false;
         }

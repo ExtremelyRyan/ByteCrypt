@@ -10,7 +10,11 @@ use chacha20poly1305::{
 };
 use rand::RngCore;
 use serde::{Deserialize, Serialize};
-use std::{path::{PathBuf, Path}, fmt::format};
+use std::{
+    fmt::format,
+    hash,
+    path::{Path, PathBuf},
+};
 
 pub const KEY_SIZE: usize = 32;
 pub const NONCE_SIZE: usize = 12;
@@ -116,6 +120,7 @@ pub fn encrypt_file(conf: &Config, path: &str, in_place: bool) {
     hasher.update(&contents);
     let res = hasher.finalize();
     let hash: [u8; 32] = res.into();
+    // let hash = [0u8; 32]; // for benching w/o hashing only
 
     let mut fc = FileCrypt::new(filename.to_string(), extension.to_string(), fp, hash);
 
@@ -141,7 +146,11 @@ pub fn encrypt_file(conf: &Config, path: &str, in_place: bool) {
     }
 }
 
-pub fn decrypt_file(conf: &Config, path: &str, _output: Option<String>) -> Result<(), EncryptErrors> {
+pub fn decrypt_file(
+    conf: &Config,
+    path: &str,
+    _output: Option<String>,
+) -> Result<(), EncryptErrors> {
     // get path to encrypted file
     let fp = util::path::get_full_file_path(path).unwrap();
     let parent_dir = &fp.parent().unwrap().to_owned();
@@ -154,7 +163,6 @@ pub fn decrypt_file(conf: &Config, path: &str, _output: Option<String>) -> Resul
     // query db with uuid
     let fc = crypt_keeper::query_crypt(uuid_str).unwrap();
     let fc_hash: [u8; 32] = fc.hash.to_owned();
-
 
     let mut file = format!("{}/{}{}", &parent_dir.display(), &fc.filename, &fc.ext);
     // dbg!(&file);
@@ -183,7 +191,7 @@ pub fn decrypt_file(conf: &Config, path: &str, _output: Option<String>) -> Resul
         let s = format!("HASH COMPARISON FAILED\nfile hash: {:?}\ndecrypted hash:{:?}",&fc.hash.to_vec(), res);
         return Err(EncryptErrors::HashFail(s));
     }
-    println!("hash comparison sucessful");
+    // println!("hash comparison sucessful");
 
     write_contents_to_file(&file, decrypted_content).expect("failed writing content to file!");
 

@@ -1,7 +1,0 @@
-cloud_services = []
-database_path = "crypt_keeper.db"
-ignore_directories = [
-    ".",
-    "target",
-]
-retain = true
