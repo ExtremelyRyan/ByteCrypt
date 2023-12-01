@@ -40,7 +40,7 @@ pub fn dec_benchmark_large(c: &mut Criterion) {
     });
 }
 
-pub fn cleanup(c: &mut Criterion) {
+pub fn cleanup(_c: &mut Criterion) {
     _ = std::fs::remove_file("benches/files/dracula.crypt");
     _ = std::fs::remove_file("benches/files/dracula-large.crypt");
     _ = std::fs::remove_file("benches/files/dracula-decrypted.txt");
