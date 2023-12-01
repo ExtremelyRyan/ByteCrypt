@@ -8,7 +8,7 @@ pub fn write_contents_to_file(file: &str, contents: Vec<u8>) -> Result<()> {
         .write(true)
         .create(true)
         .read(true)
-        .open(s)?;
+        .open(file)?;
     f.write_all(contents.as_slice())
         .expect("failed writing to file");
     Ok(f.flush()?)

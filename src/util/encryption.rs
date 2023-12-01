@@ -168,7 +168,7 @@ pub fn decrypt_file(
             let fp = PathBuf::from(p);
             let parent = fp.parent().unwrap();
             if !parent.exists() {
-                _ = std::fs::create_dir_all(s.clone());
+                _ = std::fs::create_dir_all(parent);
             }
             let name = fp.file_name().unwrap();
             let index = name.to_str().unwrap().find('.').unwrap();
@@ -176,7 +176,10 @@ pub fn decrypt_file(
             file = format!("{}/{}{}", &parent.display(), &filename, &extension); 
         }else {
             // we are saving it to a new directory
-            let fp = PathBuf::from(p);
+            let fp: PathBuf = PathBuf::from(p); 
+            if !fp.exists() {
+                _ = std::fs::create_dir_all(fp.clone());
+            }
             file = format!("{}/{}{}", &fp.display(), &fc.filename, &fc.ext); 
         }
     }
