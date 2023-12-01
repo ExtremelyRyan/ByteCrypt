@@ -6,7 +6,8 @@ use crypt_lib::{
 
 // encrypt test with 850kb file
 pub fn enc_benchmark(c: &mut Criterion) {
-    let config = load_config().unwrap();
+    let mut config = load_config().unwrap();
+    config.retain = true;
 
     c.bench_function("encrypt dracula", |b| {
         b.iter(|| encrypt_file(&config, "benches/files/dracula.txt", false))
@@ -15,7 +16,8 @@ pub fn enc_benchmark(c: &mut Criterion) {
 
 // encrypt test with 5mb file
 pub fn enc_benchmark_large(c: &mut Criterion) {
-    let config = load_config().unwrap();
+    let mut config = load_config().unwrap();
+    config.retain = true;
 
     c.bench_function("encrypt dracula large file", |b| {
         b.iter(|| encrypt_file(&config, "benches/files/dracula-large.txt", false))
