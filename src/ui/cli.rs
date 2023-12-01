@@ -56,10 +56,7 @@ enum Commands {
     Encrypt {
         ///Path to File or Directory
         #[arg(required = true)]
-        path: String,
-        //Include hidden files
-        #[arg(short = 'i', long, default_value_t = false)]
-        include_hidden: bool,
+        path: String, 
         //Perform an in-place encryption
         #[arg(short = 'p', long, default_value_t = false)]
         in_place: bool,
@@ -70,8 +67,8 @@ enum Commands {
         #[arg(required = true)]
         path: String,
         //Perform an in-place decryption
-        #[arg(short = 'p', long, required = false)]
-        in_place: bool,
+        #[arg(short = 'o', long, required = false)]
+        output: String,
     },
     ///Upload file or folder to cloud provider
     Upload {
@@ -99,8 +96,7 @@ pub fn load_cli(conf: Config) -> anyhow::Result<()> {
 
     match &cli.command {
         Some(Commands::Encrypt {
-            path,
-            include_hidden,
+            path, 
             in_place,
         }) => {
             match PathBuf::from(path).is_dir() {
@@ -113,7 +109,7 @@ pub fn load_cli(conf: Config) -> anyhow::Result<()> {
                     let fp = util::path::get_full_file_path(path).unwrap();
                     let parent_dir = &fp.parent().unwrap().to_owned();
                     let name = fp.file_name().unwrap();
-                    let index = name.to_str().unwrap().find(".").unwrap();
+                    let index = name.to_str().unwrap().find('.').unwrap();
                     let (filename, extension) = name.to_str().unwrap().split_at(index);
 
                     // get contents of file
@@ -148,13 +144,13 @@ pub fn load_cli(conf: Config) -> anyhow::Result<()> {
                         .expect("failed to insert FileCrypt data into database!");
 
                     if !conf.retain {
-                        std::fs::remove_file(path).expect(format!("failed to delete {}", path).as_str());
+                        std::fs::remove_file(path).unwrap_or_else(|_| panic!("failed to delete {}", path));
                     }
                 }
             };
             Ok(())
         }
-        Some(Commands::Decrypt { path, in_place }) => { 
+        Some(Commands::Decrypt { path, output }) => { 
 
             // get path to encrypted file
             let fp = util::path::get_full_file_path(path).unwrap();
@@ -183,8 +179,7 @@ pub fn load_cli(conf: Config) -> anyhow::Result<()> {
             // compute hash on contents
             let mut hasher = Blake2s256::new();
             hasher.update(&decrypted_content);
-            let res = hasher.finalize();
-            let hash: [u8; 32] = res.into(); 
+            let res = hasher.finalize(); 
 
             if res != fc_hash.into() {
                 eprintln!("HASH COMPARISON FAILED");

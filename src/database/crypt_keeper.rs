@@ -76,9 +76,9 @@ pub fn insert_crypt(crypt: &FileCrypt) -> anyhow::Result<()> {
             &crypt.filename,
             &crypt.ext,
             &crypt.full_path.to_str().unwrap(),
-            &crypt.key.to_owned().as_ref(),
+            &crypt.key.as_ref(),
             &crypt.nonce.as_ref(),
-            &crypt.hash.to_owned().as_ref(),
+            &crypt.hash.as_ref(),
         ],
     )
     .map_err(|e| anyhow!("Failed to insert crypt {} into keeper", e))?;
