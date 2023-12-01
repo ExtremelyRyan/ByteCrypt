@@ -38,7 +38,7 @@ pub struct DecryptInfo {
 pub struct CommandLineArgs {
     ///Enable debug mode
     #[arg(short, long)]
-    pub debug: bool, //TODO: Implement debug
+    pub debug: bool, //TODO: Implement debug needed?
 
     ///TUI mode
     #[arg(short, long, default_value_t = false)]
@@ -194,12 +194,13 @@ pub fn load_cli(conf: Config) -> anyhow::Result<()> {
             if !conf.retain {
                 std::fs::remove_file(path).expect("failed deleting .crypt file");
             }
-
             Ok(())
         }
+
         Some(Commands::Upload {}) => {
             todo!();
         }
+        
         Some(Commands::Config {}) => {
             todo!();
         }

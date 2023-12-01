@@ -1,12 +1,17 @@
 use std::path::PathBuf;
-
-use anyhow::{Ok, Result};
+use crate::{
+    database::crypt_keeper,
+    util::{parse::write_contents_to_file, *, config::Config, self},
+};
+use anyhow::{Ok, Result}; 
 use chacha20poly1305::{
     aead::{Aead, KeyInit, OsRng},
     ChaCha20Poly1305, Key, Nonce,
 };
 use rand::RngCore;
 use serde::{Deserialize, Serialize};
+use blake2::{Blake2s256, Digest}; 
+ 
 
 pub const KEY_SIZE: usize = 32;
 pub const NONCE_SIZE: usize = 12;
@@ -90,6 +95,48 @@ pub fn generate_uuid() -> String {
     uuid::Builder::from_unix_timestamp_millis(ts.as_millis().try_into().unwrap(), &random_bytes)
         .into_uuid()
         .to_string()
+}
+
+pub fn encrypt_file(conf: Config, path: &str, in_place: bool) {
+    // get filename, extension, and full path info
+    let fp = util::path::get_full_file_path(path).unwrap();
+    let parent_dir = &fp.parent().unwrap().to_owned();
+    let name = fp.file_name().unwrap();
+    let index = name.to_str().unwrap().find('.').unwrap();
+    let (filename, extension) = name.to_str().unwrap().split_at(index);
+
+    // get contents of file
+    let contents: Vec<u8> = std::fs::read(&fp).unwrap();
+
+    // compute hash on contents
+    let mut hasher = Blake2s256::new();
+    hasher.update(&contents);
+    let res = hasher.finalize();
+    let hash: [u8; 32] = res.into(); 
+
+    let mut fc = FileCrypt::new(filename.to_string(), extension.to_string(), fp, hash);
+
+    let mut encrypted_contents = encryption(&mut fc, &contents).unwrap();
+
+    // prepend uuid to contents
+    encrypted_contents = parse::prepend_uuid(&fc.uuid, &mut encrypted_contents);
+
+    let mut crypt_file = format!("{}/{}.crypt", &parent_dir.display(), fc.filename);
+    dbg!(&crypt_file);
+
+    if in_place {
+        crypt_file = format!("{}/{}{}", parent_dir.display(), fc.filename, fc.ext);
+    }
+    parse::write_contents_to_file(&crypt_file, encrypted_contents)
+        .expect("failed to write contents to file!");
+
+    //write fc to crypt_keeper
+    crypt_keeper::insert_crypt(&fc)
+        .expect("failed to insert FileCrypt data into database!");
+
+    if !conf.retain {
+        std::fs::remove_file(path).unwrap_or_else(|_| panic!("failed to delete {}", path));
+    }
 }
 
 // // cargo nextest run
