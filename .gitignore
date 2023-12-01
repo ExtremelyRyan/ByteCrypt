@@ -1,7 +1,6 @@
 *.vscode/
 /target
-*.encrypt
-*.decrypt
-db.txt
-.env
-src/database/crypt_keeper.db
+*.crypt
+src/util/config.toml
+/src/database/crypt_keeper.db 
+dracula.txt 

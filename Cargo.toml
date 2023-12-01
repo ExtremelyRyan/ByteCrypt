@@ -16,13 +16,10 @@ bench = false
 path = "src/main.rs"
 name = "crypt"
 
-# default-run = "bytecrypt"
-
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-#General
-lazy_static = "1.4"
+#General 
 anyhow = "1.0.75"
 
 #OAuth2
@@ -31,6 +28,7 @@ anyhow = "1.0.75"
 # tokio = { version = "1", features = ["full"] } # Async Runtime
 
 #Database
+lazy_static = "1.4"
 rusqlite = { version = "0.30.0", features = ["bundled"] }
 r2d2 = "0.8.10"
 r2d2_sqlite = "0.23.0"
@@ -40,25 +38,21 @@ uuid = { version = "1.6.1", features = ["v4", "fast-rng"] }
 chacha20poly1305 = { version = "0.10.1", features = ["stream"] }
 rand = "0.8"
 
+# Hash file comparison
+blake2 = "0.10.6" 
+
 # Path walking
 walkdir = "2.4.0" 
 dunce = "1.0.4"
 
 # Serialization / Deserialization
-toml = "0.8.8"
-serde_json = "1.0"
+toml = "0.8.8" 
 serde = { version = "1", features = ["derive"] } 
 
-# configuration mangement
-envy = "0.4.2"
-dotenv = "0.15.0"
-
-#===== UI =====
 # --CLI
 clap = { version = "4.4.8", features = ["derive", "cargo"] } 
 # --TUI
 ratatui = "0.24.0"
 crossterm = "0.27.0"
-# --GUI
 
 

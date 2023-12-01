@@ -1,9 +1,18 @@
-use clap::{Parser, Subcommand};
+use super::tui;
+use crate::{
+    database::crypt_keeper,
+    util::{
+        self,
+        config::Config,
+        encryption::{decrypt_file, encrypt_file},
+        parse::write_contents_to_file,
+        *, path::walk_directory,
+    },
+};
+use anyhow::{Ok, Result};
+use blake2::{Blake2s256, Digest};
+use clap::{Parser, Subcommand, builder::OsStr};
 use std::path::{Path, PathBuf};
-use anyhow::Ok;
-use crate::util::*;
-
-
 
 ///Passes the directive to the caller
 #[derive(Debug)]
@@ -32,10 +41,15 @@ pub struct DecryptInfo {
 ///CLI arguments
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
+#[command(arg_required_else_help = true)]
 pub struct CommandLineArgs {
     ///Enable debug mode
     #[arg(short, long)]
-    pub debug: bool, //TODO: Implement debug
+    pub debug: bool, //TODO: Implement debug needed?
+
+    ///TUI mode
+    #[arg(short, long, default_value_t = false)]
+    pub tui: bool,
 
     ///Subcommands
     #[command(subcommand)]
@@ -45,14 +59,11 @@ pub struct CommandLineArgs {
 ///CLI commands
 #[derive(Subcommand, Debug)]
 enum Commands {
-    ///Encrypt file or folder of files
+    ///Encrypt file or folder of files 
     Encrypt {
         ///Path to File or Directory
         #[arg(required = true)]
         path: String,
-        //Include hidden files
-        #[arg(short = 'i', long, default_value_t = false)]
-        include_hidden: bool,
         //Perform an in-place encryption
         #[arg(short = 'p', long, default_value_t = false)]
         in_place: bool,
@@ -63,72 +74,127 @@ enum Commands {
         #[arg(required = true)]
         path: String,
         //Perform an in-place decryption
-        #[arg(short = 'p', long, required = false)]
-        in_place: bool,
+        #[arg(short = 'o', long, required = false)]
+        output: Option<String>,
     },
     ///Upload file or folder to cloud provider
     Upload {
         //TODO: Upload requirements and options
     },
-    ///Change user config
+    ///View or change configuration
     Config {
-        //TODO: Configuration options
+        /// show saved configuration options
+        #[arg(short = 's', long, required = false)]
+        show: bool,
+
+        /// select config parameter to update
+        #[arg(short = 'u', long, required = false, default_value_t = String::from(""))]
+        update: String,
+
+        /// value to update config
+        #[arg(required = false, default_value_t = String::from(""))]
+        value: String,
     },
 }
 
 ///Runs the CLI and returns a directive to be processed
-pub fn load_cli() -> anyhow::Result<Directive> {
+pub fn load_cli(mut conf: Config) -> anyhow::Result<()> {
     //Run the cli and get responses
     let cli = CommandLineArgs::parse();
+ 
     //If debug mode was passed
-    if cli.debug { debug_mode()?; }
-    
+    if cli.debug {
+        debug_mode();
+    }
+
+    // raise TUI if flag was passed
+    if cli.tui {
+        tui::load_tui()?;
+    }
+
     match &cli.command {
-        Some(Commands::Encrypt {
-            path,
-            include_hidden,
-            in_place,
-        }) => {
-            let (is_directory, path) = process_path(&path)?;
-            Ok(Directive::Encrypt(EncryptInfo {
-                is_directory,
-                path,
-                include_hidden: include_hidden.to_owned(),
-                in_place: in_place.to_owned(),
-            }))
+        Some(Commands::Encrypt { path, in_place }) => {
+            match PathBuf::from(path).is_dir() {
+                true => {
+                    // get vec of dir
+                    let dir = walk_directory(&path, &conf).expect("could not find directory!");
+                    // dbg!(&dir);
+                    for path in dir {
+                        println!("Encrypting file: {}", path.display());
+                        encrypt_file(&conf, path.display().to_string().as_str(), in_place.to_owned())
+                    }
+                }
+                // is a file
+                false => {
+                    encrypt_file(&conf, path, *in_place);
+                }
+            };
+            Ok(())
         }
-        Some(Commands::Decrypt {
-            path,
-            in_place,
-        }) => {
-            let (is_directory, path) = process_path(&path)?;
-            Ok(Directive::Decrypt(DecryptInfo {
-                is_directory,
-                path,
-                in_place: in_place.to_owned(),
-            }))
+        Some(Commands::Decrypt { path, output }) => {
+            match PathBuf::from(path).is_dir() {
+                true => { 
+                    // get vec of dir
+                    let dir = walk_directory(&path, &conf).expect("could not find directory!");
+                    // dbg!(&dir);
+                    for path in dir {
+                        if path.extension() == Some(&OsStr::from("crypt")) {
+                            println!("Decrypting file: {}", path.display());
+                            let _ = decrypt_file(&conf, path.display().to_string().as_str(), output.to_owned());
+                        }
+                        
+                    }
+                }
+                // is a file
+                false => {
+                    let _ = decrypt_file(&conf, path, output.to_owned());
+                }
+            };
+            
+            Ok(())
         }
+
         Some(Commands::Upload {}) => {
             todo!();
         }
-        Some(Commands::Config {}) => {
-            todo!();
+
+        Some(Commands::Config { show, update, value }) => {
+            if *show {
+                println!("{}", conf);
+                //? not sure how i feel about this, atm I want these to keep seperate. 
+                return Ok(());
+            };
+            let fields = Config::get_fields();
+
+            if fields.contains(&update.as_str()) {
+                if value.is_empty() {
+                    println!("cannot update {}, missing update value", update);
+                    return Ok(()); // TODO: fix this later
+                }
+                match update.as_str() {
+                    // TODO get / set path
+                    "database_path" => todo!(), 
+                    // TODO: add / remove items in list
+                    "cloud_services" => todo!(),
+                    "retain" => {
+                        match conf.set_retain(value.to_owned()) {
+                            false => eprintln!("Error occured, please verify parameters."),
+                            true  => println!("{} value changed to: {}", update, value),
+                        }
+                    }, 
+                    // TODO: add / remove items in list
+                    "hidden_directories"  => todo!(),
+                    _ => eprintln!("invalid selection!\n use -s to see available config options.")   
+                }
+            } 
+
+            Ok(())
         }
-        None => todo!(),
+        // todo: Find some way to print the help screen if nothing is passed.
+        None => Ok(()),
     }
 }
 
-///Determines if valid path, returns if is_dir boolean and full filepath
-fn process_path(path_in: &str) -> anyhow::Result<(bool, Vec<PathBuf>)> {
-    //Determine the path
-    let is_directory = Path::new(path_in).is_dir();
-    let path = path::walk_directory(path_in);
-
-    return Ok((is_directory, path.unwrap()));
-}
-
-fn debug_mode() -> anyhow::Result<()> {
+fn debug_mode() {
     println!("Why would you do this ._.");
-
-    return Ok(());
 }

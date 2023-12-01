@@ -54,6 +54,3 @@ impl CharacterSet {
         node: '`',
     };
 }
-
-
-
