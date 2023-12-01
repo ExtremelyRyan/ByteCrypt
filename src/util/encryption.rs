@@ -167,6 +167,9 @@ pub fn decrypt_file(
             // we are renaming the file
             let fp = PathBuf::from(p);
             let parent = fp.parent().unwrap();
+            if !parent.exists() {
+                _ = std::fs::create_dir_all(s.clone());
+            }
             let name = fp.file_name().unwrap();
             let index = name.to_str().unwrap().find('.').unwrap();
             let (filename, extension) = name.to_str().unwrap().split_at(index);
@@ -208,6 +211,7 @@ pub fn decrypt_file(
         return Err(EncryptErrors::HashFail(s));
     }
     // println!("hash comparison sucessful");
+
 
     write_contents_to_file(&file, decrypted_content).expect("failed writing content to file!");
 
