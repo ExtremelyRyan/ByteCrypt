@@ -26,4 +26,4 @@ config.toml
 crypt_keeper.db 
 
 # dont save any modifications to dracula.txt
-dracula.txt 
+dracula.txt  

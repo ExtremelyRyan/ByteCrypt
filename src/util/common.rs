@@ -1,4 +1,3 @@
-use crate::util;
 use std::{
     fs::File,
     io::{BufRead, BufReader},

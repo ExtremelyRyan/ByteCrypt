@@ -1,8 +1,5 @@
 use anyhow::{Ok, Result};
-use std::{
-    env, fs,
-    path::{self, Path, PathBuf},
-};
+use std::{fs, path::PathBuf};
 use walkdir::WalkDir;
 
 use super::config::Config;

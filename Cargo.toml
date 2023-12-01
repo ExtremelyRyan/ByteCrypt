@@ -15,11 +15,18 @@ license = "MIT"
 path = "src/main.rs"
 name = "crypt"
 
+# for criterion
 [lib]
-path = "src/main.rs"
+path = "src/lib.rs"
 name = "crypt_lib"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[[bench]]
+name = "encryption_benchmark"
+harness = false
+
+
+[dev-dependencies]
+criterion = "0.3"
 
 [dependencies]
 #General 
@@ -58,9 +65,4 @@ clap = { version = "4.4.8", features = ["derive", "cargo"] }
 ratatui = "0.24.0"
 crossterm = "0.27.0"
 
-[dev-dependencies]
-criterion = "0.3"
 
-[[bench]]
-name = "encryption_benchmark"
-harness = false

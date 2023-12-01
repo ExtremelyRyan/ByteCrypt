@@ -13,21 +13,21 @@ pub fn enc_benchmark(c: &mut Criterion) {
     });
 }
 
-// decrypt test with 850kb file
-pub fn dec_benchmark(c: &mut Criterion) {
-    let config = load_config().unwrap();
-
-    c.bench_function("decrypt dracula", |b| {
-        b.iter(|| decrypt_file(&config, "benches/files/dracula.crypt", None))
-    });
-}
-
 // encrypt test with 5mb file
 pub fn enc_benchmark_large(c: &mut Criterion) {
     let config = load_config().unwrap();
 
     c.bench_function("encrypt dracula large file", |b| {
         b.iter(|| encrypt_file(&config, "benches/files/dracula-large.txt", false))
+    });
+}
+
+// decrypt test with 850kb file
+pub fn dec_benchmark(c: &mut Criterion) {
+    let config = load_config().unwrap();
+
+    c.bench_function("decrypt dracula", |b| {
+        b.iter(|| decrypt_file(&config, "benches/files/dracula.crypt", None))
     });
 }
 
@@ -40,11 +40,19 @@ pub fn dec_benchmark_large(c: &mut Criterion) {
     });
 }
 
+pub fn cleanup(c: &mut Criterion) {
+    _ = std::fs::remove_file("benches/files/dracula.crypt");
+    _ = std::fs::remove_file("benches/files/dracula-large.crypt");
+    _ = std::fs::remove_file("benches/files/dracula-decrypted.txt");
+    _ = std::fs::remove_file("benches/files/dracula-large-decrypted.txt");
+}
+
 criterion_group!(
     benches,
     enc_benchmark,
     enc_benchmark_large,
     dec_benchmark,
-    dec_benchmark_large
+    dec_benchmark_large,
+    cleanup
 );
 criterion_main!(benches);

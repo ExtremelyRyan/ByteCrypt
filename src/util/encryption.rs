@@ -10,11 +10,7 @@ use chacha20poly1305::{
 };
 use rand::RngCore;
 use serde::{Deserialize, Serialize};
-use std::{
-    fmt::format,
-    hash,
-    path::{Path, PathBuf},
-};
+use std::path::{Path, PathBuf};
 
 pub const KEY_SIZE: usize = 32;
 pub const NONCE_SIZE: usize = 12;
@@ -188,7 +184,11 @@ pub fn decrypt_file(
 
     // verify file integrity
     if res != fc_hash.into() {
-        let s = format!("HASH COMPARISON FAILED\nfile hash: {:?}\ndecrypted hash:{:?}",&fc.hash.to_vec(), res);
+        let s = format!(
+            "HASH COMPARISON FAILED\nfile hash: {:?}\ndecrypted hash:{:?}",
+            &fc.hash.to_vec(),
+            res
+        );
         return Err(EncryptErrors::HashFail(s));
     }
     // println!("hash comparison sucessful");
