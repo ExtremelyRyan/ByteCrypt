@@ -202,58 +202,43 @@ pub fn decrypt_file(
     Ok(())
 }
 
-// // cargo nextest run
-// #[cfg(test)]
-// mod test {
-//     use super::*;
-//     use crate::util::{common, parse};
+// cargo nextest run
+#[cfg(test)]
+mod test {
+    use std::time::Duration; 
+    use super::*;  
 
-//     #[test]
-//     fn test_encrypt() {
-//         let file = "dracula.txt";
-//         let index = file.find('.').unwrap();
-//         let (filename, extension) = file.split_at(index);
-
-//         let fp = crate::util::path::get_full_file_path(file).unwrap();
-//         let contents: Vec<u8> = std::fs::read(file).unwrap();
-
-//         let mut fc = FileCrypt::new(filename.to_owned(), extension.to_owned(), fp);
-
-//         // generate random values for key, nonce
-//         fc.generate();
-
-//         println!("Encrypting {} ", file);
-//         let mut encrypted_contents = encryption(&mut fc, &contents).unwrap();
-//         assert_ne!(contents, encrypted_contents);
-
-//         // prepend uuid to contents
-//         encrypted_contents = parse::prepend_uuid(&fc.uuid, &mut encrypted_contents);
-
-//         //for testing purposes, write to file
-//         let _ = parse::write_contents_to_file("dracula.crypt", encrypted_contents);
-
-//         //write fc to crypt_keeper
-//     }
-
-//     #[test]
-//     fn test_decrypt() {
-//         let file = "dracula.crypt";
-//         let index = file.find('.').unwrap();
-//         let (filename, extension) = file.split_at(index);
-
-//         let fp = crate::util::path::get_full_file_path(file).unwrap();
-//         let contents: Vec<u8> = std::fs::read(file).unwrap();
-
-//         let fc: FileCrypt = /*crate::database::crypt_keeper::query_crypt(fc.uuid.clone())?;*/
-//              FileCrypt::new(filename.to_string(), extension.to_string(), fp.clone());
-
-//         dbg!(&fc);
-
-//         println!("Encrypting {} ", file);
-//         let decryped_contents = decryption(fc, &contents).expect("decrypt failure");
-
-//         let src = common::read_to_vec_u8("dracula.txt");
-
-//         assert_eq!(src, decryped_contents);
-//     }
-// }
+    #[test]
+    #[ignore = "not working when also tested with no_retain."]
+    fn test_retain_encrypt_decrypt_file() {
+        let mut config = config::load_config().unwrap();
+        config.retain = true;
+        encrypt_file( &config, "dracula.txt", false); 
+        assert_eq!(Path::new("dracula.crypt").exists(), true);
+        _ = decrypt_file(&config, "dracula.crypt", None);
+        match config.retain {
+            true => {
+                assert_eq!(Path::new("dracula-decrypted.txt").exists(), true);
+                _ = std::fs::remove_file("dracula.crypt");
+                _ = std::fs::remove_file("dracula-decrypted.txt");
+            },
+            false =>  assert_eq!(Path::new("dracula.txt").exists(), true),
+        }
+    }
+    #[test]
+    fn test_no_retain_encrypt_decrypt_file() {
+        let mut config = config::load_config().unwrap();
+        config.retain = false;
+        encrypt_file( &config, "dracula.txt", false); 
+        assert_eq!(Path::new("dracula.txt").exists(), false);
+        _ = decrypt_file(&config, "dracula.crypt", None);
+        match config.retain {
+            true => {
+                assert_eq!(Path::new("dracula-decrypted.txt").exists(), true);
+                _ = std::fs::remove_file("dracula.crypt");
+                _ = std::fs::remove_file("dracula-decrypted.txt");
+            },
+            false =>  assert_eq!(Path::new("dracula.txt").exists(), true),
+        } 
+    }
+}
