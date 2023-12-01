@@ -166,13 +166,15 @@ pub fn load_cli(mut conf: Config) -> anyhow::Result<()> {
             };
             let fields = Config::get_fields();
 
-            if !update.is_empty() && fields.contains(&update.as_str()) {
+            if fields.contains(&update.as_str()) {
                 if value.is_empty() {
                     println!("cannot update {}, missing update value", update);
                     return Ok(()); // TODO: fix this later
                 }
                 match update.as_str() {
+                    // TODO get / set path
                     "database_path" => todo!(), 
+                    // TODO: add / remove items in list
                     "cloud_services" => todo!(),
                     "retain" => {
                         match conf.set_retain(value.to_owned()) {
@@ -180,6 +182,7 @@ pub fn load_cli(mut conf: Config) -> anyhow::Result<()> {
                             true  => println!("{} value changed to: {}", update, value),
                         }
                     }, 
+                    // TODO: add / remove items in list
                     "hidden_directories"  => todo!(),
                     _ => eprintln!("invalid selection!\n use -s to see available config options.")   
                 }
