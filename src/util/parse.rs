@@ -1,12 +1,22 @@
 use anyhow::{Ok, Result};
-use std::{fs::OpenOptions, io::Write};
+use std::{fs::OpenOptions, io::Write, path::PathBuf};
+
+use super::path::get_full_file_path;
 
 pub fn write_contents_to_file(file: &str, contents: Vec<u8>) -> Result<()> {
+    let s = PathBuf::from(file);
+    if !s.exists() {
+        _ = std::fs::create_dir_all(s.clone());
+    }
+
+    let fp = get_full_file_path(s.display().to_string().as_str()).unwrap();
+    dbg!(&fp);
+
     let mut f = OpenOptions::new()
         .write(true)
         .create(true)
         .read(true)
-        .open(file)?;
+        .open(fp.display().to_string())?;
     f.write_all(contents.as_slice())
         .expect("failed writing to file");
     Ok(f.flush()?)

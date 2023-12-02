@@ -145,7 +145,7 @@ pub fn encrypt_file(conf: &Config, path: &str, in_place: bool) {
 pub fn decrypt_file(
     conf: &Config,
     path: &str,
-    _output: Option<String>,
+    output: Option<String>,
 ) -> Result<(), EncryptErrors> {
     // get path to encrypted file
     let fp = util::path::get_full_file_path(path).unwrap();
@@ -161,7 +161,23 @@ pub fn decrypt_file(
     let fc_hash: [u8; 32] = fc.hash.to_owned();
 
     let mut file = format!("{}/{}{}", &parent_dir.display(), &fc.filename, &fc.ext);
-    // dbg!(&file);
+    
+    if let Some(p) = output{
+        if p.contains('.') {
+            // we are renaming the file
+            let fp = PathBuf::from(p);
+            let parent = fp.parent().unwrap();
+            let name = fp.file_name().unwrap();
+            let index = name.to_str().unwrap().find('.').unwrap();
+            let (filename, extension) = name.to_str().unwrap().split_at(index);
+            file = format!("{}/{}{}", &parent.display(), &filename, &extension); 
+        }else {
+            // we are saving it to a new directory
+            let fp = PathBuf::from(p);
+            file = format!("{}/{}{}", &fp.display(), &fc.filename, &fc.ext); 
+        }
+    }
+    dbg!(&file);
 
     if Path::new(&file).exists() {
         // for now, we are going to just append the
