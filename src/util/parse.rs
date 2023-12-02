@@ -1,5 +1,7 @@
 use anyhow::{Ok, Result};
-use std::{fs::OpenOptions, io::Write};
+use std::{fs::OpenOptions, io::Write, path::PathBuf};
+
+use super::path::get_full_file_path;
 
 pub fn write_contents_to_file(file: &str, contents: Vec<u8>) -> Result<()> {
     let mut f = OpenOptions::new()
