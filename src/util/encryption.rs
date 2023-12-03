@@ -161,8 +161,8 @@ pub fn decrypt_file(
     let fc_hash: [u8; 32] = fc.hash.to_owned();
 
     let mut file = format!("{}/{}{}", &parent_dir.display(), &fc.filename, &fc.ext);
-    
-    if let Some(p) = output{
+
+    if let Some(mut p) = output {
         if p.contains('.') {
             // we are renaming the file
             let fp = PathBuf::from(p);
@@ -173,14 +173,20 @@ pub fn decrypt_file(
             let name = fp.file_name().unwrap();
             let index = name.to_str().unwrap().find('.').unwrap();
             let (filename, extension) = name.to_str().unwrap().split_at(index);
-            file = format!("{}/{}{}", &parent.display(), &filename, &extension); 
-        }else {
+            file = format!("{}/{}{}", &parent.display(), &filename, &extension);
+        } else {
             // we are saving it to a new directory
-            let fp: PathBuf = PathBuf::from(p); 
+            // check to make sure the last char isnt a / or \
+            let last = p.chars().last().unwrap();
+            if !last.is_ascii_alphabetic() {
+                p.remove(p.len() - 1);
+            }
+            let fp: PathBuf = PathBuf::from(p);
             if !fp.exists() {
                 _ = std::fs::create_dir_all(fp.clone());
             }
-            file = format!("{}/{}{}", &fp.display(), &fc.filename, &fc.ext); 
+
+            file = format!("{}/{}{}", &fp.display(), &fc.filename, &fc.ext);
         }
     }
     // dbg!(&file);
@@ -215,7 +221,6 @@ pub fn decrypt_file(
     }
     // println!("hash comparison sucessful");
 
-
     write_contents_to_file(&file, decrypted_content).expect("failed writing content to file!");
 
     //? delete crypt file?
@@ -228,15 +233,15 @@ pub fn decrypt_file(
 // cargo nextest run
 #[cfg(test)]
 mod test {
-    use std::time::Duration; 
-    use super::*;  
+    use super::*;
+    use std::time::Duration;
 
     #[test]
     #[ignore = "not working when also tested with no_retain."]
     fn test_retain_encrypt_decrypt_file() {
         let mut config = config::load_config().unwrap();
         config.retain = true;
-        encrypt_file( &config, "dracula.txt", false); 
+        encrypt_file(&config, "dracula.txt", false);
         assert_eq!(Path::new("dracula.crypt").exists(), true);
         _ = decrypt_file(&config, "dracula.crypt", None);
         match config.retain {
@@ -244,15 +249,15 @@ mod test {
                 assert_eq!(Path::new("dracula-decrypted.txt").exists(), true);
                 _ = std::fs::remove_file("dracula.crypt");
                 _ = std::fs::remove_file("dracula-decrypted.txt");
-            },
-            false =>  assert_eq!(Path::new("dracula.txt").exists(), true),
+            }
+            false => assert_eq!(Path::new("dracula.txt").exists(), true),
         }
     }
     #[test]
     fn test_no_retain_encrypt_decrypt_file() {
         let mut config = config::load_config().unwrap();
         config.retain = false;
-        encrypt_file( &config, "dracula.txt", false); 
+        encrypt_file(&config, "dracula.txt", false);
         assert_eq!(Path::new("dracula.txt").exists(), false);
         _ = decrypt_file(&config, "dracula.crypt", None);
         match config.retain {
@@ -260,8 +265,8 @@ mod test {
                 assert_eq!(Path::new("dracula-decrypted.txt").exists(), true);
                 _ = std::fs::remove_file("dracula.crypt");
                 _ = std::fs::remove_file("dracula-decrypted.txt");
-            },
-            false =>  assert_eq!(Path::new("dracula.txt").exists(), true),
-        } 
+            }
+            false => assert_eq!(Path::new("dracula.txt").exists(), true),
+        }
     }
 }
