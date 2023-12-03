@@ -183,7 +183,7 @@ pub fn decrypt_file(
             file = format!("{}/{}{}", &fp.display(), &fc.filename, &fc.ext); 
         }
     }
-    dbg!(&file);
+    // dbg!(&file);
 
     if Path::new(&file).exists() {
         // for now, we are going to just append the

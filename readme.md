@@ -17,8 +17,8 @@ ByteCrypt came about because I wanted the conveience of using all of the popular
 
 ### Dependencies
 
-currently being tested on windows 10, Arch linux.
-requires min Rust 1.xx.
+currently being tested on windows 10,11, wsl(ubuntu), and Arch linux.
+requires min Rust 1.70.
 
 ### Installing
 
