@@ -101,36 +101,31 @@ pub enum EncryptErrors {
 }
 
 pub fn encrypt_file(conf: &Config, path: &str, in_place: bool) {
-    // get filename, extension, and full path info
-    let fp = util::path::get_full_file_path(path).unwrap();
-    let parent_dir = &fp.parent().unwrap().to_owned();
-    let name = fp.file_name().unwrap();
-    let index = name.to_str().unwrap().find('.').unwrap();
-    let (filename, extension) = name.to_str().unwrap().split_at(index);
+    let (fp, parent_dir, filename, extension) = get_file_info(path);
 
     // get contents of file
     let contents: Vec<u8> = std::fs::read(&fp).unwrap();
 
-    // compute hash on contents
-    let mut hasher = Blake2s256::new();
-    hasher.update(&contents);
-    let res = hasher.finalize();
-    let hash: [u8; 32] = res.into();
+    let hash = compute_hash(&contents);
     // let hash = [0u8; 32]; // for benching w/o hashing only
 
-    let mut fc = FileCrypt::new(filename.to_string(), extension.to_string(), fp, hash);
+    let mut fc = FileCrypt::new(
+        filename,
+        extension,
+        fp,
+        hash,
+    );
 
     let mut encrypted_contents = encryption(&mut fc, &contents).unwrap();
 
     // prepend uuid to contents
     encrypted_contents = parse::prepend_uuid(&fc.uuid, &mut encrypted_contents);
 
-    let mut crypt_file = format!("{}/{}.crypt", &parent_dir.display(), fc.filename);
-    // dbg!(&crypt_file);
+    let crypt_file = match in_place {
+        true => format!("{}/{}{}", parent_dir.display(), fc.filename, fc.ext),
+        false => format!("{}/{}.crypt", &parent_dir.display(), fc.filename),
+    };
 
-    if in_place {
-        crypt_file = format!("{}/{}{}", parent_dir.display(), fc.filename, fc.ext);
-    }
     parse::write_contents_to_file(&crypt_file, encrypted_contents)
         .expect("failed to write contents to file!");
 
@@ -140,6 +135,29 @@ pub fn encrypt_file(conf: &Config, path: &str, in_place: bool) {
     if !conf.retain {
         std::fs::remove_file(path).unwrap_or_else(|_| panic!("failed to delete {}", path));
     }
+}
+
+fn compute_hash(contents: &Vec<u8>) -> [u8; 32] {
+    // compute hash on contents
+    let mut hasher = Blake2s256::new();
+    hasher.update(contents);
+    let res: [u8; 32] = hasher.finalize().into();
+    res
+}
+
+fn get_file_info(path: &str) -> (PathBuf, PathBuf, String, String) {
+    // get filename, extension, and full path info
+    let fp = util::path::get_full_file_path(path).unwrap();
+    let parent_dir = fp.parent().unwrap().to_owned();
+    let name = fp.file_name().unwrap().to_string_lossy().to_string(); // Convert to owned String
+    let index = name.find('.').unwrap();
+    let (filename, extension) = name.split_at(index);
+    
+    // Convert slices to owned Strings
+    let filename = filename.to_string();
+    let extension = extension.to_string();
+    
+    (fp, parent_dir, filename, extension)
 }
 
 pub fn decrypt_file(
@@ -160,36 +178,8 @@ pub fn decrypt_file(
     let fc = crypt_keeper::query_crypt(uuid_str).unwrap();
     let fc_hash: [u8; 32] = fc.hash.to_owned();
 
+    // default output case
     let mut file = format!("{}/{}{}", &parent_dir.display(), &fc.filename, &fc.ext);
-
-    if let Some(mut p) = output {
-        if p.contains('.') {
-            // we are renaming the file
-            let fp = PathBuf::from(p);
-            let parent = fp.parent().unwrap();
-            if !parent.exists() {
-                _ = std::fs::create_dir_all(parent);
-            }
-            let name = fp.file_name().unwrap();
-            let index = name.to_str().unwrap().find('.').unwrap();
-            let (filename, extension) = name.to_str().unwrap().split_at(index);
-            file = format!("{}/{}{}", &parent.display(), &filename, &extension);
-        } else {
-            // we are saving it to a new directory
-            // check to make sure the last char isnt a / or \
-            let last = p.chars().last().unwrap();
-            if !last.is_ascii_alphabetic() {
-                p.remove(p.len() - 1);
-            }
-            let fp: PathBuf = PathBuf::from(p);
-            if !fp.exists() {
-                _ = std::fs::create_dir_all(fp.clone());
-            }
-
-            file = format!("{}/{}{}", &fp.display(), &fc.filename, &fc.ext);
-        }
-    }
-    // dbg!(&file);
 
     if Path::new(&file).exists() {
         // for now, we are going to just append the
@@ -201,25 +191,54 @@ pub fn decrypt_file(
             &fc.ext
         );
     }
+    
+    // if user passes in a alternative path and or filename for us to use, use it.
+    let mut p = String::new();
+    if output.is_some() { p = output.unwrap(); }
+    if !p.is_empty() {
+        let rel_path = PathBuf::from(&p);
+        
+        match rel_path.extension().is_some() {
+            // 'tis a file
+            true => {
+                 _ = std::fs::create_dir_all(&rel_path.parent().unwrap());
+                // get filename and ext from string
+                let name = rel_path.file_name().unwrap().to_string_lossy().to_string(); // Convert to owned String
+                let index = name.find('.').unwrap();
+                let (filename, extension) = name.split_at(index);
+                file = format!("{}/{}{}", rel_path.parent().unwrap().to_string_lossy().to_string(), filename, extension);
+            },
+            // 'tis a new directory
+            false =>  {
+                _ = std::fs::create_dir_all(&rel_path);
+                
+                // check to make sure the last char isnt a / or \
+                let last = p.chars().last().unwrap();
+                if !last.is_ascii_alphabetic() {
+                    p.remove(p.len() - 1);
+                }
+                let fp: PathBuf = PathBuf::from(p);
+
+                file = format!("{}/{}{}", &fp.display(), &fc.filename, &fc.ext);
+            },
+        };
+    } 
 
     let decrypted_content =
         encryption::decryption(fc.clone(), &content.to_vec()).expect("failed decryption");
 
     // compute hash on contents
-    let mut hasher = Blake2s256::new();
-    hasher.update(&decrypted_content);
-    let res = hasher.finalize();
+    let hash = compute_hash(&decrypted_content);
 
     // verify file integrity
-    if res != fc_hash.into() {
+    if hash != fc_hash {
         let s = format!(
             "HASH COMPARISON FAILED\nfile hash: {:?}\ndecrypted hash:{:?}",
             &fc.hash.to_vec(),
-            res
+            hash
         );
         return Err(EncryptErrors::HashFail(s));
     }
-    // println!("hash comparison sucessful");
 
     write_contents_to_file(&file, decrypted_content).expect("failed writing content to file!");
 
