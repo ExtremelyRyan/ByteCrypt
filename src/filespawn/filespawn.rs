@@ -1,12 +1,16 @@
 use rand::{Rng, distributions::Alphanumeric};
 use std::{
-    path::{Path, PathBuf},
-    fs::{ File, create_dir_all}
+    path::Path,
+    fs::{ File, read_dir, create_dir_all},
+    collections::HashSet
 }; 
 use std::io::Write;
 
 const SAVE_PATH: &str = "src/filespawn/test_files/";
 const NUM_FILES: u16 = 1000;
+const MAX_HEIGHT: usize = 1000;
+const MIN_WIDTH: usize = 10;
+const MAX_WIDTH: usize = 1000;
 
 #[derive(Debug)]
 struct RFile {
@@ -14,25 +18,39 @@ struct RFile {
     content: Vec<String>,
 }
 
+///Generates a directory filled with randomly generated files
 pub fn generate_files() -> anyhow::Result<()> {
     //If the directory doesn't exist, create it
     if !Path::new(SAVE_PATH).exists() {
         println!("Test directory does not exist, generating new directory...");
-        let path = PathBuf::from(SAVE_PATH);
-        _ = create_dir_all(path)?;
+        create_dir_all(SAVE_PATH)?;
     }
 
-    
-    let mut files: Vec<RFile> = Vec::new();
+    println!("Detecting files in directory");
+    //Check the files in the directory
+    let existing_files: HashSet<String> = read_dir(SAVE_PATH)?
+        .filter_map(|e| e.ok())
+        .filter_map(|e| e.file_name().into_string().ok())
+        .collect();
+    println!("{} files detected. Checking and resolving any missing files.", existing_files.len());
+
+    //Fill the folder
     for i in 0..NUM_FILES {
-        let file = generate_random_file(i.to_string());
+        let file_name = format!("{}.txt", i);
+
+        //Skip the file creation if it already exists
+        if existing_files.contains(&file_name) {
+            continue;
+        }
+        println!("Generating random file: {}", file_name);
+        //Generate random file and save it
+        let file = generate_random_file(file_name);
         let file_path = format!("{}{}", SAVE_PATH, file.name);
         let mut out = File::create(&file_path)?;
 
         for line in &file.content {
             writeln!(out, "{}", line)?;
         }
-        files.push(file);
     }
 
     return Ok(());
@@ -40,10 +58,10 @@ pub fn generate_files() -> anyhow::Result<()> {
 
 fn generate_random_file(name: String) -> RFile {
     let mut rng = rand::thread_rng();
-    let content_height: usize = rng.gen_range(1..1000);
+    let content_height: usize = rng.gen_range(1..MAX_HEIGHT);
     let mut strings: Vec<String> = Vec::new(); 
     for _ in 1..=content_height {
-        let content_width = rng.gen_range(10..1000);
+        let content_width = rng.gen_range(MIN_WIDTH..MAX_WIDTH);
         let random_content: String = (0..content_width)
                                         .map(|_| rng.sample(Alphanumeric) as char)
                                         .collect();
@@ -51,9 +69,9 @@ fn generate_random_file(name: String) -> RFile {
     }
     
     let output = RFile {
-        name: format!("{}{}", name, ".txt"),
+        name: name.to_string(),
         content: strings
     };
 
-    output
+    return output;
 }

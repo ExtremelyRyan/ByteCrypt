@@ -14,8 +14,9 @@ fn main() -> Result<()> {
     let config = config::load_config().unwrap();
 
     //Load the UI
-    cli::load_cli(config)
+    //cli::load_cli(config)
 
-    //let test = filespawn::filespawn::generate_files(1000);
+    let test = filespawn::filespawn::generate_files();
     //println!("{:#?}", test);
+    test
 }
