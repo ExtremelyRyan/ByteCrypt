@@ -43,6 +43,7 @@ pub fn generate_files() -> anyhow::Result<()> {
         let filled_length = ((bar_length as f64 * completed as f64) / NUM_FILES as f64) as usize;
         let bar: String = "=".repeat(filled_length) + &" ".repeat(bar_length - filled_length);
         print!("\r[{:<20}] {:.0}%", bar, percentage);
+        std::io::stdout().flush().unwrap();
         
         let file_name = format!("{}.txt", i);
 
