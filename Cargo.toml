@@ -3,6 +3,7 @@ name = "bytecrypt"
 version = "0.1.0"
 authors = ["Ryan M", "Joshua B"]
 edition = "2021"
+description = "file encryption application"
 documentation = "https://github.com/ExtremelyRyan/ByteCrypt"
 homepage = "https://github.com/ExtremelyRyan/ByteCrypt"
 repository = "https://github.com/ExtremelyRyan/ByteCrypt"
@@ -10,6 +11,8 @@ readme = "README.md"
 keywords = ["encryption", "files"]
 categories = ["command-line-utilities", "file-encryption"]
 license = "MIT"
+rust-version = "1.70"
+
 
 [[bin]] 
 path = "src/main.rs"
