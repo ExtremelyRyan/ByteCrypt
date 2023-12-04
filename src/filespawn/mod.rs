@@ -1,2 +1,2 @@
 #![allow(dead_code)]
-pub mod filespawn;
+pub mod file_generator;

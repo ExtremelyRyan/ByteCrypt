@@ -6,7 +6,7 @@ pub mod util;
 use anyhow::{self, Result};
 use ui::cli;
 use util::*;
-//use filespawn::*;
+use filespawn::*;
 
 
 fn main() -> Result<()> {
@@ -14,9 +14,9 @@ fn main() -> Result<()> {
     let config = config::load_config().unwrap();
 
     //Load the UI
-    //cli::load_cli(config)
+    cli::load_cli(config)
 
-    let test = filespawn::filespawn::generate_files();
+    // let test = file_generator::generate_files();
     //println!("{:#?}", test);
-    test
+    // return test;
 }
