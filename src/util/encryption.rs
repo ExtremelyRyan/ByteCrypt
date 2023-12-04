@@ -15,6 +15,10 @@ use std::path::{Path, PathBuf};
 pub const KEY_SIZE: usize = 32;
 pub const NONCE_SIZE: usize = 12;
 
+pub enum EncryptErrors {
+    HashFail(String),
+}
+
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct FileCrypt {
     pub uuid: String,
@@ -60,6 +64,70 @@ impl FileCrypt {
     }
 }
 
+pub fn compute_hash(contents: &Vec<u8>) -> [u8; 32] {
+    // compute hash on contents
+    let mut hasher = Blake2s256::new();
+    hasher.update(contents);
+    hasher.finalize().into()
+}
+
+pub fn decryption(fc: FileCrypt, contents: &Vec<u8>) -> Result<Vec<u8>> {
+    let k = Key::from_slice(&fc.key);
+    let n = Nonce::from_slice(&fc.nonce);
+    let cipher = ChaCha20Poly1305::new(k)
+        .decrypt(n, contents.as_ref())
+        .expect("failed to decrypt cipher text");
+    Ok(cipher)
+}
+
+pub fn decrypt_file(
+    conf: &Config,
+    path: &str,
+    output: Option<String>,
+) -> Result<(), EncryptErrors> {
+    // get path to encrypted file
+    let fp = util::path::get_full_file_path(path).unwrap();
+    let parent_dir = &fp.parent().unwrap().to_owned();
+
+    // rip out uuid from contents
+    let contents: Vec<u8> = std::fs::read(&fp).unwrap();
+    let (uuid, content) = contents.split_at(36);
+    let uuid_str = String::from_utf8(uuid.to_vec()).unwrap();
+
+    // query db with uuid
+    let fc = crypt_keeper::query_crypt(uuid_str).unwrap();
+    let fc_hash: [u8; 32] = fc.hash.to_owned();
+
+    // get output file
+    let file = generate_output_file(&fc, output, parent_dir);
+
+    let decrypted_content =
+        encryption::decryption(fc.clone(), &content.to_vec()).expect("failed decryption");
+
+    // compute hash on contents
+    let hash = compute_hash(&decrypted_content);
+
+    // verify file integrity
+    if hash != fc_hash {
+        let s = format!(
+            "HASH COMPARISON FAILED\nfile hash: {:?}\ndecrypted hash:{:?}",
+            &fc.hash.to_vec(),
+            hash
+        );
+        return Err(EncryptErrors::HashFail(s));
+    }
+
+    if write_contents_to_file(&file, decrypted_content).is_err() {
+        eprintln!("failed to write contents to {file}");
+        std::process::exit(2);
+    }
+
+    if !conf.retain {
+        std::fs::remove_file(path).unwrap_or_else(|_| panic!("failed to delete {}", path));
+    }
+    Ok(())
+}
+
 /// takes a FileCrypt and encrypts content in place (TODO: for now)
 pub fn encryption(fc: &mut FileCrypt, contents: &Vec<u8>) -> Result<Vec<u8>> {
     if fc.key.into_iter().all(|b| b == 0) {
@@ -73,33 +141,6 @@ pub fn encryption(fc: &mut FileCrypt, contents: &Vec<u8>) -> Result<Vec<u8>> {
     Ok(cipher)
 }
 
-pub fn decryption(fc: FileCrypt, contents: &Vec<u8>) -> Result<Vec<u8>> {
-    let k = Key::from_slice(&fc.key);
-    let n = Nonce::from_slice(&fc.nonce);
-    let cipher = ChaCha20Poly1305::new(k)
-        .decrypt(n, contents.as_ref())
-        .expect("failed to decrypt cipher text");
-    Ok(cipher)
-}
-
-/// generates a UUID 7 string using a unix timestamp and random bytes.
-pub fn generate_uuid() -> String {
-    let ts = std::time::SystemTime::now()
-        .duration_since(std::time::SystemTime::UNIX_EPOCH)
-        .unwrap();
-
-    let mut random_bytes = [0u8; 10];
-    chacha20poly1305::aead::OsRng.fill_bytes(&mut random_bytes);
-
-    uuid::Builder::from_unix_timestamp_millis(ts.as_millis().try_into().unwrap(), &random_bytes)
-        .into_uuid()
-        .to_string()
-}
-
-pub enum EncryptErrors {
-    HashFail(String),
-}
-
 pub fn encrypt_file(conf: &Config, path: &str, in_place: bool) {
     let (fp, parent_dir, filename, extension) = get_file_info(path);
 
@@ -109,12 +150,7 @@ pub fn encrypt_file(conf: &Config, path: &str, in_place: bool) {
     let hash = compute_hash(&contents);
     // let hash = [0u8; 32]; // for benching w/o hashing only
 
-    let mut fc = FileCrypt::new(
-        filename,
-        extension,
-        fp,
-        hash,
-    );
+    let mut fc = FileCrypt::new(filename, extension, fp, hash);
 
     let mut encrypted_contents = encryption(&mut fc, &contents).unwrap();
 
@@ -137,47 +173,21 @@ pub fn encrypt_file(conf: &Config, path: &str, in_place: bool) {
     }
 }
 
-fn compute_hash(contents: &Vec<u8>) -> [u8; 32] {
-    // compute hash on contents
-    let mut hasher = Blake2s256::new();
-    hasher.update(contents);
-    let res: [u8; 32] = hasher.finalize().into();
-    res
+/// generates a UUID 7 string using a unix timestamp and random bytes.
+pub fn generate_uuid() -> String {
+    let ts = std::time::SystemTime::now()
+        .duration_since(std::time::SystemTime::UNIX_EPOCH)
+        .unwrap();
+
+    let mut random_bytes = [0u8; 10];
+    chacha20poly1305::aead::OsRng.fill_bytes(&mut random_bytes);
+
+    uuid::Builder::from_unix_timestamp_millis(ts.as_millis().try_into().unwrap(), &random_bytes)
+        .into_uuid()
+        .to_string()
 }
 
-fn get_file_info(path: &str) -> (PathBuf, PathBuf, String, String) {
-    // get filename, extension, and full path info
-    let fp = util::path::get_full_file_path(path).unwrap();
-    let parent_dir = fp.parent().unwrap().to_owned();
-    let name = fp.file_name().unwrap().to_string_lossy().to_string(); // Convert to owned String
-    let index = name.find('.').unwrap();
-    let (filename, extension) = name.split_at(index);
-    
-    // Convert slices to owned Strings
-    let filename = filename.to_string();
-    let extension = extension.to_string();
-    
-    (fp, parent_dir, filename, extension)
-}
-
-pub fn decrypt_file(
-    conf: &Config,
-    path: &str,
-    output: Option<String>,
-) -> Result<(), EncryptErrors> {
-    // get path to encrypted file
-    let fp = util::path::get_full_file_path(path).unwrap();
-    let parent_dir = &fp.parent().unwrap().to_owned();
-
-    // rip out uuid from contents
-    let contents: Vec<u8> = std::fs::read(&fp).unwrap();
-    let (uuid, content) = contents.split_at(36);
-    let uuid_str = String::from_utf8(uuid.to_vec()).unwrap();
-
-    // query db with uuid
-    let fc = crypt_keeper::query_crypt(uuid_str).unwrap();
-    let fc_hash: [u8; 32] = fc.hash.to_owned();
-
+fn generate_output_file(fc: &FileCrypt, output: Option<String>, parent_dir: &Path) -> String {
     // default output case
     let mut file = format!("{}/{}{}", &parent_dir.display(), &fc.filename, &fc.ext);
 
@@ -191,27 +201,34 @@ pub fn decrypt_file(
             &fc.ext
         );
     }
-    
+
     // if user passes in a alternative path and or filename for us to use, use it.
     let mut p = String::new();
-    if output.is_some() { p = output.unwrap(); }
+    if output.is_some() {
+        p = output.unwrap();
+    }
     if !p.is_empty() {
         let rel_path = PathBuf::from(&p);
-        
+
         match rel_path.extension().is_some() {
             // 'tis a file
             true => {
-                _ = std::fs::create_dir_all(&rel_path.parent().unwrap());
+                _ = std::fs::create_dir_all(rel_path.parent().unwrap());
                 // get filename and ext from string
                 let name = rel_path.file_name().unwrap().to_string_lossy().to_string(); // Convert to owned String
                 let index = name.find('.').unwrap();
                 let (filename, extension) = name.split_at(index);
-                file = format!("{}/{}{}", rel_path.parent().unwrap().to_string_lossy().to_string(), filename, extension);
-            },
+                file = format!(
+                    "{}/{}{}",
+                    rel_path.parent().unwrap().to_string_lossy(),
+                    filename,
+                    extension
+                );
+            }
             // 'tis a new directory
-            false =>  {
+            false => {
                 _ = std::fs::create_dir_all(&rel_path);
-                
+
                 // check to make sure the last char isnt a / or \
                 let last = p.chars().last().unwrap();
                 if !last.is_ascii_alphabetic() {
@@ -220,33 +237,25 @@ pub fn decrypt_file(
                 let fp: PathBuf = PathBuf::from(p);
 
                 file = format!("{}/{}{}", &fp.display(), &fc.filename, &fc.ext);
-            },
+            }
         };
-    } 
-
-    let decrypted_content =
-        encryption::decryption(fc.clone(), &content.to_vec()).expect("failed decryption");
-
-    // compute hash on contents
-    let hash = compute_hash(&decrypted_content);
-
-    // verify file integrity
-    if hash != fc_hash {
-        let s = format!(
-            "HASH COMPARISON FAILED\nfile hash: {:?}\ndecrypted hash:{:?}",
-            &fc.hash.to_vec(),
-            hash
-        );
-        return Err(EncryptErrors::HashFail(s));
     }
+    file
+}
 
-    write_contents_to_file(&file, decrypted_content).expect("failed writing content to file!");
+fn get_file_info(path: &str) -> (PathBuf, PathBuf, String, String) {
+    // get filename, extension, and full path info
+    let fp = util::path::get_full_file_path(path).unwrap();
+    let parent_dir = fp.parent().unwrap().to_owned();
+    let name = fp.file_name().unwrap().to_string_lossy().to_string(); // Convert to owned String
+    let index = name.find('.').unwrap();
+    let (filename, extension) = name.split_at(index);
 
-    //? delete crypt file?
-    if !conf.retain {
-        std::fs::remove_file(path).expect("failed deleting .crypt file");
-    }
-    Ok(())
+    // Convert slices to owned Strings
+    let filename = filename.to_string();
+    let extension = extension.to_string();
+
+    (fp, parent_dir, filename, extension)
 }
 
 // cargo nextest run

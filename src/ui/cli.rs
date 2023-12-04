@@ -118,7 +118,7 @@ pub fn load_cli(mut conf: Config) -> anyhow::Result<()> {
             match PathBuf::from(path).is_dir() {
                 true => {
                     // get vec of dir
-                    let dir = walk_directory(&path, &conf).expect("could not find directory!");
+                    let dir = walk_directory(path, &conf).expect("could not find directory!");
                     // dbg!(&dir);
                     for path in dir {
                         println!("Encrypting file: {}", path.display());
@@ -140,7 +140,7 @@ pub fn load_cli(mut conf: Config) -> anyhow::Result<()> {
             match PathBuf::from(path).is_dir() {
                 true => {
                     // get vec of dir
-                    let dir = walk_directory(&path, &conf).expect("could not find directory!");
+                    let dir = walk_directory(path, &conf).expect("could not find directory!");
                     // dbg!(&dir);
                     for path in dir {
                         if path.extension() == Some(&OsStr::from("crypt")) {

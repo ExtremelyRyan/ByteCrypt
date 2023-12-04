@@ -60,7 +60,7 @@ pub fn walk_directory(path_in: &str, conf: &Config) -> Result<Vec<PathBuf>> {
     let walker = WalkDir::new(path).into_iter();
     let mut pathlist: Vec<PathBuf> = Vec::new();
 
-    for entry in walker.filter_entry(|e| !is_hidden(e, &conf)) {
+    for entry in walker.filter_entry(|e| !is_hidden(e, conf)) {
         let entry = entry.unwrap();
         // we only want to save paths that are towards a file.
         if entry.path().display().to_string().find('.').is_some() {
