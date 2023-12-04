@@ -1,10 +1,13 @@
 mod cloud_storage;
+mod filespawn;
 mod database;
 mod ui;
 pub mod util;
 use anyhow::{self, Result};
 use ui::cli;
 use util::*;
+use filespawn::*;
+
 
 fn main() -> Result<()> {
     //Load config file
@@ -12,4 +15,8 @@ fn main() -> Result<()> {
 
     //Load the UI
     cli::load_cli(config)
+
+    // let test = file_generator::generate_files();
+    //println!("{:#?}", test);
+    // return test;
 }
