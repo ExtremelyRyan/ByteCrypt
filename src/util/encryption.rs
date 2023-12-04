@@ -201,7 +201,7 @@ pub fn decrypt_file(
         match rel_path.extension().is_some() {
             // 'tis a file
             true => {
-                 _ = std::fs::create_dir_all(&rel_path.parent().unwrap());
+                _ = std::fs::create_dir_all(&rel_path.parent().unwrap());
                 // get filename and ext from string
                 let name = rel_path.file_name().unwrap().to_string_lossy().to_string(); // Convert to owned String
                 let index = name.find('.').unwrap();
