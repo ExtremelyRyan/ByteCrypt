@@ -19,7 +19,6 @@ pub enum EncryptErrors {
     HashFail(String),
 }
 
-
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct FileCrypt {
     pub uuid: String,
@@ -99,51 +98,8 @@ pub fn decrypt_file(
     let fc = crypt_keeper::query_crypt(uuid_str).unwrap();
     let fc_hash: [u8; 32] = fc.hash.to_owned();
 
-    // default output case
-    let mut file = format!("{}/{}{}", &parent_dir.display(), &fc.filename, &fc.ext);
-
-    if Path::new(&file).exists() {
-        // for now, we are going to just append the
-        // filename with -decrypted to delineate between the two.
-        file = format!(
-            "{}/{}-decrypted{}",
-            &parent_dir.display(),
-            &fc.filename,
-            &fc.ext
-        );
-    }
-    
-    // if user passes in a alternative path and or filename for us to use, use it.
-    let mut p = String::new();
-    if output.is_some() { p = output.unwrap(); }
-    if !p.is_empty() {
-        let rel_path = PathBuf::from(&p);
-        
-        match rel_path.extension().is_some() {
-            // 'tis a file
-            true => {
-                 _ = std::fs::create_dir_all(&rel_path.parent().unwrap());
-                // get filename and ext from string
-                let name = rel_path.file_name().unwrap().to_string_lossy().to_string(); // Convert to owned String
-                let index = name.find('.').unwrap();
-                let (filename, extension) = name.split_at(index);
-                file = format!("{}/{}{}", rel_path.parent().unwrap().to_string_lossy().to_string(), filename, extension);
-            },
-            // 'tis a new directory
-            false =>  {
-                _ = std::fs::create_dir_all(&rel_path);
-                
-                // check to make sure the last char isnt a / or \
-                let last = p.chars().last().unwrap();
-                if !last.is_ascii_alphabetic() {
-                    p.remove(p.len() - 1);
-                }
-                let fp: PathBuf = PathBuf::from(p);
-
-                file = format!("{}/{}{}", &fp.display(), &fc.filename, &fc.ext);
-            },
-        };
-    } 
+    // get output file
+    let file = generate_output_file(&fc, output, parent_dir);
 
     let decrypted_content =
         encryption::decryption(fc.clone(), &content.to_vec()).expect("failed decryption");
@@ -161,11 +117,13 @@ pub fn decrypt_file(
         return Err(EncryptErrors::HashFail(s));
     }
 
-    write_contents_to_file(&file, decrypted_content).expect("failed writing content to file!");
+    if write_contents_to_file(&file, decrypted_content).is_err() {
+        eprintln!("failed to write contents to {file}");
+        std::process::exit(2);
+    }
 
-    //? delete crypt file?
     if !conf.retain {
-        std::fs::remove_file(path).expect("failed deleting .crypt file");
+        std::fs::remove_file(path).unwrap_or_else(|_| panic!("failed to delete {}", path));
     }
     Ok(())
 }
@@ -183,8 +141,6 @@ pub fn encryption(fc: &mut FileCrypt, contents: &Vec<u8>) -> Result<Vec<u8>> {
     Ok(cipher)
 }
 
-
-
 pub fn encrypt_file(conf: &Config, path: &str, in_place: bool) {
     let (fp, parent_dir, filename, extension) = get_file_info(path);
 
@@ -194,12 +150,7 @@ pub fn encrypt_file(conf: &Config, path: &str, in_place: bool) {
     let hash = compute_hash(&contents);
     // let hash = [0u8; 32]; // for benching w/o hashing only
 
-    let mut fc = FileCrypt::new(
-        filename,
-        extension,
-        fp,
-        hash,
-    );
+    let mut fc = FileCrypt::new(filename, extension, fp, hash);
 
     let mut encrypted_contents = encryption(&mut fc, &contents).unwrap();
 
@@ -222,9 +173,6 @@ pub fn encrypt_file(conf: &Config, path: &str, in_place: bool) {
     }
 }
 
-
-
-
 /// generates a UUID 7 string using a unix timestamp and random bytes.
 pub fn generate_uuid() -> String {
     let ts = std::time::SystemTime::now()
@@ -239,7 +187,61 @@ pub fn generate_uuid() -> String {
         .to_string()
 }
 
+fn generate_output_file(fc: &FileCrypt, output: Option<String>, parent_dir: &Path) -> String {
+    // default output case
+    let mut file = format!("{}/{}{}", &parent_dir.display(), &fc.filename, &fc.ext);
 
+    if Path::new(&file).exists() {
+        // for now, we are going to just append the
+        // filename with -decrypted to delineate between the two.
+        file = format!(
+            "{}/{}-decrypted{}",
+            &parent_dir.display(),
+            &fc.filename,
+            &fc.ext
+        );
+    }
+
+    // if user passes in a alternative path and or filename for us to use, use it.
+    let mut p = String::new();
+    if output.is_some() {
+        p = output.unwrap();
+    }
+    if !p.is_empty() {
+        let rel_path = PathBuf::from(&p);
+
+        match rel_path.extension().is_some() {
+            // 'tis a file
+            true => {
+                _ = std::fs::create_dir_all(rel_path.parent().unwrap());
+                // get filename and ext from string
+                let name = rel_path.file_name().unwrap().to_string_lossy().to_string(); // Convert to owned String
+                let index = name.find('.').unwrap();
+                let (filename, extension) = name.split_at(index);
+                file = format!(
+                    "{}/{}{}",
+                    rel_path.parent().unwrap().to_string_lossy(),
+                    filename,
+                    extension
+                );
+            }
+            // 'tis a new directory
+            false => {
+                _ = std::fs::create_dir_all(&rel_path);
+
+                // check to make sure the last char isnt a / or \
+                let last = p.chars().last().unwrap();
+                if !last.is_ascii_alphabetic() {
+                    p.remove(p.len() - 1);
+                }
+                let fp: PathBuf = PathBuf::from(p);
+
+                file = format!("{}/{}{}", &fp.display(), &fc.filename, &fc.ext);
+            }
+        };
+    }
+    file
+}
 
 fn get_file_info(path: &str) -> (PathBuf, PathBuf, String, String) {
     // get filename, extension, and full path info
@@ -248,15 +250,13 @@ fn get_file_info(path: &str) -> (PathBuf, PathBuf, String, String) {
     let name = fp.file_name().unwrap().to_string_lossy().to_string(); // Convert to owned String
     let index = name.find('.').unwrap();
     let (filename, extension) = name.split_at(index);
-    
+
     // Convert slices to owned Strings
     let filename = filename.to_string();
     let extension = extension.to_string();
-    
+
     (fp, parent_dir, filename, extension)
 }
-
-
 
 // cargo nextest run
 #[cfg(test)]

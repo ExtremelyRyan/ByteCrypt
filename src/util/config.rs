@@ -21,10 +21,10 @@ pub struct Config {
 
 impl std::fmt::Display for Config {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        _ = write!(f, "cloud_services: {:?}\n", self.cloud_services);
-        _ = write!(f, "database_path: {}\n", self.database_path);
-        _ = write!(f, "ignore_directories: {:?}\n", self.ignore_directories);
-        _ = write!(f, "retain: {}\n", self.retain);
+        _ = writeln!(f, "cloud_services: {:?}", self.cloud_services);
+        _ = writeln!(f, "database_path: {}", self.database_path);
+        _ = writeln!(f, "ignore_directories: {:?}", self.ignore_directories);
+        _ = writeln!(f, "retain: {}", self.retain);
         std::fmt::Result::Ok(())
     }
 }
@@ -95,7 +95,7 @@ impl Config {
             "false" | "f" => self.retain = false,
             _ => return false,
         }
-        if save_config(&self).is_err() {
+        if save_config(self).is_err() {
             return false;
         }
         true

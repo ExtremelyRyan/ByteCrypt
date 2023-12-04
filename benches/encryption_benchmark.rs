@@ -1,7 +1,7 @@
 use criterion::{criterion_group, criterion_main, Criterion};
 use crypt_lib::{
     util::config::load_config,
-    util::encryption::{decrypt_file, encrypt_file, compute_hash, generate_uuid},
+    util::encryption::{compute_hash, decrypt_file, encrypt_file, generate_uuid},
 };
 
 #[cfg(target_os = "linux")]
@@ -17,20 +17,18 @@ static DRACULA_DECRYPT: &str = "benches/files/dracula-decrypted.txt";
 #[cfg(target_os = "linux")]
 static DRACULA_LDECRYPT: &str = "benches/files/dracula-large-decrypted.txt";
 
-#[cfg(target_os = "windows")] 
+#[cfg(target_os = "windows")]
 static DRACULA_NORMAL: &str = "benches\\files\\dracula.txt";
-#[cfg(target_os = "windows")] 
+#[cfg(target_os = "windows")]
 static DRACULA_LARGE: &str = "benches\\files\\dracula-large.txt";
-#[cfg(target_os = "windows")] 
+#[cfg(target_os = "windows")]
 static DRACULA_CRYPT: &str = "benches\\files\\dracula.crypt";
-#[cfg(target_os = "windows")] 
+#[cfg(target_os = "windows")]
 static DRACULA_LCRYPT: &str = "benches\\files\\dracula-large.crypt";
 #[cfg(target_os = "windows")]
 static DRACULA_DECRYPT: &str = "benches\\files\\dracula-decrypted.txt";
 #[cfg(target_os = "windows")]
 static DRACULA_LDECRYPT: &str = "benches\\files\\dracula-large-decrypted.txt";
-
-
 
 // encrypt test with 850kb file
 pub fn enc_benchmark(c: &mut Criterion) {
@@ -83,9 +81,7 @@ pub fn test_compute_hash(c: &mut Criterion) {
 
 // test generation of a 26 digit uuid
 pub fn test_generate_uuid(c: &mut Criterion) {
-    c.bench_function("generate 26 digit uuid", |b| {
-        b.iter(|| generate_uuid())
-    });
+    c.bench_function("generate 26 digit uuid", |b| b.iter(|| generate_uuid()));
 }
 
 pub fn cleanup(_c: &mut Criterion) {
