@@ -2,11 +2,11 @@ use rand::{Rng, distributions::Alphanumeric};
 use std::{
     path::Path,
     fs::{ File, read_dir, create_dir_all},
-    collections::HashSet
+    collections::HashSet,
 }; 
 use std::io::Write;
 
-const SAVE_PATH: &str = "src/filespawn/test_files/";
+const SAVE_PATH: &str = "src/filespawn/test_files/"; 
 const NUM_FILES: u16 = 1000;
 const MAX_HEIGHT: usize = 1000;
 const MIN_WIDTH: usize = 10;
@@ -20,6 +20,7 @@ struct RFile {
 
 ///Generates a directory filled with randomly generated files
 pub fn generate_files() -> anyhow::Result<()> {
+    
     //If the directory doesn't exist, create it
     if !Path::new(SAVE_PATH).exists() {
         println!("Test directory does not exist, generating new directory...");
@@ -34,15 +35,23 @@ pub fn generate_files() -> anyhow::Result<()> {
         .collect();
     println!("{} files detected. Checking and resolving any missing files.", existing_files.len());
 
+    let mut completed = 0;
     //Fill the folder
     for i in 0..NUM_FILES {
+        let percentage = (completed as f64 / NUM_FILES as f64) * 100.0;
+        let bar_length = 20;
+        let filled_length = ((bar_length as f64 * completed as f64) / NUM_FILES as f64) as usize;
+        let bar: String = "=".repeat(filled_length) + &" ".repeat(bar_length - filled_length);
+        print!("\r[{:<20}] {:.0}%", bar, percentage);
+        
         let file_name = format!("{}.txt", i);
 
         //Skip the file creation if it already exists
         if existing_files.contains(&file_name) {
+            completed += 1;
             continue;
         }
-        println!("Generating random file: {}", file_name);
+        // println!("Generating random file: {}", file_name);
         //Generate random file and save it
         let file = generate_random_file(file_name);
         let file_path = format!("{}{}", SAVE_PATH, file.name);
@@ -51,6 +60,7 @@ pub fn generate_files() -> anyhow::Result<()> {
         for line in &file.content {
             writeln!(out, "{}", line)?;
         }
+        completed += 1;
     }
 
     return Ok(());
