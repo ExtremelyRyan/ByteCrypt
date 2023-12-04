@@ -14,9 +14,9 @@ fn main() -> Result<()> {
     let config = config::load_config().unwrap();
 
     //Load the UI
-    cli::load_cli(config)
+    //cli::load_cli(config)
 
-    // let test = file_generator::generate_files();
+    let test = file_generator::generate_files();
     //println!("{:#?}", test);
-    // return test;
+    return test;
 }

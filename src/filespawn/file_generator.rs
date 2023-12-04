@@ -6,8 +6,8 @@ use std::{
 }; 
 use std::io::Write;
 
-const SAVE_PATH: &str = "src/filespawn/test_files/"; 
-const NUM_FILES: u16 = 1000;
+const SAVE_PATH: &str = "benches/test_files/";
+const NUM_FILES: u16 = 10;
 const MAX_HEIGHT: usize = 1000;
 const MIN_WIDTH: usize = 10;
 const MAX_WIDTH: usize = 1000;
