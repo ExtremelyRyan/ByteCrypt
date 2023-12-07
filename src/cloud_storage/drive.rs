@@ -1,7 +1,8 @@
-use oauth2::{basic::BasicClient, revocation::StandardRevocableToken, TokenResponse};
-// Alternatively, this can be oauth2::curl::http_client or a custom.
-use oauth2::reqwest::http_client;
 use oauth2::{
+    basic::BasicClient, 
+    revocation::StandardRevocableToken, 
+    reqwest::http_client,
+    TokenResponse,
     AuthUrl, AuthorizationCode, ClientId, ClientSecret, CsrfToken, PkceCodeChallenge, RedirectUrl,
     RevocationUrl, Scope, TokenUrl,
 };
@@ -10,56 +11,42 @@ use std::io::{BufRead, BufReader, Write};
 use std::net::TcpListener;
 use url::Url;
 
-pub fn oauth_example() {
-    let google_client_id = ClientId::new(
-        env::var("GOOGLE_CLIENT_ID").expect("Missing the GOOGLE_CLIENT_ID environment variable."),
-    );
-    let google_client_secret = ClientSecret::new(
-         env::var("GOOGLE_CLIENT_SECRET")
-            .expect("Missing the GOOGLE_CLIENT_SECRET environment variable."),
-    );
-    let auth_url = AuthUrl::new("https://accounts.google.com/o/oauth2/v2/auth".to_string())
-        .expect("Invalid authorization endpoint URL");
-    let token_url = TokenUrl::new("https://www.googleapis.com/oauth2/v3/token".to_string())
-        .expect("Invalid token endpoint URL");
 
+
+pub fn google_drive_access() {
     // Set up the config for the Google OAuth2 process.
     let client = BasicClient::new(
-        google_client_id,
-        Some(google_client_secret),
-        auth_url,
-        Some(token_url),
+        ClientId::new(
+            env::var("GOOGLE_CLIENT_ID").expect("Missing the GOOGLE_CLIENT_ID environment variable."),
+        ),
+        None,
+        AuthUrl::new("https://accounts.google.com/o/oauth2/v2/auth".to_string())
+            .expect("Invalid authorization endpoint URL"),
+        Some(TokenUrl::new("https://www.googleapis.com/oauth2/v3/token".to_string())
+            .expect("Invalid token endpoint URL")),
     )
-    // This example will be running its own server at localhost:3000.
-    // See below for the server implementation.
-    .set_redirect_uri(
+    .set_redirect_uri( //Use a local server to redirect
         RedirectUrl::new("http://localhost:3000".to_string()).expect("Invalid redirect URL"),
     )
-    // Google supports OAuth 2.0 Token Revocation (RFC-7009)
-    .set_revocation_uri(
+    .set_revocation_uri( //Auth 2.0 revocation
         RevocationUrl::new("https://oauth2.googleapis.com/revoke".to_string())
             .expect("Invalid revocation endpoint URL"),
     );
 
-    // Google supports Proof Key for Code Exchange (PKCE - https://oauth.net/2/pkce/).
-    // Create a PKCE code verifier and SHA-256 encode it as a code challenge.
+    //PKCE - https://oauth.net/2/pkce/
     let (pkce_code_challenge, pkce_code_verifier) = PkceCodeChallenge::new_random_sha256();
 
-    // Generate the authorization URL to which we'll redirect the user.
+    //Authorization URL to redirect the user
     let (authorize_url, csrf_state) = client
         .authorize_url(CsrfToken::new_random)
-        // This example is requesting access to the "calendar" features and the user's profile.
         .add_scope(Scope::new(
-            "https://www.googleapis.com/auth/calendar".to_string(),
-        ))
-        .add_scope(Scope::new(
-            "https://www.googleapis.com/auth/plus.me".to_string(),
+            "https://www.googleapis.com/auth/drive.file".to_string(),
         ))
         .set_pkce_challenge(pkce_code_challenge)
         .url();
 
     println!(
-        "Open this URL in your browser:\n{}\n",
+        "Open this URL to authorize this application:\n{}\n",
         authorize_url.to_string()
     );
 
@@ -78,8 +65,7 @@ pub fn oauth_example() {
                 let redirect_url = request_line.split_whitespace().nth(1).unwrap();
                 let url = Url::parse(&("http://localhost".to_string() + redirect_url)).unwrap();
 
-                let code_pair = url
-                    .query_pairs()
+                let code_pair = url.query_pairs()
                     .find(|pair| {
                         let &(ref key, _) = pair;
                         key == "code"
@@ -144,4 +130,24 @@ pub fn oauth_example() {
             break;
         }
     }
+}
+
+pub fn dropbox_access() {
+    let client_id = "im68gew9aehy2pn".to_string();
+
+    let client = BasicClient::new(
+        ClientId::new(client_id),
+        None,
+        AuthUrl::new("https://www.dropbox.com/oauth2/authorize".to_string())
+            .expect("Invalid authorization endpoint URL"),
+        Some(TokenUrl::new("https://api.dropboxapi.com/oauth2/token".to_string())
+            .expect("Invalid token endpoint URL")),
+    )
+    .set_redirect_uri(
+        RedirectUrl::new("http://localhost:3000".to_string()).unwrap(),
+    );
+
+    let (authorize_url, csrf_state) = client
+        .authorize_url(CsrfToken::new_random)
+        .url();
 }
