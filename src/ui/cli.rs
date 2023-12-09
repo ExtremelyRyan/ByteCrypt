@@ -95,6 +95,9 @@ enum Commands {
         /// value to update config
         #[arg(required = false, default_value_t = String::from(""))]
         value: String,
+        /// value to update config
+        #[arg(required = false, default_value_t = String::from(""))]
+        value2: String,
     },
 }
 
@@ -170,6 +173,7 @@ pub fn load_cli(mut conf: Config) -> anyhow::Result<()> {
             show,
             update,
             value,
+            value2,
         }) => {
             if *show {
                 println!("{}", conf);
@@ -184,16 +188,30 @@ pub fn load_cli(mut conf: Config) -> anyhow::Result<()> {
                     return Ok(()); // TODO: fix this later
                 }
                 match update.as_str() {
-                    // TODO get / set path
-                    "database_path" => todo!(),
+                    // TODO set path
+                    "database_path" => match value.to_lowercase().as_str() {
+                        "get" | "g" => println!("{}", conf.get_database_path()),
+                        "set" | "s" => {
+                            if PathBuf::from(value2).exists() {
+                            conf.set_database_path(value2);
+                            } else {
+                                // create path
+                            }
+                            conf.set_database_path(value2);
+                            },
+                        _ => println!("not valid"),
+                    },
                     // TODO: add / remove items in list
                     "cloud_services" => todo!(),
                     "retain" => match conf.set_retain(value.to_owned()) {
                         false => eprintln!("Error occured, please verify parameters."),
                         true => println!("{} value changed to: {}", update, value),
                     },
-                    // TODO: add / remove items in list
-                    "hidden_directories" => todo!(),
+                    "hidden_directories" => match value.to_lowercase().as_str() {
+                        "add" | "a" => conf.append_ignore_directories(value2),
+                        "remove" | "r" => conf.remove_item_from_ignore_directories(value2),
+                        _ => println!("invalid input"),
+                    },
                     _ => eprintln!("invalid selection!\n use -s to see available config options."),
                 }
             }

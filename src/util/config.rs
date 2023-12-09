@@ -1,3 +1,4 @@
+use log::{info, warn};
 use serde::{Deserialize, Serialize};
 use std::{fs, path::Path};
 
@@ -84,6 +85,10 @@ impl Config {
     pub fn get_database_path(&self) -> &str {
         self.database_path.as_ref()
     }
+    pub fn set_database_path(&mut self, path: &String) {
+        self.database_path = path.to_owned();
+        _ = save_config(self);
+    }
 
     pub fn retain(&self) -> bool {
         self.retain
@@ -107,17 +112,29 @@ impl Config {
 
     pub fn set_ignore_directories(&mut self, ignore_directories: Vec<String>) {
         self.ignore_directories = ignore_directories;
+        _ = save_config(self);
     }
-    pub fn append_ignore_directories(&mut self, item: String) {
-        self.ignore_directories.push(item);
+    pub fn append_ignore_directories(&mut self, item: &String) {
+        self.ignore_directories.push(item.to_owned());
+        _ = save_config(self);
+    }
+
+    pub fn remove_item_from_ignore_directories(&mut self, item: &String) {
+        if self.ignore_directories.contains(&item) {
+            let index = &self.ignore_directories.iter().position(|x| x == item);
+            let num = index.unwrap();
+            self.ignore_directories.remove(num);
+            _ = save_config(self);
+        }
     }
 }
 
 ///Loads configuration file -- creates default if missing
 pub fn load_config() -> anyhow::Result<Config> {
+    info!("loading config");
     //If the file doesn't exist, re-create and load defaults
     if !Path::new(CONFIG_PATH).exists() {
-        println!("No configuration found, reloading with defaults!");
+        warn!("No configuration found, reloading with defaults!");
         let config = Config::default();
         save_config(&config)?;
     }
@@ -131,6 +148,7 @@ pub fn load_config() -> anyhow::Result<Config> {
 
 ///Saves the configuration file
 pub fn save_config(config: &Config) -> anyhow::Result<()> {
+    info!("saving config");
     //Serialize config
     let serialized_config = toml::to_string_pretty(&config)?;
     fs::write(CONFIG_PATH, serialized_config)?;
