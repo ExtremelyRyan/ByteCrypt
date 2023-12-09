@@ -6,7 +6,7 @@ use crate::{
         config::Config,
         encryption::{decrypt_file, encrypt_file},
         parse::write_contents_to_file,
-        path::walk_directory,
+        path::{get_full_file_path, walk_directory},
         *,
     },
 };
@@ -190,19 +190,36 @@ pub fn load_cli(mut conf: Config) -> anyhow::Result<()> {
                 match update.as_str() {
                     // TODO set path
                     "database_path" => match value.to_lowercase().as_str() {
-                        "get" | "g" => println!("{}", conf.get_database_path()),
+                        "get" | "g" => println!(
+                            "database_path: {}",
+                            get_full_file_path(conf.get_database_path())?.display()
+                        ),
                         "set" | "s" => {
-                            if PathBuf::from(value2).exists() {
-                            conf.set_database_path(value2);
-                            } else {
-                                // create path
+                            println!("WARNING: changing your database will prevent you from decrypting existing
+                                 files until you change the path back. ARE YOU SURE? (Y/N)");
+
+                            let mut s = String::new();
+                            while s.to_lowercase() != String::from("y")
+                                || s.to_lowercase() != String::from("n")
+                            {
+                                std::io::stdin()
+                                    .read_line(&mut s)
+                                    .expect("Did not enter a correct string");
                             }
-                            conf.set_database_path(value2);
-                            },
+
+                            if s.as_str() == "y" {
+                                if PathBuf::from(value2).exists() {
+                                    conf.set_database_path(value2);
+                                } else {
+                                    // create path
+                                }
+                                conf.set_database_path(value2);
+                            }
+                        }
                         _ => println!("not valid"),
                     },
                     // TODO: add / remove items in list
-                    "cloud_services" => todo!(),
+                    // "cloud_services" => todo!(),
                     "retain" => match conf.set_retain(value.to_owned()) {
                         false => eprintln!("Error occured, please verify parameters."),
                         true => println!("{} value changed to: {}", update, value),
@@ -212,7 +229,9 @@ pub fn load_cli(mut conf: Config) -> anyhow::Result<()> {
                         "remove" | "r" => conf.remove_item_from_ignore_directories(value2),
                         _ => println!("invalid input"),
                     },
-                    _ => eprintln!("invalid selection!\n use -s to see available config options."),
+                    _ => eprintln!(
+                        "invalid selection!\n use -s | --show to see available config options."
+                    ),
                 }
             }
 

@@ -8,7 +8,7 @@ const CONFIG_PATH: &str = "config.toml";
 ///Holds the configuration for the program
 pub struct Config {
     /// collection of cloud services currently holding crypt files.
-    pub cloud_services: Vec<String>,
+    // pub cloud_services: Vec<String>,
     /// serves as the default location for the SQLite database path.
     pub database_path: String,
     // collection of any directories to ignore during folder encryption.
@@ -22,7 +22,7 @@ pub struct Config {
 
 impl std::fmt::Display for Config {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        _ = writeln!(f, "cloud_services: {:?}", self.cloud_services);
+        // _ = writeln!(f, "cloud_services: {:?}", self.cloud_services);
         _ = writeln!(f, "database_path: {}", self.database_path);
         _ = writeln!(f, "ignore_directories: {:?}", self.ignore_directories);
         _ = writeln!(f, "retain: {}", self.retain);
@@ -35,9 +35,9 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             database_path: "crypt_keeper.db".to_string(),
-            cloud_services: Vec::new(),
+            // cloud_services: Vec::new(),
             retain: true,
-            ignore_directories: Vec::new(),
+            ignore_directories: vec![".".to_string()],
         }
     }
 }
@@ -46,13 +46,13 @@ impl Config {
     //Should I be returning anyhow error handling things?
     fn new(
         database_path: String,
-        cloud_services: Vec<String>,
+        // cloud_services: Vec<String>,
         retain: bool,
         hidden_directories: Vec<String>,
     ) -> Self {
         Self {
             database_path,
-            cloud_services,
+            // cloud_services,
             retain,
             ignore_directories: hidden_directories,
         }
@@ -73,14 +73,14 @@ impl Config {
     }
 
     ///Adds a cloud service to the list
-    pub fn add_cloud_service(&mut self, service: String) {
-        self.cloud_services.push(service);
-    }
+    // pub fn add_cloud_service(&mut self, service: String) {
+    //     self.cloud_services.push(service);
+    // }
 
     ///Removes a cloud service from the list
-    pub fn remove_cloud_service(&mut self, service: String) {
-        self.cloud_services.retain(|s| s != &service);
-    }
+    // pub fn remove_cloud_service(&mut self, service: String) {
+    //     self.cloud_services.retain(|s| s != &service);
+    // }
 
     pub fn get_database_path(&self) -> &str {
         self.database_path.as_ref()

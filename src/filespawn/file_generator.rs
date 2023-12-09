@@ -6,8 +6,8 @@ use std::{
     path::Path,
 };
 
-const SAVE_PATH: &str = "benches/test_files/";
-const NUM_FILES: u16 = 10;
+pub const SAVE_PATH: &str = "benches/test_files/";
+const NUM_FILES: u16 = 100;
 const MAX_HEIGHT: usize = 1000;
 const MIN_WIDTH: usize = 10;
 const MAX_WIDTH: usize = 1000;
