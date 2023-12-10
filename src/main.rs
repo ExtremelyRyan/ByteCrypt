@@ -2,18 +2,26 @@ mod cloud_storage;
 mod database;
 mod filespawn;
 mod ui;
-pub mod util;
+mod util;
 use anyhow::{self, Ok, Result};
 use filespawn::*;
+
+use anyhow::{self, Ok, Result};
+use env_logger::Builder;
+
+use log::LevelFilter;
 use ui::cli;
 use util::*;
 
 fn main() -> Result<()> {
-    //Load config file
-    let config = config::load_config().unwrap();
+    // change LevelFilter from trace to set the level of output messages
+    Builder::new().filter_level(LevelFilter::Trace).init();
+
+    //Load config file or get default
+    let config = config::load_config().or_else(|_x| Ok(config::Config::default()))?;
 
     //Load the UI
-    // cli::load_cli(config)
+    cli::load_cli(config)
     let key = "GOOGLE_CLIENT_ID";
     match std::env::var(key) {
         core::result::Result::Ok(val) => println!("{key}: {val:?}"),

@@ -8,6 +8,7 @@ use chacha20poly1305::{
     aead::{Aead, KeyInit, OsRng},
     ChaCha20Poly1305, Key, Nonce,
 };
+use log::trace;
 use rand::RngCore;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
@@ -65,6 +66,7 @@ impl FileCrypt {
 }
 
 pub fn compute_hash(contents: &Vec<u8>) -> [u8; 32] {
+    trace!("computing hash");
     // compute hash on contents
     let mut hasher = Blake2s256::new();
     hasher.update(contents);
@@ -72,6 +74,7 @@ pub fn compute_hash(contents: &Vec<u8>) -> [u8; 32] {
 }
 
 pub fn decryption(fc: FileCrypt, contents: &Vec<u8>) -> Result<Vec<u8>> {
+    trace!("decrypting contents");
     let k = Key::from_slice(&fc.key);
     let n = Nonce::from_slice(&fc.nonce);
     let cipher = ChaCha20Poly1305::new(k)
@@ -130,6 +133,7 @@ pub fn decrypt_file(
 
 /// takes a FileCrypt and encrypts content in place (TODO: for now)
 pub fn encryption(fc: &mut FileCrypt, contents: &Vec<u8>) -> Result<Vec<u8>> {
+    trace!("encrypting contents");
     if fc.key.into_iter().all(|b| b == 0) {
         fc.generate();
     }
@@ -175,6 +179,7 @@ pub fn encrypt_file(conf: &Config, path: &str, in_place: bool) {
 
 /// generates a UUID 7 string using a unix timestamp and random bytes.
 pub fn generate_uuid() -> String {
+    trace!("generating uuid");
     let ts = std::time::SystemTime::now()
         .duration_since(std::time::SystemTime::UNIX_EPOCH)
         .unwrap();
