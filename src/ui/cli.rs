@@ -20,6 +20,8 @@ use std::path::{Path, PathBuf};
 pub enum Directive {
     Encrypt(EncryptInfo),
     Decrypt(DecryptInfo),
+    Upload(UploadInfo),
+    Config(ConfigInfo),
 }
 
 ///Information required for an encryption command
@@ -37,6 +39,16 @@ pub struct DecryptInfo {
     is_directory: bool,
     path: Vec<PathBuf>,
     in_place: bool,
+}
+
+#[derive(Debug)]
+pub struct UploadInfo {
+    placeholder: bool,
+}
+
+#[derive(Debug)]
+pub struct ConfigInfo {
+    placeholder: bool,
 }
 
 ///CLI arguments
