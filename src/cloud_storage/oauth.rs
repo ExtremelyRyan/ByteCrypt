@@ -1,20 +1,14 @@
 use oauth2::{
     basic::BasicClient, 
-    reqwest::http_client,
-    //reqwest::async_http_client,
-    ResponseType, RevocationUrl, PkceCodeChallenge, RedirectUrl, CsrfToken,
-    AuthType, AuthUrl, ClientId, ClientSecret, DeviceAuthorizationUrl,
-    Scope, TokenUrl, DeviceCode, AuthorizationCode,
+    ResponseType, RedirectUrl, CsrfToken,
+    AuthUrl, ClientId, Scope, 
 };
-use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use tokio::time::{sleep, Duration};
-use url::Url;
+use serde::Deserialize;
 use std::env;
 use std::net::TcpListener;
 use std::io::{Read, Write, BufReader, BufRead};
-use std::str;
-
+use super::drive;
+use tokio::runtime::Runtime;
 
 
 ///Holds the user credentials for the session
@@ -52,7 +46,7 @@ pub fn google_access() -> anyhow::Result<()> {
     let (authorize_url, _) = client
         .authorize_url(CsrfToken::new_random)
         .add_scope(Scope::new(
-            "https://www.googleapis.com/auth/drive.file".to_string(),
+            "https://www.googleapis.com/auth/drive".to_string(),
         ))
         .use_implicit_flow()
         .set_response_type(&ResponseType::new("token".to_string()))
@@ -62,6 +56,7 @@ pub fn google_access() -> anyhow::Result<()> {
         "Open this URL to authorize this application:\n{}\n",
         authorize_url.to_string()
     );
+    let mut token: Option<String> = None;
 
     //Redirect server that grabs the token
     let listener = TcpListener::bind("127.0.0.1:3000").unwrap();
@@ -119,10 +114,10 @@ pub fn google_access() -> anyhow::Result<()> {
                 let body = String::from_utf8(body_buffer).unwrap();
 
                 //Extract the token
-                let token = body.split("&")
+                token = body.split("&")
                     .find(|param| param.starts_with("access_token"))
                     .and_then(|param| param.split('=').nth(1))
-                    .unwrap_or_default();
+                    .map(str::to_string);
                 println!("Access Token: {:?}", token);
 
                 //Respond to close connection
@@ -132,6 +127,15 @@ pub fn google_access() -> anyhow::Result<()> {
             }
         }
     }
+    //Testing google drive access
+    let runtime = Runtime::new().unwrap();
+    let _ = runtime.block_on(
+        drive::get_drive_info( 
+            UserCredentials {
+            access_token: token.unwrap().to_string(),
+        })
+    );
+    
     return Ok(());
 }
 
@@ -143,8 +147,7 @@ pub fn dropbox_access() {
         None,
         AuthUrl::new("https://www.dropbox.com/oauth2/authorize".to_string())
             .expect("Invalid authorization endpoint URL"),
-        Some(TokenUrl::new("https://api.dropboxapi.com/oauth2/token".to_string())
-            .expect("Invalid token endpoint URL")),
+        None,
     )
     .set_redirect_uri(
         RedirectUrl::new("http://localhost:3000".to_string()).unwrap(),
@@ -154,3 +157,4 @@ pub fn dropbox_access() {
         .authorize_url(CsrfToken::new_random)
         .url();
 }
+
