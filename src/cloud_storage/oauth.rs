@@ -86,7 +86,7 @@ pub fn google_access() -> anyhow::Result<()> {
                             xhr.send(hash);
                         };
                         </script>
-                        <p>Please wait...</p>
+                        <p>You can now close this page and return to the applciation</p>
                     </body>
                     </html>
                 "#;
@@ -116,7 +116,7 @@ pub fn google_access() -> anyhow::Result<()> {
                 //Read the body
                 let mut body_buffer = vec![0_u8; content_length];
                 reader.read_exact(&mut body_buffer).unwrap();
-                let mut body = String::from_utf8(body_buffer).unwrap();
+                let body = String::from_utf8(body_buffer).unwrap();
 
                 //Extract the token
                 let token = body.split("&")

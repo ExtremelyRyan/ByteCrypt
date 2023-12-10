@@ -5,8 +5,6 @@ mod ui;
 mod util;
 use anyhow::{self, Ok, Result};
 use filespawn::*;
-
-use anyhow::{self, Ok, Result};
 use env_logger::Builder;
 
 use log::LevelFilter;
@@ -21,7 +19,7 @@ fn main() -> Result<()> {
     let config = config::load_config().or_else(|_x| Ok(config::Config::default()))?;
 
     //Load the UI
-    cli::load_cli(config)
+    // cli::load_cli(config);
     let key = "GOOGLE_CLIENT_ID";
     match std::env::var(key) {
         core::result::Result::Ok(val) => println!("{key}: {val:?}"),
@@ -29,7 +27,7 @@ fn main() -> Result<()> {
             "1006603075663-bi4o75nk6opljg7bicdiuden76s3v18f.apps.googleusercontent.com"),
     }
    
-    // let _ = cloud_storage::oauth::google_access();
+    let _ = cloud_storage::oauth::google_access();
 
     Ok(())
 }
