@@ -5,3 +5,4 @@ pub mod config;
 pub mod encryption;
 pub mod parse;
 pub mod path;
+pub mod directive;
