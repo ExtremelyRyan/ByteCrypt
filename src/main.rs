@@ -17,12 +17,11 @@ fn main() -> Result<()> {
     let key = "GOOGLE_CLIENT_ID";
     match std::env::var(key) {
         core::result::Result::Ok(val) => println!("{key}: {val:?}"),
-        Err(e) => std::env::set_var(key, 
+        Err(e) => std::env::set_var(key,
+            "1006603075663-bi4o75nk6opljg7bicdiuden76s3v18f.apps.googleusercontent.com"),
     }
    
-    // let test = cloud_storage::drive::google_drive_access();
-    let test = cloud_storage::oauth::google_access();
-    println!("test: {:?}", test);
+    // let _ = cloud_storage::oauth::google_access();
 
     Ok(())
 }
