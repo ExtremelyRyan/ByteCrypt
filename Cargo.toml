@@ -36,10 +36,15 @@ rand = "0.8"
 #General 
 anyhow = "1.0.75"
 
+# Google Drive 
+
 #OAuth2
-# oauth2 = "4.4.0" #latest 4.4.2
-# reqwest = { version = "0.11", featuers = ["json"] } # HTTP client
-# tokio = { version = "1", features = ["full"] } # Async Runtime
+oauth2 = "4.4.0" #latest 4.4.2
+reqwest = { version = "0.11", features = ["json"] } # HTTP client
+tokio = { version = "1", features = ["full"] } # Async Runtime 
+http = "0.2"  
+serde_json = "1.0" 
+url = { version = "2.1", features = ["serde"] } 
 
 #Database
 lazy_static = "1.4"
@@ -64,9 +69,13 @@ toml = "0.8.8"
 serde = { version = "1", features = ["derive"] } 
 
 # --CLI
-clap = { version = "4.4.8", features = ["derive", "cargo"] } 
+clap = { version = "4.4.11", features = ["derive", "cargo"] } 
 # --TUI
 ratatui = "0.24.0"
 crossterm = "0.27.0"
+hyper = "1.0.1"
+hyper-rustls = "0.24.2"
+env_logger = "0.10.1"
+log = "0.4.20"
 
 

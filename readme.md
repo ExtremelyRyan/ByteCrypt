@@ -70,7 +70,11 @@ crypt config -u retain false
 ## Authors 
 Creator Ryan M - Twitter [@Extremely_Ryan](https://twitter.com/Extremely_Ryan)
 
+
 Josh B: ?? 
+
+
+email: <thebytecrypt@gmail.com>
 
 ## Version History
 
