@@ -69,7 +69,7 @@ toml = "0.8.8"
 serde = { version = "1", features = ["derive"] } 
 
 # --CLI
-clap = { version = "4.4.8", features = ["derive", "cargo"] } 
+clap = { version = "4.4.11", features = ["derive", "cargo"] } 
 # --TUI
 ratatui = "0.24.0"
 crossterm = "0.27.0"
