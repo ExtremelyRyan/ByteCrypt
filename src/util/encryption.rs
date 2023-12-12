@@ -8,7 +8,7 @@ use chacha20poly1305::{
     aead::{Aead, KeyInit, OsRng},
     ChaCha20Poly1305, Key, Nonce,
 };
-use log::trace;
+use log::*;
 use rand::RngCore;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
@@ -52,7 +52,7 @@ impl FileCrypt {
             hash,
         }
     }
-
+    // generate key / nonce
     pub fn generate(&mut self) {
         let mut k = [0u8; KEY_SIZE];
         let mut n = [0u8; NONCE_SIZE];
@@ -65,16 +65,34 @@ impl FileCrypt {
     }
 }
 
-pub fn compute_hash(contents: &Vec<u8>) -> [u8; 32] {
-    trace!("computing hash");
+pub fn compute_hash(contents: &[u8]) -> [u8; 32] {
+    info!("computing hash");
     // compute hash on contents
     let mut hasher = Blake2s256::new();
     hasher.update(contents);
     hasher.finalize().into()
 }
 
-pub fn decryption(fc: FileCrypt, contents: &Vec<u8>) -> Result<Vec<u8>> {
-    trace!("decrypting contents");
+const SUFFIX: &'static str = ".zst";
+pub fn compress(source: &str) {
+    let mut file = std::fs::File::open(source).unwrap();
+    let mut encoder = {
+        let fname = PathBuf::from(source)
+            .file_stem()
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .to_owned();
+        let target = std::fs::File::create(fname + SUFFIX).unwrap();
+        zstd::Encoder::new(target, 1).unwrap()
+    };
+
+    std::io::copy(&mut file, &mut encoder).unwrap();
+    encoder.finish().unwrap();
+}
+
+pub fn decrypt(fc: FileCrypt, contents: &Vec<u8>) -> Result<Vec<u8>> {
+    info!("decrypting contents");
     let k = Key::from_slice(&fc.key);
     let n = Nonce::from_slice(&fc.nonce);
     let cipher = ChaCha20Poly1305::new(k)
@@ -93,7 +111,7 @@ pub fn decrypt_file(
     let parent_dir = &fp.parent().unwrap().to_owned();
 
     // rip out uuid from contents
-    let contents: Vec<u8> = std::fs::read(&fp).unwrap();
+    let contents = std::fs::read(path).expect("failed to read decryption file!");
     let (uuid, content) = contents.split_at(36);
     let uuid_str = String::from_utf8(uuid.to_vec()).unwrap();
 
@@ -105,7 +123,7 @@ pub fn decrypt_file(
     let file = generate_output_file(&fc, output, parent_dir);
 
     let decrypted_content =
-        encryption::decryption(fc.clone(), &content.to_vec()).expect("failed decryption");
+        encryption::decrypt(fc.clone(), &content.to_vec()).expect("failed decryption");
 
     // compute hash on contents
     let hash = compute_hash(&decrypted_content);
@@ -132,16 +150,14 @@ pub fn decrypt_file(
 }
 
 /// takes a FileCrypt and encrypts content in place (TODO: for now)
-pub fn encryption(fc: &mut FileCrypt, contents: &Vec<u8>) -> Result<Vec<u8>> {
-    trace!("encrypting contents");
+pub fn encrypt(fc: &mut FileCrypt, contents: &[u8]) -> Result<Vec<u8>> {
+    info!("encrypting contents");
     if fc.key.into_iter().all(|b| b == 0) {
         fc.generate();
     }
     let k = Key::from_slice(&fc.key);
     let n = Nonce::from_slice(&fc.nonce);
-    let cipher = ChaCha20Poly1305::new(k)
-        .encrypt(n, contents.as_ref())
-        .unwrap();
+    let cipher = ChaCha20Poly1305::new(k).encrypt(n, contents).unwrap();
     Ok(cipher)
 }
 
@@ -149,14 +165,14 @@ pub fn encrypt_file(conf: &Config, path: &str, in_place: bool) {
     let (fp, parent_dir, filename, extension) = get_file_info(path);
 
     // get contents of file
-    let contents: Vec<u8> = std::fs::read(&fp).unwrap();
+    let contents = &util::common::get_file_bytes(&path);
 
     let hash = compute_hash(&contents);
     // let hash = [0u8; 32]; // for benching w/o hashing only
 
     let mut fc = FileCrypt::new(filename, extension, fp, hash);
 
-    let mut encrypted_contents = encryption(&mut fc, &contents).unwrap();
+    let mut encrypted_contents = encrypt(&mut fc, &contents).unwrap();
 
     // prepend uuid to contents
     encrypted_contents = parse::prepend_uuid(&fc.uuid, &mut encrypted_contents);
@@ -179,7 +195,7 @@ pub fn encrypt_file(conf: &Config, path: &str, in_place: bool) {
 
 /// generates a UUID 7 string using a unix timestamp and random bytes.
 pub fn generate_uuid() -> String {
-    trace!("generating uuid");
+    info!("generating uuid");
     let ts = std::time::SystemTime::now()
         .duration_since(std::time::SystemTime::UNIX_EPOCH)
         .unwrap();
@@ -261,6 +277,25 @@ fn get_file_info(path: &str) -> (PathBuf, PathBuf, String, String) {
     let extension = extension.to_string();
 
     (fp, parent_dir, filename, extension)
+}
+
+pub fn file_zip(file: &str) {
+    let output_zip = ".\\benches\\dracula.zip";
+    let pshell_cmd = format!(
+        "Compress-Archive -Update -LiteralPath {} -DestinationPath {}",
+        file, output_zip
+    );
+    std::process::Command::new("powershell")
+        .arg("-Command")
+        .arg(&pshell_cmd)
+        .status()
+        .unwrap();
+    std::fs::remove_file(output_zip);
+}
+
+pub fn zstd_zip(contents: Vec<u8>) {
+    let zipped = zstd::encode_all(contents.as_slice(), 3).unwrap();
+    // write_contents_to_file("dracula.zip", zipped);
 }
 
 // cargo nextest run

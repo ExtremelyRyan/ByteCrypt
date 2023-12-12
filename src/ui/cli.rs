@@ -1,12 +1,9 @@
-use super::tui;
-use crate::util::{
-    config::Config,
-    directive,
-    directive::*,
-};
-use clap::{Parser, Subcommand};
-use anyhow::{Result, Ok};
+use std::path::PathBuf;
 
+use super::tui;
+use crate::util::{config::Config, directive::{Directive, self}, directive::*};
+use anyhow::{Ok, Result};
+use clap::{Parser, Subcommand};
 
 ///CLI arguments
 #[derive(Parser, Debug)]
@@ -91,30 +88,32 @@ pub fn load_cli(config: Config) -> anyhow::Result<()> {
     match &cli.command {
         //Encryption
         Some(Commands::Encrypt { path, in_place }) => {
-            directive::process_directive(
-                Directive::Encrypt(EncryptInfo {
-                    path: path.to_owned(),
-                    in_place: in_place.to_owned(),
-                    config,
-                })
-            )
+            Directive::process_directive(Directive::Encrypt(EncryptInfo {
+                path: path.to_owned(),
+                in_place: in_place.to_owned(),
+                config,
+            }));
+            Ok(())
         }
         //Decryption
         Some(Commands::Decrypt { path, output }) => {
-            directive::process_directive(
-                Directive::Decrypt(DecryptInfo {
-                    path: path.to_owned(),
-                    output: output.to_owned(),
-                    config,
-                })
-            )
+            Directive::process_directive(Directive::Decrypt(DecryptInfo {
+                path: path.to_owned(),
+                output: output.to_owned(),
+                config,
+            }));
+            Ok(())
         }
         //Upload
         Some(Commands::Upload {}) => {
             todo!();
         }
         //Config
-        Some(Commands::Config { update, value, value2 }) => {
+        Some(Commands::Config {
+            update,
+            value,
+            value2,
+        }) => {
             //Show the config
             //? not sure how i feel about this, atm I want these to keep seperate.
             println!("{:#?}", config);
@@ -122,18 +121,15 @@ pub fn load_cli(config: Config) -> anyhow::Result<()> {
             //Check for if update passed
             let fields = Config::get_fields();
             match fields.contains(&update.as_str()) {
-                true => {
-                    directive::process_directive(
-                        Directive::Config(ConfigInfo {
-                            update: update.to_owned(),
-                            value: value.to_owned(),
-                            value2: value2.to_owned(),
-                            config,
-                        })
-                    )
-                },
-                false => { Ok(()) },
-            }
+                true => Directive::process_directive(Directive::Config(ConfigInfo {
+                    update: update.to_owned(),
+                    value: value.to_owned(),
+                    value2: value2.to_owned(),
+                    config,
+                })),
+                false => (),
+            };
+            Ok(())
         }
         //Nothing passed (Help screen printed)
         None => Ok(()),

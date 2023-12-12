@@ -1,22 +1,17 @@
-use oauth2::{
-    basic::BasicClient, 
-    ResponseType, RedirectUrl, CsrfToken,
-    AuthUrl, ClientId, Scope, 
-};
+use super::drive;
+use oauth2::{basic::BasicClient, AuthUrl, ClientId, CsrfToken, RedirectUrl, ResponseType, Scope};
 use serde::Deserialize;
 use std::env;
+use std::io::{BufRead, BufReader, Read, Write};
 use std::net::TcpListener;
-use std::io::{Read, Write, BufReader, BufRead};
-use super::drive;
 use tokio::runtime::Runtime;
-
 
 ///Holds the user credentials for the session
 #[derive(Deserialize)]
 pub struct UserCredentials {
     ///Grants access to the user account
     pub access_token: String,
-//    ///Type of token
+    //    ///Type of token
     // token_type: String,
     // ///(Optional) -> get new access token when current one expires
     // refresh_token: String,
@@ -31,14 +26,16 @@ pub fn google_access() -> anyhow::Result<()> {
     // Set up the config for the Google OAuth2 process.
     let client = BasicClient::new(
         ClientId::new(
-            env::var("GOOGLE_CLIENT_ID").expect("Missing the GOOGLE_CLIENT_ID environment variable."),
+            env::var("GOOGLE_CLIENT_ID")
+                .expect("Missing the GOOGLE_CLIENT_ID environment variable."),
         ),
-        None,//No secret for implicit flow
+        None, //No secret for implicit flow
         AuthUrl::new("https://accounts.google.com/o/oauth2/v2/auth".to_string())
             .expect("Invalid authorization endpoint URL"),
         None,
     )
-    .set_redirect_uri( //Use a local server to redirect
+    .set_redirect_uri(
+        //Use a local server to redirect
         RedirectUrl::new("http://localhost:3000".to_string()).expect("Invalid redirect URL"),
     );
 
@@ -85,10 +82,13 @@ pub fn google_access() -> anyhow::Result<()> {
                     </body>
                     </html>
                 "#;
-                let response = format!("HTTP/1.1 200 OK\r\nContent-Length: {}\r\n\r\n{}", html.len(), html);
+                let response = format!(
+                    "HTTP/1.1 200 OK\r\nContent-Length: {}\r\n\r\n{}",
+                    html.len(),
+                    html
+                );
                 stream.write_all(response.as_bytes()).unwrap();
             }
-
             // Check for POST request to /token
             else if request.starts_with("POST /token") {
                 let mut content_length = 0;
@@ -100,12 +100,15 @@ pub fn google_access() -> anyhow::Result<()> {
                     if headers.starts_with("Content-Length:") {
                         content_length = headers
                             .split_whitespace()
-                            .nth(1).unwrap()
+                            .nth(1)
+                            .unwrap()
                             .parse::<usize>()
                             .unwrap();
                     }
                     //break out of the loop if end reached
-                    if headers == "\r\n" { break; }
+                    if headers == "\r\n" {
+                        break;
+                    }
                     headers.clear();
                 }
                 //Read the body
@@ -114,7 +117,8 @@ pub fn google_access() -> anyhow::Result<()> {
                 let body = String::from_utf8(body_buffer).unwrap();
 
                 //Extract the token
-                token = body.split("&")
+                token = body
+                    .split("&")
                     .find(|param| param.starts_with("access_token"))
                     .and_then(|param| param.split('=').nth(1))
                     .map(str::to_string);
@@ -129,13 +133,10 @@ pub fn google_access() -> anyhow::Result<()> {
     }
     //Testing google drive access
     let runtime = Runtime::new().unwrap();
-    let _ = runtime.block_on(
-        drive::get_drive_info( 
-            UserCredentials {
-            access_token: token.unwrap().to_string(),
-        })
-    );
-    
+    let _ = runtime.block_on(drive::get_drive_info(UserCredentials {
+        access_token: token.unwrap().to_string(),
+    }));
+
     return Ok(());
 }
 
@@ -149,12 +150,7 @@ pub fn dropbox_access() {
             .expect("Invalid authorization endpoint URL"),
         None,
     )
-    .set_redirect_uri(
-        RedirectUrl::new("http://localhost:3000".to_string()).unwrap(),
-    );
+    .set_redirect_uri(RedirectUrl::new("http://localhost:3000".to_string()).unwrap());
 
-    let (authorize_url, csrf_state) = client
-        .authorize_url(CsrfToken::new_random)
-        .url();
+    let (authorize_url, csrf_state) = client.authorize_url(CsrfToken::new_random).url();
 }
-

@@ -11,13 +11,14 @@ pub async fn get_drive_info(credentials: UserCredentials) -> anyhow::Result<()> 
     loop {
         let url = match &page_token {
             Some(token) => {
-                format!("https://www.googleapis.com/drive/v3/files?pageToken={}", token)
+                format!(
+                    "https://www.googleapis.com/drive/v3/files?pageToken={}",
+                    token
+                )
             }
-            None => {
-                "https://www.googleapis.com/drive/v3/files".to_string()
-            }
+            None => "https://www.googleapis.com/drive/v3/files".to_string(),
         };
-        
+
         let response = reqwest::Client::new()
             .get(url)
             .bearer_auth(&credentials.access_token)
@@ -59,11 +60,9 @@ pub async fn google_create_folder(credentials: UserCredentials) -> anyhow::Resul
 
 pub async fn google_upload(credentials: UserCredentials, path: &str) -> anyhow::Result<()> {
     let client = reqwest::Client::new();
-    
 
     return Ok(());
 }
-
 
 //Check if drive path exists
 // - Name, MIME type, etc.
