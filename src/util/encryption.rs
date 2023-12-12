@@ -8,6 +8,7 @@ use chacha20poly1305::{
     aead::{Aead, KeyInit, OsRng},
     ChaCha20Poly1305, Key, Nonce,
 };
+use hyper::header::ACCESS_CONTROL_ALLOW_CREDENTIALS;
 use log::*;
 use rand::RngCore;
 use serde::{Deserialize, Serialize};
@@ -73,22 +74,18 @@ pub fn compute_hash(contents: &[u8]) -> [u8; 32] {
     hasher.finalize().into()
 }
 
-const SUFFIX: &'static str = ".zst";
-pub fn compress(source: &str) {
-    let mut file = std::fs::File::open(source).unwrap();
-    let mut encoder = {
-        let fname = PathBuf::from(source)
-            .file_stem()
-            .unwrap()
-            .to_str()
-            .unwrap()
-            .to_owned();
-        let target = std::fs::File::create(fname + SUFFIX).unwrap();
-        zstd::Encoder::new(target, 1).unwrap()
-    };
+/// Compress takes the zstd compression 
+///
+/// # Panics
+///
+/// Panics if .
+pub fn compress(contents: &[u8]) -> Vec<u8> {
+    zstd::encode_all(contents, 3).expect("failed to zip contents")
+}
 
-    std::io::copy(&mut file, &mut encoder).unwrap();
-    encoder.finish().unwrap();
+
+pub fn decompress(contents: &[u8]) -> Vec<u8> {
+    zstd::decode_all(contents).expect("failed to unzip!")
 }
 
 pub fn decrypt(fc: FileCrypt, contents: &Vec<u8>) -> Result<Vec<u8>> {
@@ -122,8 +119,11 @@ pub fn decrypt_file(
     // get output file
     let file = generate_output_file(&fc, output, parent_dir);
 
-    let decrypted_content =
+    let mut decrypted_content =
         encryption::decrypt(fc.clone(), &content.to_vec()).expect("failed decryption");
+
+    // unzip contents
+    decrypted_content = decompress(&decrypted_content);
 
     // compute hash on contents
     let hash = compute_hash(&decrypted_content);
@@ -165,12 +165,17 @@ pub fn encrypt_file(conf: &Config, path: &str, in_place: bool) {
     let (fp, parent_dir, filename, extension) = get_file_info(path);
 
     // get contents of file
-    let contents = &util::common::get_file_bytes(&path);
+    let binding = util::common::get_file_bytes(&path);
+    let mut contents = binding.as_slice();
 
     let hash = compute_hash(&contents);
     // let hash = [0u8; 32]; // for benching w/o hashing only
 
     let mut fc = FileCrypt::new(filename, extension, fp, hash);
+
+    // zip contents
+    let binding = compress(contents);
+    contents = binding.as_slice();
 
     let mut encrypted_contents = encrypt(&mut fc, &contents).unwrap();
 

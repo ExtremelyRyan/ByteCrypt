@@ -30,12 +30,12 @@ fn main() -> Result<()> {
     _ = ui::cli::load_cli(config);
 
     // zip
-    let contents = common::get_file_bytes("dracula.txt");
-    let start = Instant::now();
-    util::encryption::compress("dracula.txt");
-    let duration = start.elapsed();
+    // let contents = common::get_file_bytes("dracula.txt");
+    // let start = Instant::now();
+    // util::encryption::compress(".\\benches\\files\\dracula-large.txt");
+    // let duration = start.elapsed();
 
-    println!("Time elapsed in zstd is: {:?} ", duration);
+    // println!("Time elapsed in zstd is: {:?} ", duration);
 
     // let start = Instant::now();
     // encryption::file_zip("dracula.txt");

@@ -130,6 +130,10 @@ pub fn test_zip(c: &mut Criterion) {
     c.bench_function("zip dracula.txt", |b| b.iter(|| crate::encryption::compress(DRACULA_NORMAL)));
 }
 
+pub fn test_zip_large(c: &mut Criterion) {
+    c.bench_function("zip dracula-large.txt", |b| b.iter(|| crate::encryption::compress(DRACULA_LARGE)));
+}
+
 pub fn cleanup(_c: &mut Criterion) {
     _ = std::fs::remove_file(DRACULA_CRYPT);
     _ = std::fs::remove_file(DRACULA_LCRYPT);
