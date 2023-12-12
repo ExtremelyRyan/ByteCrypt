@@ -80,7 +80,7 @@ pub fn compute_hash(contents: &[u8]) -> [u8; 32] {
 ///
 /// Panics if .
 pub fn compress(contents: &[u8]) -> Vec<u8> {
-    zstd::encode_all(contents, 3).expect("failed to zip contents")
+    zstd::encode_all(contents, 22).expect("failed to zip contents")
 }
 
 

@@ -1,3 +1,4 @@
+
 use std::path::PathBuf;
 
 use criterion::{criterion_group, criterion_main, Criterion};
@@ -127,11 +128,13 @@ pub fn test_generate_uuid(c: &mut Criterion) {
 }
 
 pub fn test_zip(c: &mut Criterion) {
-    c.bench_function("zip dracula.txt", |b| b.iter(|| crate::encryption::compress(DRACULA_NORMAL)));
+    let contents = get_file_bytes(DRACULA_NORMAL);
+    c.bench_function("zip dracula.txt", |b| b.iter(|| crate::encryption::compress(contents.as_slice())));
 }
 
 pub fn test_zip_large(c: &mut Criterion) {
-    c.bench_function("zip dracula-large.txt", |b| b.iter(|| crate::encryption::compress(DRACULA_LARGE)));
+    let contents = get_file_bytes(DRACULA_LARGE);
+    c.bench_function("zip dracula-large.txt", |b| b.iter(|| crate::encryption::compress(contents.as_slice())));
 }
 
 pub fn cleanup(_c: &mut Criterion) {
