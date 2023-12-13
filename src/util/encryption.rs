@@ -83,10 +83,10 @@ pub fn compute_hash(contents: &[u8]) -> [u8; 32] {
 ///
 /// # Example
 /// ```
-/// use crypt_lib::util::common::get_file_bytes;
-/// use crypt_lib::util::encryption::compress;
-/// let contents = get_file_bytes("dracula.txt");
-/// let compressed_contents = compress(contents.as_slice(), 3);
+/// # use crypt_lib::util::common::get_file_bytes;
+/// # use crypt_lib::util::encryption::compress;
+/// let contents: Vec<u8> = get_file_bytes("dracula.txt");
+/// let compressed_contents: Vec<u8> = compress(contents.as_slice(), 3);
 /// assert_ne!(contents.len(), compressed_contents.len());
 /// ```
 pub fn compress(contents: &[u8], level: i32) -> Vec<u8> {
@@ -97,13 +97,13 @@ pub fn compress(contents: &[u8], level: i32) -> Vec<u8> {
 ///
 /// # Example
 /// ```
-/// use crypt_lib::util::common::get_file_bytes;
-/// use crypt_lib::util::encryption::compress;
-/// let contents = get_file_bytes("dracula.txt");
-/// let compressed_contents = compress(contents.as_slice(), 3);
+/// # use crypt_lib::util::common::get_file_bytes;
+/// # use crypt_lib::util::encryption::{compress,decompress};
+/// let contents: Vec<u8> = get_file_bytes("dracula.txt");
+/// let compressed_contents: Vec<u8> = compress(contents.as_slice(), 3);
 /// assert_ne!(contents.len(), compressed_contents.len());
-/// let decompressed = decompress(compressed_contents.as_slice());
-/// assert_eq(contents, decompressed);
+/// let decompressed: Vec<u8> = decompress(compressed_contents.as_slice());
+/// assert_eq!(contents, decompressed);
 /// ```
 pub fn decompress(contents: &[u8]) -> Vec<u8> {
     zstd::decode_all(contents).expect("failed to unzip!")
