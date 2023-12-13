@@ -53,8 +53,8 @@ impl FileCrypt {
             hash,
         }
     }
-        /// generate key & nonce if, somehow, it was not generated using `FileCrypt::new()`
-        pub fn generate(&mut self) {
+    /// generate key & nonce if, somehow, it was not generated using `FileCrypt::new()`
+    pub fn generate(&mut self) {
         let mut k = [0u8; KEY_SIZE];
         let mut n = [0u8; NONCE_SIZE];
 
@@ -93,8 +93,8 @@ pub fn compress(contents: &[u8], level: i32) -> Vec<u8> {
     zstd::encode_all(contents, level).expect("failed to zip contents")
 }
 
-/// decompression of a file during decryption 
-/// 
+/// decompression of a file during decryption
+///
 /// # Example
 /// ```
 /// use crypt_lib::util::common::get_file_bytes;
@@ -186,10 +186,10 @@ pub fn encrypt_file(conf: &Config, path: &str, in_place: bool) {
     let (fp, parent_dir, filename, extension) = get_file_info(path);
 
     // get contents of file
-    let binding = util::common::get_file_bytes(&path);
+    let binding = util::common::get_file_bytes(path);
     let mut contents = binding.as_slice();
 
-    let hash = compute_hash(&contents);
+    let hash = compute_hash(contents);
     // let hash = [0u8; 32]; // for benching w/o hashing only
 
     let mut fc = FileCrypt::new(filename, extension, fp, hash);
@@ -198,7 +198,7 @@ pub fn encrypt_file(conf: &Config, path: &str, in_place: bool) {
     let binding = compress(contents, conf.zstd_level);
     contents = binding.as_slice();
 
-    let mut encrypted_contents = encrypt(&mut fc, &contents).unwrap();
+    let mut encrypted_contents = encrypt(&mut fc, contents).unwrap();
 
     // prepend uuid to contents
     encrypted_contents = parse::prepend_uuid(&fc.uuid, &mut encrypted_contents);
@@ -291,10 +291,10 @@ fn generate_output_file(fc: &FileCrypt, output: Option<String>, parent_dir: &Pat
 }
 
 /// given a path, dissect and return it's full path, parent folder path, filename, and extension.
-/// 
+///
 /// # Example
 /// ```
-    // full path of example: "C:/folder1/folder2/file.txt" 
+// full path of example: "C:/folder1/folder2/file.txt"
 /// let p = "file.txt";
 /// let (full_path, parent, filename, extension) = get_file_info(p);
 /// assert_eq!(full_path, "C:/folder1/folder2/file.txt");

@@ -39,7 +39,7 @@ pub async fn get_drive_info(credentials: UserCredentials) -> anyhow::Result<()> 
             break;
         }
     }
-    return Ok(());
+    Ok(())
 }
 
 pub async fn google_create_folder(credentials: UserCredentials) -> anyhow::Result<()> {
@@ -55,13 +55,13 @@ pub async fn google_create_folder(credentials: UserCredentials) -> anyhow::Resul
 
     println!("{:#?}", response.json::<Value>().await?);
 
-    return Ok(());
+    Ok(())
 }
 
 pub async fn google_upload(_credentials: UserCredentials, _path: &str) -> anyhow::Result<()> {
     let _client = reqwest::Client::new();
 
-    return Ok(());
+    Ok(())
 }
 
 //Check if drive path exists

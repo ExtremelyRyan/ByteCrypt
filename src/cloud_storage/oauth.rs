@@ -51,7 +51,7 @@ pub fn google_access() -> anyhow::Result<()> {
 
     println!(
         "Open this URL to authorize this application:\n{}\n",
-        authorize_url.to_string()
+        authorize_url
     );
     let mut token: Option<String> = None;
 
@@ -118,7 +118,7 @@ pub fn google_access() -> anyhow::Result<()> {
 
                 //Extract the token
                 token = body
-                    .split("&")
+                    .split('&')
                     .find(|param| param.starts_with("access_token"))
                     .and_then(|param| param.split('=').nth(1))
                     .map(str::to_string);
@@ -137,7 +137,7 @@ pub fn google_access() -> anyhow::Result<()> {
         access_token: token.unwrap().to_string(),
     }));
 
-    return Ok(());
+    Ok(())
 }
 
 pub fn dropbox_access() {

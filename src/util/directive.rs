@@ -117,8 +117,7 @@ impl Directive {
     }
 
     ///Process the upload information directive
-    fn process_upload(info: UploadInfo) {
-        info.placeholder; //just to get rid of warnings TODO: remove
+    fn process_upload(_info: UploadInfo) {
         todo!();
     }
 
@@ -144,9 +143,7 @@ impl Directive {
                     );
 
                     let mut s = String::new();
-                    while s.to_lowercase() != String::from("y")
-                        || s.to_lowercase() != String::from("n")
-                    {
+                    while s.to_lowercase() != *"y" || s.to_lowercase() != *"n" {
                         std::io::stdin()
                             .read_line(&mut s)
                             .expect("Did not enter a correct string");

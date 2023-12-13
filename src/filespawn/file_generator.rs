@@ -66,7 +66,7 @@ pub fn generate_files() -> anyhow::Result<()> {
         completed += 1;
     }
 
-    return Ok(());
+    Ok(())
 }
 
 fn generate_random_file(name: String) -> RFile {
@@ -81,10 +81,8 @@ fn generate_random_file(name: String) -> RFile {
         strings.push(random_content);
     }
 
-    let output = RFile {
+    RFile {
         name: name.to_string(),
         content: strings,
-    };
-
-    return output;
+    }
 }

@@ -44,18 +44,15 @@ fn main() -> Result<()> {
 
     // let _ = cloud_storage::oauth::google_access();
 
-
-    // testing query DB for existing file: 
-    let (full_path) = get_full_file_path("dracula.txt").expect("Can't find full path for file");
+    // testing query DB for existing file:
+    let full_path = get_full_file_path("dracula.txt").expect("Can't find full path for file");
     let fc = database::crypt_keeper::query_keeper_for_existing_file(full_path);
     // thoughts:
     // is this worthwhile? I can imagine for someone who does not really move files around a lot, that this could save
-    // a fair bit of extra entries from redundancy. 
+    // a fair bit of extra entries from redundancy.
     // but on the flip side, as soon as they rename the file, or move directories, we are creating a "redundant" entry anyway.
-    
 
     println!("{:#?}", fc);
-
 
     Ok(())
 }

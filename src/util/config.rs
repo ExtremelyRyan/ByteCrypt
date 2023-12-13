@@ -63,15 +63,15 @@ impl Config {
         database_path: String,
         // cloud_services: Vec<String>,
         retain: bool,
-        hidden_directories: Vec<String>,
+        ignore_directories: Vec<String>,
         zstd_level: i32,
     ) -> Self {
         Self {
             database_path,
             // cloud_services,
             retain,
-            ignore_directories: hidden_directories,
-            zstd_level: zstd_level,
+            ignore_directories,
+            zstd_level,
         }
     }
 
@@ -137,7 +137,7 @@ impl Config {
     }
 
     pub fn remove_item_from_ignore_directories(&mut self, item: &String) {
-        if self.ignore_directories.contains(&item) {
+        if self.ignore_directories.contains(item) {
             let index = &self.ignore_directories.iter().position(|x| x == item);
             let num = index.unwrap();
             self.ignore_directories.remove(num);
