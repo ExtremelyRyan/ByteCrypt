@@ -53,17 +53,6 @@ impl FileCrypt {
             hash,
         }
     }
-    /// generate key & nonce if, somehow, it was not generated using `FileCrypt::new()`
-    pub fn generate(&mut self) {
-        let mut k = [0u8; KEY_SIZE];
-        let mut n = [0u8; NONCE_SIZE];
-
-        OsRng.fill_bytes(&mut k);
-        OsRng.fill_bytes(&mut n);
-
-        self.key = k;
-        self.nonce = n;
-    }
 }
 
 pub fn compute_hash(contents: &[u8]) -> [u8; 32] {
@@ -170,12 +159,9 @@ pub fn decrypt_file(
     Ok(())
 }
 
-/// takes a FileCrypt and encrypts content in place (TODO: for now)
-pub fn encrypt(fc: &mut FileCrypt, contents: &[u8]) -> Result<Vec<u8>> {
+/// takes a FileCrypt and encrypts contents
+pub fn encrypt(fc: &FileCrypt, contents: &[u8]) -> Result<Vec<u8>> {
     info!("encrypting contents");
-    if fc.key.into_iter().all(|b| b == 0) {
-        fc.generate();
-    }
     let k = Key::from_slice(&fc.key);
     let n = Nonce::from_slice(&fc.nonce);
     let cipher = ChaCha20Poly1305::new(k).encrypt(n, contents).unwrap();
@@ -192,13 +178,13 @@ pub fn encrypt_file(conf: &Config, path: &str, in_place: bool) {
     let hash = compute_hash(contents);
     // let hash = [0u8; 32]; // for benching w/o hashing only
 
-    let mut fc = FileCrypt::new(filename, extension, fp, hash);
+    let fc = FileCrypt::new(filename, extension, fp, hash);
 
     // zip contents
     let binding = compress(contents, conf.zstd_level);
     contents = binding.as_slice();
 
-    let mut encrypted_contents = encrypt(&mut fc, contents).unwrap();
+    let mut encrypted_contents = encrypt(&fc, contents).unwrap();
 
     // prepend uuid to contents
     encrypted_contents = parse::prepend_uuid(&fc.uuid, &mut encrypted_contents);
