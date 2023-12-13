@@ -7,7 +7,7 @@ use std::{
 };
 
 pub const SAVE_PATH: &str = "benches/test_files/";
-const NUM_FILES: u16 = 100;
+const NUM_FILES: u16 = 1000;
 const MAX_HEIGHT: usize = 1000;
 const MIN_WIDTH: usize = 10;
 const MAX_WIDTH: usize = 1000;
@@ -66,7 +66,7 @@ pub fn generate_files() -> anyhow::Result<()> {
         completed += 1;
     }
 
-    return Ok(());
+    Ok(())
 }
 
 fn generate_random_file(name: String) -> RFile {
@@ -81,10 +81,8 @@ fn generate_random_file(name: String) -> RFile {
         strings.push(random_content);
     }
 
-    let output = RFile {
+    RFile {
         name: name.to_string(),
         content: strings,
-    };
-
-    return output;
+    }
 }

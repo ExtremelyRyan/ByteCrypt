@@ -8,7 +8,8 @@ use chacha20poly1305::{
     aead::{Aead, KeyInit, OsRng},
     ChaCha20Poly1305, Key, Nonce,
 };
-use log::trace;
+use hyper::header::ACCESS_CONTROL_ALLOW_CREDENTIALS;
+use log::*;
 use rand::RngCore;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
@@ -52,29 +53,53 @@ impl FileCrypt {
             hash,
         }
     }
-
-    pub fn generate(&mut self) {
-        let mut k = [0u8; KEY_SIZE];
-        let mut n = [0u8; NONCE_SIZE];
-
-        OsRng.fill_bytes(&mut k);
-        OsRng.fill_bytes(&mut n);
-
-        self.key = k;
-        self.nonce = n;
-    }
 }
 
-pub fn compute_hash(contents: &Vec<u8>) -> [u8; 32] {
-    trace!("computing hash");
+pub fn compute_hash(contents: &[u8]) -> [u8; 32] {
+    info!("computing hash");
     // compute hash on contents
     let mut hasher = Blake2s256::new();
     hasher.update(contents);
     hasher.finalize().into()
 }
 
-pub fn decryption(fc: FileCrypt, contents: &Vec<u8>) -> Result<Vec<u8>> {
-    trace!("decrypting contents");
+/// compress is the Zstd compression algorithm (https://en.wikipedia.org/wiki/Zstd) to deflate file size
+/// prior to encryption.
+///
+/// # Level
+/// `level` range is from -7 (fastest, least compressed) to 22 (time intensive, most compression). Default
+/// `level` is 3.
+///
+/// # Example
+/// ```
+/// # use crypt_lib::util::common::get_file_bytes;
+/// # use crypt_lib::util::encryption::compress;
+/// let contents: Vec<u8> = get_file_bytes("dracula.txt");
+/// let compressed_contents: Vec<u8> = compress(contents.as_slice(), 3);
+/// assert_ne!(contents.len(), compressed_contents.len());
+/// ```
+pub fn compress(contents: &[u8], level: i32) -> Vec<u8> {
+    zstd::encode_all(contents, level).expect("failed to zip contents")
+}
+
+/// decompression of a file during decryption
+///
+/// # Example
+/// ```
+/// # use crypt_lib::util::common::get_file_bytes;
+/// # use crypt_lib::util::encryption::{compress,decompress};
+/// let contents: Vec<u8> = get_file_bytes("dracula.txt");
+/// let compressed_contents: Vec<u8> = compress(contents.as_slice(), 3);
+/// assert_ne!(contents.len(), compressed_contents.len());
+/// let decompressed: Vec<u8> = decompress(compressed_contents.as_slice());
+/// assert_eq!(contents, decompressed);
+/// ```
+pub fn decompress(contents: &[u8]) -> Vec<u8> {
+    zstd::decode_all(contents).expect("failed to unzip!")
+}
+
+pub fn decrypt(fc: FileCrypt, contents: &Vec<u8>) -> Result<Vec<u8>> {
+    info!("decrypting contents");
     let k = Key::from_slice(&fc.key);
     let n = Nonce::from_slice(&fc.nonce);
     let cipher = ChaCha20Poly1305::new(k)
@@ -93,7 +118,7 @@ pub fn decrypt_file(
     let parent_dir = &fp.parent().unwrap().to_owned();
 
     // rip out uuid from contents
-    let contents: Vec<u8> = std::fs::read(&fp).unwrap();
+    let contents = std::fs::read(path).expect("failed to read decryption file!");
     let (uuid, content) = contents.split_at(36);
     let uuid_str = String::from_utf8(uuid.to_vec()).unwrap();
 
@@ -104,8 +129,11 @@ pub fn decrypt_file(
     // get output file
     let file = generate_output_file(&fc, output, parent_dir);
 
-    let decrypted_content =
-        encryption::decryption(fc.clone(), &content.to_vec()).expect("failed decryption");
+    let mut decrypted_content =
+        encryption::decrypt(fc.clone(), &content.to_vec()).expect("failed decryption");
+
+    // unzip contents
+    decrypted_content = decompress(&decrypted_content);
 
     // compute hash on contents
     let hash = compute_hash(&decrypted_content);
@@ -131,17 +159,12 @@ pub fn decrypt_file(
     Ok(())
 }
 
-/// takes a FileCrypt and encrypts content in place (TODO: for now)
-pub fn encryption(fc: &mut FileCrypt, contents: &Vec<u8>) -> Result<Vec<u8>> {
-    trace!("encrypting contents");
-    if fc.key.into_iter().all(|b| b == 0) {
-        fc.generate();
-    }
+/// takes a FileCrypt and encrypts contents
+pub fn encrypt(fc: &FileCrypt, contents: &[u8]) -> Result<Vec<u8>> {
+    info!("encrypting contents");
     let k = Key::from_slice(&fc.key);
     let n = Nonce::from_slice(&fc.nonce);
-    let cipher = ChaCha20Poly1305::new(k)
-        .encrypt(n, contents.as_ref())
-        .unwrap();
+    let cipher = ChaCha20Poly1305::new(k).encrypt(n, contents).unwrap();
     Ok(cipher)
 }
 
@@ -149,14 +172,19 @@ pub fn encrypt_file(conf: &Config, path: &str, in_place: bool) {
     let (fp, parent_dir, filename, extension) = get_file_info(path);
 
     // get contents of file
-    let contents: Vec<u8> = std::fs::read(&fp).unwrap();
+    let binding = util::common::get_file_bytes(path);
+    let mut contents = binding.as_slice();
 
-    let hash = compute_hash(&contents);
+    let hash = compute_hash(contents);
     // let hash = [0u8; 32]; // for benching w/o hashing only
 
-    let mut fc = FileCrypt::new(filename, extension, fp, hash);
+    let fc = FileCrypt::new(filename, extension, fp, hash);
 
-    let mut encrypted_contents = encryption(&mut fc, &contents).unwrap();
+    // zip contents
+    let binding = compress(contents, conf.zstd_level);
+    contents = binding.as_slice();
+
+    let mut encrypted_contents = encrypt(&fc, contents).unwrap();
 
     // prepend uuid to contents
     encrypted_contents = parse::prepend_uuid(&fc.uuid, &mut encrypted_contents);
@@ -177,9 +205,9 @@ pub fn encrypt_file(conf: &Config, path: &str, in_place: bool) {
     }
 }
 
-/// generates a UUID 7 string using a unix timestamp and random bytes.
+/// generates a UUID v7 string using a unix timestamp and random bytes.
 pub fn generate_uuid() -> String {
-    trace!("generating uuid");
+    info!("generating uuid");
     let ts = std::time::SystemTime::now()
         .duration_since(std::time::SystemTime::UNIX_EPOCH)
         .unwrap();
@@ -248,7 +276,21 @@ fn generate_output_file(fc: &FileCrypt, output: Option<String>, parent_dir: &Pat
     file
 }
 
-fn get_file_info(path: &str) -> (PathBuf, PathBuf, String, String) {
+/// given a path, dissect and return it's full path, parent folder path, filename, and extension.
+///
+/// # Example
+/// <b>assuming current working directory is `C:/test/folder1/`</b>
+/// ```no_run
+/// # use crypt_lib::util::encryption::get_file_info;
+/// # use std::path::PathBuf; 
+/// let p = "file.txt";
+/// let (full_path, parent, filename, extension) = get_file_info(p);
+/// assert_eq!(full_path, PathBuf::from("C:\\test\\folder1\\file.txt"));
+/// assert_eq!(parent,    PathBuf::from("C:\\test\\folder1"));
+/// assert_eq!(filename,  "file");
+/// assert_eq!(extension, ".txt");
+/// ```
+pub fn get_file_info(path: &str) -> (PathBuf, PathBuf, String, String) {
     // get filename, extension, and full path info
     let fp = util::path::get_full_file_path(path).unwrap();
     let parent_dir = fp.parent().unwrap().to_owned();

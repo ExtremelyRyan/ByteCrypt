@@ -3,7 +3,13 @@ use std::path::PathBuf;
 use criterion::{criterion_group, criterion_main, Criterion};
 use crypt_lib::{
     filespawn::file_generator::{generate_files, SAVE_PATH},
-    util::{encryption::{compute_hash, decrypt_file, encrypt_file, generate_uuid, FileCrypt, self}, common::read_to_vec_u8},
+    util::{
+        common::get_file_bytes,
+        encryption::{
+            self, compress, compute_hash, decrypt_file, encrypt_file, file_zip, generate_uuid,
+            FileCrypt,
+        },
+    },
     util::{config::load_config, path::walk_directory},
 };
 
@@ -45,16 +51,15 @@ pub fn enc_benchmark(c: &mut Criterion) {
 
 // encrypt test with 850kb file
 pub fn bench_just_enc(c: &mut Criterion) {
-
     // minumum setup needed to use encryption function
     let s = String::from("");
     let pb = PathBuf::new();
-    let b: [u8;32] = [0u8;32];
-    let mut fc = FileCrypt::new(s.clone(),s,pb,b);
-    let contents = read_to_vec_u8(DRACULA_NORMAL);
+    let b: [u8; 32] = [0u8; 32];
+    let mut fc = FileCrypt::new(s.clone(), s, pb, b);
+    let contents = get_file_bytes(DRACULA_NORMAL);
 
     c.bench_function("encrypt contents of dracula", |b| {
-        b.iter(|| encryption::encryption(&mut fc, &contents))
+        b.iter(|| encryption::encrypt(&mut fc, &contents))
     });
 }
 
@@ -122,6 +127,20 @@ pub fn test_generate_uuid(c: &mut Criterion) {
     c.bench_function("generate 26 digit uuid", |b| b.iter(|| generate_uuid()));
 }
 
+pub fn test_zip(c: &mut Criterion) {
+    let contents = get_file_bytes(DRACULA_NORMAL);
+    c.bench_function("zip dracula.txt", |b| {
+        b.iter(|| crate::encryption::compress(contents.as_slice(), 3))
+    });
+}
+
+pub fn test_zip_large(c: &mut Criterion) {
+    let contents = get_file_bytes(DRACULA_LARGE);
+    c.bench_function("zip dracula-large.txt", |b| {
+        b.iter(|| crate::encryption::compress(contents.as_slice(), 3))
+    });
+}
+
 pub fn cleanup(_c: &mut Criterion) {
     _ = std::fs::remove_file(DRACULA_CRYPT);
     _ = std::fs::remove_file(DRACULA_LCRYPT);
@@ -132,14 +151,15 @@ pub fn cleanup(_c: &mut Criterion) {
 
 criterion_group!(
     benches,
-    enc_benchmark,
-    bench_just_enc,
-    enc_benchmark_large,
-    enc_many_files_benchmark,
-    dec_benchmark,
-    dec_benchmark_large,
-    test_compute_hash,
-    test_generate_uuid,
-    cleanup
+    test_zip,
+    // enc_benchmark,
+    // bench_just_enc,
+    // enc_benchmark_large,
+    // enc_many_files_benchmark,
+    // dec_benchmark,
+    // dec_benchmark_large,
+    // test_compute_hash,
+    // test_generate_uuid,
+    // cleanup
 );
 criterion_main!(benches);

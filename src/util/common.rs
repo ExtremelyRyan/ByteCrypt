@@ -21,10 +21,8 @@ pub fn read_to_vec_string(path: &str) -> Vec<String> {
 }
 
 /// read file, and return values within a Vector of Strings.
-// pub fn read_to_vec_u8<P: AsRef<Path>>(path: P) -> Vec<u8> {
-pub fn read_to_vec_u8(path: &str) -> Vec<u8> {
-    let f = std::fs::read_to_string(path).expect("Can't open/read file!");
-    f.into_bytes()
+pub fn get_file_bytes(path: &str) -> Vec<u8> {
+    std::fs::read(path).expect("Can't open/read file!")
 }
 
 #[cfg(test)]
