@@ -1,5 +1,4 @@
 use std::path::PathBuf;
-
 use super::tui;
 use crate::util::{
     config::Config,
@@ -8,6 +7,7 @@ use crate::util::{
 };
 use anyhow::{Ok, Result};
 use clap::{Parser, Subcommand};
+
 
 ///CLI arguments
 #[derive(Parser, Debug)]
@@ -59,10 +59,31 @@ enum Commands {
 
     ///View or change configuration
     Config {
-        /// select config parameter to update
-        #[arg(short = 'u', long, required = false, default_value_t = String::from(""))]
-        update: String,
+        ///Categories
+        #[command(subcommand)]
+        category: ConfigCommand,
+    },
+}
 
+///Subcommands for Config
+#[derive(Subcommand, Debug)]
+pub enum ConfigCommand {
+    ///View or update the database path
+    DatabasePath {
+        /// value to update config
+        #[arg(required = false, default_value_t = String::from(""))]
+        value: String,
+    },
+
+    ///Update whether to overwrite the files
+    Retain {
+        /// value to update config
+        #[arg(required = false, default_value_t = String::from(""))]
+        value: String,
+    },
+
+    ///View or change which directories and/or filetypes are to be ignored
+    HiddenDirectories {
         /// value to update config
         #[arg(required = false, default_value_t = String::from(""))]
         value: String,
@@ -70,6 +91,13 @@ enum Commands {
         /// value to update config
         #[arg(required = false, default_value_t = String::from(""))]
         value2: String,
+    },
+
+    ///View or change the compression level (-7 to 22) -- higher is more compression
+    ZstdLevel {
+        /// value to update config
+        #[arg(required = false, default_value_t = String::from(""))]
+        value: String,
     },
 }
 
@@ -114,26 +142,46 @@ pub fn load_cli(config: Config) -> anyhow::Result<()> {
         }
         //Config
         Some(Commands::Config {
-            update,
-            value,
-            value2,
+            category,
         }) => {
-            //Show the config
-            //? not sure how i feel about this, atm I want these to keep seperate.
-            println!("{}", config);
-
-            //Check for if update passed
-            let fields = Config::get_fields();
-            match fields.contains(&update.as_str()) {
-                true => Directive::process_directive(Directive::Config(ConfigInfo {
-                    update: update.to_owned(),
-                    value: value.to_owned(),
-                    value2: value2.to_owned(),
-                    config,
-                })),
-                false => (),
-            };
-            Ok(())
+            match category {
+                ConfigCommand::DatabasePath { value } => {
+                    Directive::process_directive(Directive::Config(ConfigInfo {
+                        category: String::from("database_path"),
+                        value: value.to_owned(),
+                        value2: String::from(""),
+                        config,
+                    }));
+                    Ok(())
+                },
+                ConfigCommand::Retain { value } => {
+                    Directive::process_directive(Directive::Config(ConfigInfo {
+                        category: String::from("retain"),
+                        value: value.to_owned(),
+                        value2: String::from(""),
+                        config,
+                    }));
+                    Ok(())
+                },
+                ConfigCommand::HiddenDirectories { value, value2 } => {
+                    Directive::process_directive(Directive::Config(ConfigInfo {
+                        category: String::from("hidden_directories"),
+                        value: value.to_owned(),
+                        value2: value2.to_owned(),
+                        config,
+                    }));
+                    Ok(())
+                },
+                ConfigCommand::ZstdLevel { value } => {
+                    Directive::process_directive(Directive::Config(ConfigInfo {
+                        category: String::from("zstd_level"),
+                        value: value.to_owned(),
+                        value2: String::from(""),
+                        config,
+                    }));
+                    Ok(())
+                },
+            }
         }
         //Nothing passed (Help screen printed)
         None => Ok(()),

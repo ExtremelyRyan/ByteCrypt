@@ -52,7 +52,7 @@ fn main() -> Result<()> {
     // a fair bit of extra entries from redundancy.
     // but on the flip side, as soon as they rename the file, or move directories, we are creating a "redundant" entry anyway.
 
-    println!("{:#?}", fc);
+    // println!("{:#?}", fc);
 
     Ok(())
 }
