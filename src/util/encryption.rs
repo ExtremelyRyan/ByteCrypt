@@ -53,8 +53,8 @@ impl FileCrypt {
             hash,
         }
     }
-    // generate key / nonce
-    pub fn generate(&mut self) {
+        /// generate key & nonce if, somehow, it was not generated using `FileCrypt::new()`
+        pub fn generate(&mut self) {
         let mut k = [0u8; KEY_SIZE];
         let mut n = [0u8; NONCE_SIZE];
 
@@ -74,16 +74,37 @@ pub fn compute_hash(contents: &[u8]) -> [u8; 32] {
     hasher.finalize().into()
 }
 
-/// Compress takes the zstd compression 
+/// compress is the Zstd compression algorithm (https://en.wikipedia.org/wiki/Zstd) to deflate file size
+/// prior to encryption.
 ///
-/// # Panics
+/// # Level
+/// `level` range is from -7 (fastest, least compressed) to 22 (time intensive, most compression). Default
+/// `level` is 3.
 ///
-/// Panics if .
-pub fn compress(contents: &[u8]) -> Vec<u8> {
-    zstd::encode_all(contents, 22).expect("failed to zip contents")
+/// # Example
+/// ```
+/// use crypt_lib::util::common::get_file_bytes;
+/// use crypt_lib::util::encryption::compress;
+/// let contents = get_file_bytes("dracula.txt");
+/// let compressed_contents = compress(contents.as_slice(), 3);
+/// assert_ne!(contents.len(), compressed_contents.len());
+/// ```
+pub fn compress(contents: &[u8], level: i32) -> Vec<u8> {
+    zstd::encode_all(contents, level).expect("failed to zip contents")
 }
 
-
+/// decompression of a file during decryption 
+/// 
+/// # Example
+/// ```
+/// use crypt_lib::util::common::get_file_bytes;
+/// use crypt_lib::util::encryption::compress;
+/// let contents = get_file_bytes("dracula.txt");
+/// let compressed_contents = compress(contents.as_slice(), 3);
+/// assert_ne!(contents.len(), compressed_contents.len());
+/// let decompressed = decompress(compressed_contents.as_slice());
+/// assert_eq(contents, decompressed);
+/// ```
 pub fn decompress(contents: &[u8]) -> Vec<u8> {
     zstd::decode_all(contents).expect("failed to unzip!")
 }
@@ -174,7 +195,7 @@ pub fn encrypt_file(conf: &Config, path: &str, in_place: bool) {
     let mut fc = FileCrypt::new(filename, extension, fp, hash);
 
     // zip contents
-    let binding = compress(contents);
+    let binding = compress(contents, conf.zstd_level);
     contents = binding.as_slice();
 
     let mut encrypted_contents = encrypt(&mut fc, &contents).unwrap();
@@ -198,7 +219,7 @@ pub fn encrypt_file(conf: &Config, path: &str, in_place: bool) {
     }
 }
 
-/// generates a UUID 7 string using a unix timestamp and random bytes.
+/// generates a UUID v7 string using a unix timestamp and random bytes.
 pub fn generate_uuid() -> String {
     info!("generating uuid");
     let ts = std::time::SystemTime::now()
@@ -269,7 +290,19 @@ fn generate_output_file(fc: &FileCrypt, output: Option<String>, parent_dir: &Pat
     file
 }
 
-fn get_file_info(path: &str) -> (PathBuf, PathBuf, String, String) {
+/// given a path, dissect and return it's full path, parent folder path, filename, and extension.
+/// 
+/// # Example
+/// ```
+    // full path of example: "C:/folder1/folder2/file.txt" 
+/// let p = "file.txt";
+/// let (full_path, parent, filename, extension) = get_file_info(p);
+/// assert_eq!(full_path, "C:/folder1/folder2/file.txt");
+/// assert_eq!(parent,    "C:/folder1/folder2");
+/// assert_eq!(filename,  "file");
+/// assert_eq!(extension, ".txt");
+/// ```
+pub fn get_file_info(path: &str) -> (PathBuf, PathBuf, String, String) {
     // get filename, extension, and full path info
     let fp = util::path::get_full_file_path(path).unwrap();
     let parent_dir = fp.parent().unwrap().to_owned();
@@ -282,25 +315,6 @@ fn get_file_info(path: &str) -> (PathBuf, PathBuf, String, String) {
     let extension = extension.to_string();
 
     (fp, parent_dir, filename, extension)
-}
-
-pub fn file_zip(file: &str) {
-    let output_zip = ".\\benches\\dracula.zip";
-    let pshell_cmd = format!(
-        "Compress-Archive -Update -LiteralPath {} -DestinationPath {}",
-        file, output_zip
-    );
-    std::process::Command::new("powershell")
-        .arg("-Command")
-        .arg(&pshell_cmd)
-        .status()
-        .unwrap();
-    std::fs::remove_file(output_zip);
-}
-
-pub fn zstd_zip(contents: Vec<u8>) {
-    let zipped = zstd::encode_all(contents.as_slice(), 3).unwrap();
-    // write_contents_to_file("dracula.zip", zipped);
 }
 
 // cargo nextest run

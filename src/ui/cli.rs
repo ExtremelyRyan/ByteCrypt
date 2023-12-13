@@ -1,7 +1,11 @@
 use std::path::PathBuf;
 
 use super::tui;
-use crate::util::{config::Config, directive::{Directive, self}, directive::*};
+use crate::util::{
+    config::Config,
+    directive::*,
+    directive::{self, Directive},
+};
 use anyhow::{Ok, Result};
 use clap::{Parser, Subcommand};
 
@@ -116,7 +120,7 @@ pub fn load_cli(config: Config) -> anyhow::Result<()> {
         }) => {
             //Show the config
             //? not sure how i feel about this, atm I want these to keep seperate.
-            println!("{:#?}", config);
+            println!("{}", config);
 
             //Check for if update passed
             let fields = Config::get_fields();

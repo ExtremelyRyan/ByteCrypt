@@ -7,7 +7,7 @@ use crate::{
         path::{get_full_file_path, walk_directory},
     },
 };
-use std::{os::windows::process, path::PathBuf, ffi::OsStr};
+use std::{ffi::OsStr, os::windows::process, path::PathBuf};
 
 ///Information required for an encryption command
 #[derive(Debug)]
@@ -54,12 +54,12 @@ impl Directive {
     ///Processes all directives passed through -- acts as an API
     ///Accepts a directive with the requisite struct and information
     pub fn process_directive(self) {
-        match self { 
-            Directive::Encrypt(info) => Self::process_encrypt(info), 
+        match self {
+            Directive::Encrypt(info) => Self::process_encrypt(info),
             Directive::Decrypt(info) => Self::process_decrypt(info),
             Directive::Upload(info) => Self::process_upload(info),
             Directive::Config(info) => Self::process_config(info),
-        } 
+        }
     }
 
     ///Process the encryption directive
@@ -85,7 +85,7 @@ impl Directive {
             false => {
                 encrypt_file(&info.config, &info.path, info.in_place);
             }
-        }; 
+        };
     }
 
     ///Process the decryption directive
@@ -113,17 +113,16 @@ impl Directive {
             false => {
                 let _ = decrypt_file(&info.config, &info.path, info.output.to_owned());
             }
-        }; 
+        };
     }
 
     ///Process the upload information directive
     fn process_upload(info: UploadInfo) {
         info.placeholder; //just to get rid of warnings TODO: remove
         todo!();
- 
     }
 
-    ///Processes the configuration change directive
+    ///Processes the configuration change directive TODO: This needs to be redone, something isnt working.
     fn process_config(mut info: ConfigInfo) {
         if info.value.is_empty() {
             println!("cannot update {}, missing update value", info.update);
@@ -133,8 +132,11 @@ impl Directive {
             "database_path" => match info.value.to_lowercase().as_str() {
                 "get" | "g" => println!(
                     "database_path: {}",
-                    get_full_file_path(info.config.get_database_path()).unwrap().display()
+                    get_full_file_path(info.config.get_database_path())
+                        .unwrap()
+                        .display()
                 ),
+
                 "set" | "s" => {
                     println!(
                         "WARNING: changing your database will prevent you from decrypting existing
@@ -159,14 +161,15 @@ impl Directive {
                         info.config.set_database_path(&info.value2);
                     }
                 }
-                _ => println!("not valid"),
+                _ => (),
             },
-            // TODO: add / remove items in list
+
             // "cloud_services" => todo!(),
             "retain" => match info.config.set_retain(info.value.to_owned()) {
                 false => eprintln!("Error occured, please verify parameters."),
                 true => println!("{} value changed to: {}", info.update, info.value),
             },
+
             "hidden_directories" => match info.value.to_lowercase().as_str() {
                 "add" | "a" => info.config.append_ignore_directories(&info.value2),
                 "remove" | "r" => info
@@ -174,7 +177,14 @@ impl Directive {
                     .remove_item_from_ignore_directories(&info.value2),
                 _ => println!("invalid input"),
             },
-            _ => eprintln!("invalid selection!\n use -s | --show to see available config options."),
-        }
+
+            "zstd_level" => match info.config.set_zstd_level(info.value2.parse().unwrap()) {
+                false => println!("Error occured, please verify parameters."),
+                true => println!("{} value changed to: {}", info.update, info.value),
+            },
+            _ => eprintln!(
+                "invalid selection!\n use `crypt config` to see available config options."
+            ),
+        };
     }
 }

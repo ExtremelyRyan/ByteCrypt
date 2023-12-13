@@ -1,13 +1,13 @@
-
 use std::path::PathBuf;
 
 use criterion::{criterion_group, criterion_main, Criterion};
 use crypt_lib::{
     filespawn::file_generator::{generate_files, SAVE_PATH},
-    util::{ 
+    util::{
         common::get_file_bytes,
         encryption::{
-            self, compute_hash, decrypt_file, encrypt_file, file_zip, generate_uuid, FileCrypt, compress
+            self, compress, compute_hash, decrypt_file, encrypt_file, file_zip, generate_uuid,
+            FileCrypt,
         },
     },
     util::{config::load_config, path::walk_directory},
@@ -129,12 +129,16 @@ pub fn test_generate_uuid(c: &mut Criterion) {
 
 pub fn test_zip(c: &mut Criterion) {
     let contents = get_file_bytes(DRACULA_NORMAL);
-    c.bench_function("zip dracula.txt", |b| b.iter(|| crate::encryption::compress(contents.as_slice())));
+    c.bench_function("zip dracula.txt", |b| {
+        b.iter(|| crate::encryption::compress(contents.as_slice(), 3))
+    });
 }
 
 pub fn test_zip_large(c: &mut Criterion) {
     let contents = get_file_bytes(DRACULA_LARGE);
-    c.bench_function("zip dracula-large.txt", |b| b.iter(|| crate::encryption::compress(contents.as_slice())));
+    c.bench_function("zip dracula-large.txt", |b| {
+        b.iter(|| crate::encryption::compress(contents.as_slice(), 3))
+    });
 }
 
 pub fn cleanup(_c: &mut Criterion) {

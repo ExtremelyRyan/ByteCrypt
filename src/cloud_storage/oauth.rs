@@ -152,5 +152,5 @@ pub fn dropbox_access() {
     )
     .set_redirect_uri(RedirectUrl::new("http://localhost:3000".to_string()).unwrap());
 
-    let (authorize_url, csrf_state) = client.authorize_url(CsrfToken::new_random).url();
+    let (_authorize_url, _csrf_state) = client.authorize_url(CsrfToken::new_random).url();
 }

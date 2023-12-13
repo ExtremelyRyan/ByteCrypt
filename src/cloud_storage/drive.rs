@@ -58,8 +58,8 @@ pub async fn google_create_folder(credentials: UserCredentials) -> anyhow::Resul
     return Ok(());
 }
 
-pub async fn google_upload(credentials: UserCredentials, path: &str) -> anyhow::Result<()> {
-    let client = reqwest::Client::new();
+pub async fn google_upload(_credentials: UserCredentials, _path: &str) -> anyhow::Result<()> {
+    let _client = reqwest::Client::new();
 
     return Ok(());
 }

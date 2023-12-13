@@ -3,20 +3,12 @@ mod database;
 mod filespawn;
 mod ui;
 mod util;
-use anyhow::{self, Error, Ok, Result};
+use anyhow::{Ok, Result};
+use crypt_lib::util::path::get_full_file_path;
 use env_logger::Builder;
-use filespawn::*;
-
 use log::LevelFilter;
-use ui::cli;
+use ui::cli::*;
 use util::*;
- 
-use std::{
-    path::PathBuf,
-    time::{Duration, Instant},
-};
-
-use crate::util::encryption::file_zip;
 
 fn main() -> Result<()> {
     // change LevelFilter from trace to set the level of output messages
@@ -27,23 +19,19 @@ fn main() -> Result<()> {
 
     // _ = filespawn::file_generator::generate_files();
 
-    // _ = ui::cli::load_cli(config);
+    _ = load_cli(config);
 
     // zip
-    let contents = common::get_file_bytes("dracula.txt");
-    let start = Instant::now();
-    let compressed = util::encryption::compress(contents.as_slice());
-    let duration = start.elapsed();
-    _ = util::parse::write_contents_to_file("d.zipped", compressed);
-    
+    // let contents = common::get_file_bytes("dracula.txt");
+    // let start = Instant::now();
+    // let compressed = util::encryption::compress(contents.clone().as_slice(), 3);
+    // let duration = start.elapsed();
+    // _ = util::parse::write_contents_to_file("d.zipped", compressed.clone());
 
-    println!("Time elapsed in zstd is: {:?} ", duration);
+    // println!("Time elapsed in zstd is: {:?} ", duration);
 
-    let start = Instant::now();
-    encryption::file_zip("dracula.txt");
-    let duration = start.elapsed();
-
-    println!("Time elapsed in Powershell zip is: {:?} ", duration);
+    // println!("contents len: {:?} ", contents.len());
+    // println!("compressed len: {:?} ", compressed.len());
 
     //Load the UI
     // cli::load_cli(config);
@@ -56,9 +44,18 @@ fn main() -> Result<()> {
 
     // let _ = cloud_storage::oauth::google_access();
 
+
+    // testing query DB for existing file: 
+    let (full_path) = get_full_file_path("dracula.txt").expect("Can't find full path for file");
+    let fc = database::crypt_keeper::query_keeper_for_existing_file(full_path);
+    // thoughts:
+    // is this worthwhile? I can imagine for someone who does not really move files around a lot, that this could save
+    // a fair bit of extra entries from redundancy. 
+    // but on the flip side, as soon as they rename the file, or move directories, we are creating a "redundant" entry anyway.
+    
+
+    println!("{:#?}", fc);
+
+
     Ok(())
 }
-
-
-
-

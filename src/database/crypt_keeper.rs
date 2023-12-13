@@ -122,6 +122,39 @@ pub fn query_crypt(uuid: String) -> Result<FileCrypt> {
     })
 }
 
+///Queries the database if a file's metadata matches existing entry in crypt keeper
+pub fn query_keeper_for_existing_file(full_path: PathBuf) -> Result<FileCrypt> {
+    //Get the connection
+    let conn = get_keeper()?;
+
+    //Get the results of the query
+    conn.query_row(
+        "SELECT *
+        FROM crypt
+        WHERE full_path = ?1",
+        params![full_path.to_str().unwrap().to_string()],
+        |row| {
+            let get: String = row.get(3)?;
+            Ok(FileCrypt {
+                uuid: row.get(0)?,
+                filename: row.get(1)?,
+                ext: row.get(2)?,
+                full_path: PathBuf::from(get),
+                key: row.get(4)?,
+                nonce: row.get(5)?,
+                hash: row.get(6)?,
+            })
+        },
+    )
+    .map_err(|e| match e {
+        //Handle the errors
+        rusqliteError::QueryReturnedNoRows => {
+            anyhow!("No crypt with that uuid exists")
+        }
+        _ => anyhow!("Keeper query failed {}", e),
+    })
+}
+
 ///Queries the database for all crypts
 pub fn query_keeper() -> anyhow::Result<Vec<FileCrypt>> {
     //Get the connection
