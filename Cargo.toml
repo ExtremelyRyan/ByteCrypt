@@ -27,9 +27,11 @@ name = "crypt_lib"
 name = "encryption_benchmark"
 harness = false
 
+[env]
+GOOGLE_CLIENT_ID = "1006603075663-bi4o75nk6opljg7bicdiuden76s3v18f.apps.googleusercontent.com"
 
 [dev-dependencies]
-criterion = "0.3"
+criterion = "0.5.1"
 rand = "0.8"
 
 [dependencies]
