@@ -15,12 +15,12 @@ fn main() -> Result<()> {
     Builder::new().filter_level(LevelFilter::Trace).init();
 
     //Load config file or get default
-    let config = config::load_config().or_else(|_x| Ok(config::Config::default()))?; 
+    let config = config::load_config().or_else(|_x| Ok(config::Config::default()))?;
 
-    _ = load_cli(config);  
+    _ = load_cli(config);
 
-    // Testing: 
-    // let _ = cloud_storage::oauth::google_access(); 
+    // Testing:
+    // let _ = cloud_storage::oauth::google_access();
 
     Ok(())
 }
