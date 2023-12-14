@@ -1,13 +1,11 @@
-use std::path::PathBuf;
-
 use super::tui;
 use crate::util::{
     config::Config,
     directive::*,
     directive::{self, Directive},
 };
-use anyhow::{Ok, Result};
 use clap::{Parser, Subcommand};
+use std::path::PathBuf;
 
 ///CLI arguments
 #[derive(Parser, Debug)]
@@ -59,10 +57,31 @@ enum Commands {
 
     ///View or change configuration
     Config {
-        /// select config parameter to update
-        #[arg(short = 'u', long, required = false, default_value_t = String::from(""))]
-        update: String,
+        ///Categories
+        #[command(subcommand)]
+        category: Option<ConfigCommand>,
+    },
+}
 
+///Subcommands for Config
+#[derive(Subcommand, Debug)]
+pub enum ConfigCommand {
+    ///View or update the database path
+    DatabasePath {
+        ///Database path; if empty, prints current path
+        #[arg(required = false, default_value_t = String::from(""))]
+        path: String,
+    },
+
+    ///Update whether to retain original files after encryption or decryption
+    Retain {
+        ///Configure retaining original file: kept if true
+        #[arg(required = false, default_value_t = String::from(""))]
+        value: String,
+    },
+
+    ///View or change which directories and/or filetypes are to be ignored
+    IgnoreDirectories {
         /// value to update config
         #[arg(required = false, default_value_t = String::from(""))]
         value: String,
@@ -70,6 +89,13 @@ enum Commands {
         /// value to update config
         #[arg(required = false, default_value_t = String::from(""))]
         value2: String,
+    },
+
+    ///View or change the compression level (-7 to 22) -- higher is more compression
+    ZstdLevel {
+        /// value to update config
+        #[arg(required = false, default_value_t = String::from(""))]
+        value: String,
     },
 }
 
@@ -113,28 +139,48 @@ pub fn load_cli(config: Config) -> anyhow::Result<()> {
             todo!();
         }
         //Config
-        Some(Commands::Config {
-            update,
-            value,
-            value2,
-        }) => {
-            //Show the config
-            //? not sure how i feel about this, atm I want these to keep seperate.
-            println!("{}", config);
-
-            //Check for if update passed
-            let fields = Config::get_fields();
-            match fields.contains(&update.as_str()) {
-                true => Directive::process_directive(Directive::Config(ConfigInfo {
-                    update: update.to_owned(),
+        Some(Commands::Config { category }) => match category {
+            Some(ConfigCommand::DatabasePath { path: value }) => {
+                Directive::process_directive(Directive::Config(ConfigInfo {
+                    category: String::from("database_path"),
+                    value: value.to_owned(),
+                    value2: String::from(""),
+                    config,
+                }));
+                Ok(())
+            }
+            Some(ConfigCommand::Retain { value }) => {
+                Directive::process_directive(Directive::Config(ConfigInfo {
+                    category: String::from("retain"),
+                    value: value.to_owned(),
+                    value2: String::from(""),
+                    config,
+                }));
+                Ok(())
+            }
+            Some(ConfigCommand::IgnoreDirectories { value, value2 }) => {
+                Directive::process_directive(Directive::Config(ConfigInfo {
+                    category: String::from("ignore_directories"),
                     value: value.to_owned(),
                     value2: value2.to_owned(),
                     config,
-                })),
-                false => (),
-            };
-            Ok(())
-        }
+                }));
+                Ok(())
+            }
+            Some(ConfigCommand::ZstdLevel { value }) => {
+                Directive::process_directive(Directive::Config(ConfigInfo {
+                    category: String::from("zstd_level"),
+                    value: value.to_owned(),
+                    value2: String::from(""),
+                    config,
+                }));
+                Ok(())
+            }
+            None => {
+                println!("Current config: \n{}", config);
+                Ok(())
+            }
+        },
         //Nothing passed (Help screen printed)
         None => Ok(()),
     }

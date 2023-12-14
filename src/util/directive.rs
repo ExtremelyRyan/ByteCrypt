@@ -7,7 +7,7 @@ use crate::{
         path::{get_full_file_path, walk_directory},
     },
 };
-use std::{ffi::OsStr, os::windows::process, path::PathBuf};
+use std::{ffi::OsStr, path::PathBuf};
 
 ///Information required for an encryption command
 #[derive(Debug)]
@@ -35,7 +35,7 @@ pub struct UploadInfo {
 ///Information required for config command
 #[derive(Debug)]
 pub struct ConfigInfo {
-    pub update: String,
+    pub category: String,
     pub value: String,
     pub value2: String,
     pub config: Config,
@@ -123,20 +123,18 @@ impl Directive {
 
     ///Processes the configuration change directive TODO: This needs to be redone, something isnt working.
     fn process_config(mut info: ConfigInfo) {
-        if info.value.is_empty() {
-            println!("cannot update {}, missing update value", info.update);
-            return; // TODO: fix this later
-        }
-        match info.update.as_str() {
-            "database_path" => match info.value.to_lowercase().as_str() {
-                "get" | "g" => println!(
-                    "database_path: {}",
-                    get_full_file_path(info.config.get_database_path())
-                        .unwrap()
-                        .display()
-                ),
+        //Regardles, print the config
+        println!("{:#?}", info.config);
 
-                "set" | "s" => {
+        //Process the directive
+        match info.category.as_str() {
+            "database_path" => match info.value.to_lowercase().as_str() {
+                "" => {
+                    let path = get_full_file_path(&info.config.database_path)
+                        .expect("Error fetching database path");
+                    println!("Current Database Path:\n  {}", path.display());
+                }
+                _ => {
                     println!(
                         "WARNING: changing your database will prevent you from decrypting existing
                      files until you change the path back. ARE YOU SURE? (Y/N)"
@@ -150,24 +148,29 @@ impl Directive {
                     }
 
                     if s.as_str() == "y" {
-                        if PathBuf::from(&info.value2).exists() {
+                        if PathBuf::from(&info.value).exists() {
                             info.config.set_database_path(&info.value2);
                         } else {
-                            // create path
+                            //TODO: create path
                         }
                         info.config.set_database_path(&info.value2);
                     }
                 }
-                _ => (),
             },
 
-            // "cloud_services" => todo!(),
             "retain" => match info.config.set_retain(info.value.to_owned()) {
+                true => println!(
+                    "Retain changed to: {}",
+                    match info.value.as_str() {
+                        "true" | "t" => "true",
+                        "false" | "f" => "false",
+                        _ => unreachable!(),
+                    }
+                ),
                 false => eprintln!("Error occured, please verify parameters."),
-                true => println!("{} value changed to: {}", info.update, info.value),
             },
 
-            "hidden_directories" => match info.value.to_lowercase().as_str() {
+            "ignore_directories" => match info.value.to_lowercase().as_str() {
                 "add" | "a" => info.config.append_ignore_directories(&info.value2),
                 "remove" | "r" => info
                     .config
@@ -177,7 +180,7 @@ impl Directive {
 
             "zstd_level" => match info.config.set_zstd_level(info.value2.parse().unwrap()) {
                 false => println!("Error occured, please verify parameters."),
-                true => println!("{} value changed to: {}", info.update, info.value),
+                true => println!("{} value changed to: {}", info.category, info.value),
             },
             _ => eprintln!(
                 "invalid selection!\n use `crypt config` to see available config options."

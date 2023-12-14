@@ -282,7 +282,7 @@ fn generate_output_file(fc: &FileCrypt, output: Option<String>, parent_dir: &Pat
 /// <b>assuming current working directory is `C:/test/folder1/`</b>
 /// ```no_run
 /// # use crypt_lib::util::encryption::get_file_info;
-/// # use std::path::PathBuf; 
+/// # use std::path::PathBuf;
 /// let p = "file.txt";
 /// let (full_path, parent, filename, extension) = get_file_info(p);
 /// assert_eq!(full_path, PathBuf::from("C:\\test\\folder1\\file.txt"));
