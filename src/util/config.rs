@@ -2,9 +2,10 @@ use anyhow::{anyhow, Error, Ok, Result};
 use log::{error, info, warn};
 use serde::{Deserialize, Serialize};
 use std::{
-    fs, 
-    io::{self, BufRead, BufReader, Write, ErrorKind},
-    path::Path, collections::HashMap
+    collections::HashMap,
+    fs,
+    io::{self, BufRead, BufReader, ErrorKind, Write},
+    path::Path,
 };
 use toml::*;
 
@@ -45,8 +46,8 @@ impl std::fmt::Display for Config {
     }
 }
 
-impl Config {
-    pub fn default() -> Self {
+impl Default for Config {
+    fn default() -> Self {
         Config {
             database_path: "crypt_keeper.db".to_string(),
             // cloud_services: Vec::new(),
@@ -55,7 +56,9 @@ impl Config {
             zstd_level: 3,
         }
     }
+}
 
+impl Config {
     //Should I be returning anyhow error handling things?
     fn new(
         database_path: String,
@@ -202,59 +205,59 @@ fn parse_lines(config: &mut Config, file: fs::File) {
 
         //Parsing the vector
         if read_dir {
-            if line.contains(']') { //End of the vec
+            if line.contains(']') {
+                //End of the vec
                 read_dir = false;
                 ignore_dir.extend(
                     line.trim_matches(|c| c == '[' || c == ']' || c == ' ' || c == '"')
-                    .split(',')
-                    .map(|s| s.trim().trim_matches('"').to_string())
+                        .split(',')
+                        .map(|s| s.trim().trim_matches('"').to_string()),
                 );
-            } else if line.contains(" = ") { //If the line is erroneous 
-                read_dir = false; 
+            } else if line.contains(" = ") {
+                //If the line is erroneous
+                read_dir = false;
             } else {
                 ignore_dir.extend(
                     line.split(',')
-                    .map(|s| s.trim().trim_matches('"').to_string())
+                        .map(|s| s.trim().trim_matches('"').to_string()),
                 );
-            } 
-            //If the vec is erroneous and doesn't end            
-            if !line.contains(" = ") { continue; }
+            }
+            //If the vec is erroneous and doesn't end
+            if !line.contains(" = ") {
+                continue;
+            }
         }
 
         //Parse each key/value pair if they exist and import them
-        match parts.as_slice() {
-            [key, value] => {
-                match *key {
-                    "database_path" => {
-                        config.database_path = value
-                            .trim_matches(|c| c=='"' || c == '\'' || c == '\\')
-                            .trim().to_string();
-                    },
-                    "ignore_directories" => {
-                        if value.starts_with('[') && value.ends_with(']') {
-                            let value: Vec<String> = value
-                                .trim_matches(
-                                    |c| c == '[' || c == ']' || c == ' ' || c == '"')
-                                .split(',')
-                                .map(|s| s.trim().trim_matches('"').to_string())
-                                .collect();
-                            ignore_dir = value.to_owned();
-                        } else if value.starts_with('[') || value.starts_with(']') {
-                            read_dir = true;
-                        }
-                    },
-                    "retain" => config.retain = value.parse().unwrap_or(config.retain),
-                    "zstd_level" => config.zstd_level = value.parse().unwrap_or(config.zstd_level),
-                    _ => (), 
+        if let [key, value] = parts.as_slice() {
+            match *key {
+                "database_path" => {
+                    config.database_path = value
+                        .trim_matches(|c| c == '"' || c == '\'' || c == '\\')
+                        .trim()
+                        .to_string();
                 }
-            },
-            _ => (),
+                "ignore_directories" => {
+                    if value.starts_with('[') && value.ends_with(']') {
+                        let value: Vec<String> = value
+                            .trim_matches(|c| c == '[' || c == ']' || c == ' ' || c == '"')
+                            .split(',')
+                            .map(|s| s.trim().trim_matches('"').to_string())
+                            .collect();
+                        ignore_dir = value.to_owned();
+                    } else if value.starts_with('[') || value.starts_with(']') {
+                        read_dir = true;
+                    }
+                }
+                "retain" => config.retain = value.parse().unwrap_or(config.retain),
+                "zstd_level" => config.zstd_level = value.parse().unwrap_or(config.zstd_level),
+                _ => (),
+            }
         }
     }
     //Add the ignore directory vec
     if !ignore_dir.is_empty() {
-        config.ignore_directories = ignore_dir.into_iter()
-                                        .filter(|s| !s.is_empty()).collect();
+        config.ignore_directories = ignore_dir.into_iter().filter(|s| !s.is_empty()).collect();
     }
 }
 

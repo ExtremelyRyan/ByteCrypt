@@ -132,9 +132,8 @@ impl Directive {
                 "" => {
                     let path = get_full_file_path(&info.config.database_path)
                         .expect("Error fetching database path");
-                    println!("Current Database Path:\n  {}", 
-                        path.display());
-                },
+                    println!("Current Database Path:\n  {}", path.display());
+                }
                 _ => {
                     println!(
                         "WARNING: changing your database will prevent you from decrypting existing
@@ -160,7 +159,8 @@ impl Directive {
             },
 
             "retain" => match info.config.set_retain(info.value.to_owned()) {
-                true => println!("Retain changed to: {}", 
+                true => println!(
+                    "Retain changed to: {}",
                     match info.value.as_str() {
                         "true" | "t" => "true",
                         "false" | "f" => "false",

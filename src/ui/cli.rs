@@ -1,4 +1,3 @@
-use std::path::PathBuf;
 use super::tui;
 use crate::util::{
     config::Config,
@@ -6,7 +5,7 @@ use crate::util::{
     directive::{self, Directive},
 };
 use clap::{Parser, Subcommand};
-
+use std::path::PathBuf;
 
 ///CLI arguments
 #[derive(Parser, Debug)]
@@ -140,50 +139,48 @@ pub fn load_cli(config: Config) -> anyhow::Result<()> {
             todo!();
         }
         //Config
-        Some(Commands::Config { category }) => {
-            match category {
-                Some(ConfigCommand::DatabasePath { path: value }) => {
-                    Directive::process_directive(Directive::Config(ConfigInfo {
-                        category: String::from("database_path"),
-                        value: value.to_owned(),
-                        value2: String::from(""),
-                        config,
-                    }));
-                    Ok(())
-                },
-                Some(ConfigCommand::Retain { value }) => {
-                    Directive::process_directive(Directive::Config(ConfigInfo {
-                        category: String::from("retain"),
-                        value: value.to_owned(),
-                        value2: String::from(""),
-                        config,
-                    }));
-                    Ok(())
-                },
-                Some(ConfigCommand::IgnoreDirectories { value, value2 }) => {
-                    Directive::process_directive(Directive::Config(ConfigInfo {
-                        category: String::from("ignore_directories"),
-                        value: value.to_owned(),
-                        value2: value2.to_owned(),
-                        config,
-                    }));
-                    Ok(())
-                },
-                Some(ConfigCommand::ZstdLevel { value }) => {
-                    Directive::process_directive(Directive::Config(ConfigInfo {
-                        category: String::from("zstd_level"),
-                        value: value.to_owned(),
-                        value2: String::from(""),
-                        config,
-                    }));
-                    Ok(())
-                },
-                None => {
-                    println!("Current config: \n{}", config);
-                    Ok(())
-                }
+        Some(Commands::Config { category }) => match category {
+            Some(ConfigCommand::DatabasePath { path: value }) => {
+                Directive::process_directive(Directive::Config(ConfigInfo {
+                    category: String::from("database_path"),
+                    value: value.to_owned(),
+                    value2: String::from(""),
+                    config,
+                }));
+                Ok(())
             }
-        }
+            Some(ConfigCommand::Retain { value }) => {
+                Directive::process_directive(Directive::Config(ConfigInfo {
+                    category: String::from("retain"),
+                    value: value.to_owned(),
+                    value2: String::from(""),
+                    config,
+                }));
+                Ok(())
+            }
+            Some(ConfigCommand::IgnoreDirectories { value, value2 }) => {
+                Directive::process_directive(Directive::Config(ConfigInfo {
+                    category: String::from("ignore_directories"),
+                    value: value.to_owned(),
+                    value2: value2.to_owned(),
+                    config,
+                }));
+                Ok(())
+            }
+            Some(ConfigCommand::ZstdLevel { value }) => {
+                Directive::process_directive(Directive::Config(ConfigInfo {
+                    category: String::from("zstd_level"),
+                    value: value.to_owned(),
+                    value2: String::from(""),
+                    config,
+                }));
+                Ok(())
+            }
+            None => {
+                println!("Current config: \n{}", config);
+                Ok(())
+            }
+        },
         //Nothing passed (Help screen printed)
         None => Ok(()),
     }
