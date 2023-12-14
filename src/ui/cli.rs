@@ -5,7 +5,6 @@ use crate::util::{
     directive::*,
     directive::{self, Directive},
 };
-use anyhow::{Ok, Result};
 use clap::{Parser, Subcommand};
 
 
@@ -61,7 +60,7 @@ enum Commands {
     Config {
         ///Categories
         #[command(subcommand)]
-        category: ConfigCommand,
+        category: Option<ConfigCommand>,
     },
 }
 
@@ -70,20 +69,20 @@ enum Commands {
 pub enum ConfigCommand {
     ///View or update the database path
     DatabasePath {
-        /// value to update config
+        ///Database path; if empty, prints current path
         #[arg(required = false, default_value_t = String::from(""))]
-        value: String,
+        path: String,
     },
 
-    ///Update whether to overwrite the files
+    ///Update whether to retain original files after encryption or decryption
     Retain {
-        /// value to update config
+        ///Configure retaining original file: kept if true
         #[arg(required = false, default_value_t = String::from(""))]
         value: String,
     },
 
     ///View or change which directories and/or filetypes are to be ignored
-    HiddenDirectories {
+    IgnoreDirectories {
         /// value to update config
         #[arg(required = false, default_value_t = String::from(""))]
         value: String,
@@ -141,11 +140,9 @@ pub fn load_cli(config: Config) -> anyhow::Result<()> {
             todo!();
         }
         //Config
-        Some(Commands::Config {
-            category,
-        }) => {
+        Some(Commands::Config { category }) => {
             match category {
-                ConfigCommand::DatabasePath { value } => {
+                Some(ConfigCommand::DatabasePath { path: value }) => {
                     Directive::process_directive(Directive::Config(ConfigInfo {
                         category: String::from("database_path"),
                         value: value.to_owned(),
@@ -154,7 +151,7 @@ pub fn load_cli(config: Config) -> anyhow::Result<()> {
                     }));
                     Ok(())
                 },
-                ConfigCommand::Retain { value } => {
+                Some(ConfigCommand::Retain { value }) => {
                     Directive::process_directive(Directive::Config(ConfigInfo {
                         category: String::from("retain"),
                         value: value.to_owned(),
@@ -163,16 +160,16 @@ pub fn load_cli(config: Config) -> anyhow::Result<()> {
                     }));
                     Ok(())
                 },
-                ConfigCommand::HiddenDirectories { value, value2 } => {
+                Some(ConfigCommand::IgnoreDirectories { value, value2 }) => {
                     Directive::process_directive(Directive::Config(ConfigInfo {
-                        category: String::from("hidden_directories"),
+                        category: String::from("ignore_directories"),
                         value: value.to_owned(),
                         value2: value2.to_owned(),
                         config,
                     }));
                     Ok(())
                 },
-                ConfigCommand::ZstdLevel { value } => {
+                Some(ConfigCommand::ZstdLevel { value }) => {
                     Directive::process_directive(Directive::Config(ConfigInfo {
                         category: String::from("zstd_level"),
                         value: value.to_owned(),
@@ -181,6 +178,10 @@ pub fn load_cli(config: Config) -> anyhow::Result<()> {
                     }));
                     Ok(())
                 },
+                None => {
+                    println!("Current config: \n{}", config);
+                    Ok(())
+                }
             }
         }
         //Nothing passed (Help screen printed)

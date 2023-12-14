@@ -123,6 +123,10 @@ impl Directive {
 
     ///Processes the configuration change directive TODO: This needs to be redone, something isnt working.
     fn process_config(mut info: ConfigInfo) {
+        //Regardles, print the config
+        println!("{:#?}", info.config);
+
+        //Process the directive
         match info.category.as_str() {
             "database_path" => match info.value.to_lowercase().as_str() {
                 "" => {
@@ -148,20 +152,25 @@ impl Directive {
                         if PathBuf::from(&info.value).exists() {
                             info.config.set_database_path(&info.value2);
                         } else {
-                            // create path
+                            //TODO: create path
                         }
                         info.config.set_database_path(&info.value2);
                     }
                 }
             },
 
-            // "cloud_services" => todo!(),
             "retain" => match info.config.set_retain(info.value.to_owned()) {
+                true => println!("Retain changed to: {}", 
+                    match info.value.as_str() {
+                        "true" | "t" => "true",
+                        "false" | "f" => "false",
+                        _ => unreachable!(),
+                    }
+                ),
                 false => eprintln!("Error occured, please verify parameters."),
-                true => println!("{} value changed to: {}", info.category, info.value),
             },
 
-            "hidden_directories" => match info.value.to_lowercase().as_str() {
+            "ignore_directories" => match info.value.to_lowercase().as_str() {
                 "add" | "a" => info.config.append_ignore_directories(&info.value2),
                 "remove" | "r" => info
                     .config
