@@ -26,8 +26,7 @@ pub fn google_access() -> anyhow::Result<()> {
     // Set up the config for the Google OAuth2 process.
     let client = BasicClient::new(
         ClientId::new(
-            env::var("GOOGLE_CLIENT_ID")
-                .expect("Missing the GOOGLE_CLIENT_ID environment variable."),
+            drive::GOOGLE_CLIENT_ID,
         ),
         None, //No secret for implicit flow
         AuthUrl::new("https://accounts.google.com/o/oauth2/v2/auth".to_string())
