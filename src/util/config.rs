@@ -169,21 +169,30 @@ impl Config {
 ///Loads configuration file -- creates default if missing
 pub fn load_config() -> anyhow::Result<Config> {
     info!("loading config");
-    let mut config = Config::default();
+    let mut config: Config;
 
     //If the file doesn't exist, re-create and load defaults
     if !Path::new(CONFIG_PATH).exists() {
         warn!("No configuration found, reloading with defaults!");
-    } else {
-        //Load the configuration file from stored json
-        let config_file = fs::File::open(CONFIG_PATH)
-            .map_err(|e| anyhow!("Failed to read config file: {}", e))?;
+        config = Config::default();
+        save_config(&config)?;
+        return Ok(config);
+    } 
+    
+    config = match toml::from_str(CONFIG_PATH) {
+        Ok(config) => config,
+        Err(e) => {
+            //Load the configuration file from stored json
+            let config_file = fs::File::open(CONFIG_PATH)
+                .map_err(|e| anyhow!("Failed to read config file: {}", e))?;
 
-        //Parse the lines and correct any issues
-        parse_lines(&mut config, config_file);
-    }
-    //Save the config
-    save_config(&config)?;
+            //Parse the lines and correct any issues
+            parse_lines(&mut config, config_file);
+            //Save the config
+            save_config(&config)?;
+        }
+    };
+    
     Ok(config)
 }
 

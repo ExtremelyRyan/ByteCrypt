@@ -3,7 +3,7 @@ use crate::{
     util::{
         config::Config,
         encryption::{decrypt_file, encrypt_file},
-        parse::write_contents_to_file,
+        common::write_contents_to_file,
         path::{get_full_file_path, walk_directory},
     },
 };

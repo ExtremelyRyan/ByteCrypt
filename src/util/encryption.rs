@@ -1,6 +1,6 @@
 use crate::{
     database::crypt_keeper,
-    util::{self, config::Config, parse::write_contents_to_file, *},
+    util::{self, config::Config, common::write_contents_to_file, *},
 };
 use anyhow::Result;
 use blake2::{Blake2s256, Digest};
@@ -187,14 +187,14 @@ pub fn encrypt_file(conf: &Config, path: &str, in_place: bool) {
     let mut encrypted_contents = encrypt(&fc, contents).unwrap();
 
     // prepend uuid to contents
-    encrypted_contents = parse::prepend_uuid(&fc.uuid, &mut encrypted_contents);
+    encrypted_contents = common::prepend_uuid(&fc.uuid, &mut encrypted_contents);
 
     let crypt_file = match in_place || conf.retain {
         true => format!("{}/{}{}", parent_dir.display(), fc.filename, fc.ext),
         false => format!("{}/{}.crypt", &parent_dir.display(), fc.filename),
     };
 
-    parse::write_contents_to_file(&crypt_file, encrypted_contents)
+    common::write_contents_to_file(&crypt_file, encrypted_contents)
         .expect("failed to write contents to file!");
 
     //write fc to crypt_keeper
