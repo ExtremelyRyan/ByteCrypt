@@ -100,7 +100,7 @@ pub enum ConfigCommand {
 }
 
 ///Runs the CLI and returns a directive to be processed
-pub fn load_cli(config: Config) -> anyhow::Result<()> {
+pub fn load_cli(config: Config) {
     //Run the cli and get responses
     let cli = CommandLineArgs::parse();
 
@@ -111,7 +111,7 @@ pub fn load_cli(config: Config) -> anyhow::Result<()> {
 
     //Call TUI if flag was passed
     if cli.tui {
-        tui::load_tui()?;
+        tui::load_tui().expect("failed to load TUI");
     }
 
     //Process the command passed by the user
@@ -123,7 +123,6 @@ pub fn load_cli(config: Config) -> anyhow::Result<()> {
                 in_place: in_place.to_owned(),
                 config,
             }));
-            Ok(())
         }
         //Decryption
         Some(Commands::Decrypt { path, output }) => {
@@ -132,7 +131,6 @@ pub fn load_cli(config: Config) -> anyhow::Result<()> {
                 output: output.to_owned(),
                 config,
             }));
-            Ok(())
         }
         //Upload
         Some(Commands::Upload {}) => {
@@ -147,7 +145,6 @@ pub fn load_cli(config: Config) -> anyhow::Result<()> {
                     value2: String::from(""),
                     config,
                 }));
-                Ok(())
             }
             Some(ConfigCommand::Retain { value }) => {
                 Directive::process_directive(Directive::Config(ConfigInfo {
@@ -156,7 +153,6 @@ pub fn load_cli(config: Config) -> anyhow::Result<()> {
                     value2: String::from(""),
                     config,
                 }));
-                Ok(())
             }
             Some(ConfigCommand::IgnoreDirectories { value, value2 }) => {
                 Directive::process_directive(Directive::Config(ConfigInfo {
@@ -165,7 +161,6 @@ pub fn load_cli(config: Config) -> anyhow::Result<()> {
                     value2: value2.to_owned(),
                     config,
                 }));
-                Ok(())
             }
             Some(ConfigCommand::ZstdLevel { value }) => {
                 Directive::process_directive(Directive::Config(ConfigInfo {
@@ -174,15 +169,13 @@ pub fn load_cli(config: Config) -> anyhow::Result<()> {
                     value2: String::from(""),
                     config,
                 }));
-                Ok(())
             }
             None => {
-                println!("Current config: \n{}", config);
-                Ok(())
+                println!("{}", config);
             }
         },
         //Nothing passed (Help screen printed)
-        None => Ok(()),
+        None =>(),
     }
 }
 

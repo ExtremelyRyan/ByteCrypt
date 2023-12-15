@@ -16,7 +16,7 @@ fn main() -> Result<()> {
     //Load config file or get default
     let config = config::load_config().unwrap_or_default();
 
-    _ = load_cli(config);
+    load_cli(config);
 
     // Testing:
     // let _ = cloud_storage::oauth::google_access();
