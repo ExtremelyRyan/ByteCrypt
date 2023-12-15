@@ -1,16 +1,16 @@
 use crate::{
+    cloud_storage::*,
     database::crypt_keeper,
+    ui::cli::*,
     util::{
+        common::write_contents_to_file,
         config::Config,
         encryption::{decrypt_file, encrypt_file},
-        common::write_contents_to_file,
-        path::{get_full_file_path, walk_directory},
+        path::{generate_directory, get_full_file_path, walk_directory, walk_paths, PathInfo},
     },
-    ui::cli::*,
-    cloud_storage::*,
 };
+use std::{ffi::OsStr, path::PathBuf, collections::HashMap};
 use tokio::runtime::Runtime;
-use std::{ffi::OsStr, path::PathBuf};
 
 ///Information required for an encryption command
 #[derive(Debug)]
@@ -141,50 +141,101 @@ impl Directive {
         println!("{:#?}", info);
         let runtime = Runtime::new().unwrap();
 
+        //Fetch FileCrypts from crypt_keeper
+        let path_info = PathInfo::new(&info.path);
+        let paths =
+            walk_paths(info.path.as_str(), &info.config).expect("Could not generate path(s)");
+        let paths: Vec<PathInfo> = 
+            paths.into_iter().filter(|p| p.name != path_info.name).collect();
+        println!("{:#?}", paths);
+
+        //Track all folder ids
+        let mut folder_ids: HashMap<String, String> = HashMap::new();
         match info.platform {
             CloudPlatform::Google => {
                 //Grab user authentication token
-                let user_token = oauth::google_access()
-                    .expect("Could not access user credentials");
+                let user_token = oauth::google_access().expect("Could not access user credentials");
                 //Access google drive and ensure a crypt folder exists
-                let crypt_folder = match runtime
-                    .block_on(drive::g_create_folder(&user_token, None)) {
-                        Ok(folder_id) => folder_id,
-                        Err(e) => {
-                            println!("{}", e);
-                            "".to_string()
-                        }
+                let crypt_folder = match runtime.block_on(drive::g_create_folder(
+                    &user_token,
+                    None,
+                    "".to_string(),
+                )) {
+                    Ok(folder_id) => folder_id,
+                    Err(e) => {
+                        println!("{}", e);
+                        "".to_string()
+                    }
                 };
 
-                let _ = runtime.block_on(drive::g_drive_info(&user_token));
+                // let _ = runtime.block_on(drive::g_drive_info(&user_token));
                 match info.task {
                     CloudTask::Upload => {
-                        let path = PathBuf::from(info.path.as_str());
-                        match path.is_dir() {
+                        match path_info.is_dir {
                             true => {
-                                //If folder, verify that the folder exists, create it otherwise
-                                let folder_id = runtime.block_on(
-                                    drive::g_create_folder(&user_token, Some(&path))
+                                //Create the root directory
+                                folder_ids.insert(
+                                    path_info.full_path.display().to_string(),
+                                    runtime.block_on(
+                                        drive::g_create_folder(
+                                        &user_token,
+                                        Some(&PathBuf::from(path_info.name.clone())),
+                                        crypt_folder,))
+                                    .expect("Could not create directory in google drive") 
                                 );
+                                //Create all folders relative to the root directory
+                                for path in paths.clone() {
+                                    let parent_path = path.parent.display().to_string();
+                                    println!("{:#?}\n{}", folder_ids, parent_path);
+                                    let parent_id = folder_ids.get(&parent_path)
+                                        .expect("Could not retrieve parent ID")
+                                        .to_string();
 
-                                
-                            },
+                                    if path.is_dir {
+                                        folder_ids.insert(
+                                            path.full_path.display().to_string(),
+                                            runtime.block_on(
+                                                drive::g_create_folder(
+                                                &user_token,
+                                                Some(&PathBuf::from(path.name.clone())),
+                                                parent_id))
+                                            .expect("Could not create directory in google drive")
+                                        );
+                                    } 
+                                }
+                                //Upload every file to their respective parent directory
+                                for path in paths {
+                                    let parent_path = path.parent.display().to_string();
+                                    let parent_id = folder_ids.get(&parent_path)
+                                        .expect("Could not retrieve parent ID")
+                                        .to_string();
+
+                                    if !path.is_dir {
+                                        let _ = runtime.block_on(
+                                            drive::g_upload(
+                                                user_token.clone(), 
+                                                &path.full_path.display().to_string(), 
+                                                parent_id)
+                                        );
+                                    }
+                                }
+                            }
                             false => {
                                 let _ = runtime.block_on(
                                     drive::g_upload(
                                         user_token, &info.path, crypt_folder)
                                 );
-                            },
+                            }
                         }
-                    },
+                    }
                     CloudTask::Download => {
                         todo!()
-                    },
+                    }
                     CloudTask::View => {
                         todo!()
-                    },
+                    }
                 }
-            },
+            }
             CloudPlatform::DropBox => {
                 match info.task {
                     CloudTask::Upload => {
@@ -192,24 +243,20 @@ impl Directive {
                         match path.is_dir() {
                             true => {
                                 //If folder, verify that the folder exists, create it otherwise
-
-                                
-                            },
-                            false => {
-                                
-                            },
+                            }
+                            false => {}
                         }
                         //Determine if it's a file or a folder that's being uploaded
                         todo!()
-                    },
+                    }
                     CloudTask::Download => {
                         todo!()
-                    },
+                    }
                     CloudTask::View => {
                         todo!()
-                    },
+                    }
                 }
-            },
+            }
         }
     }
 

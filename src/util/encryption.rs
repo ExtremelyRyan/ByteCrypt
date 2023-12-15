@@ -1,6 +1,6 @@
 use crate::{
     database::crypt_keeper,
-    util::{self, config::Config, common::write_contents_to_file, *},
+    util::{self, common::write_contents_to_file, config::Config, *},
 };
 use anyhow::Result;
 use blake2::{Blake2s256, Digest};
@@ -34,7 +34,13 @@ pub struct FileCrypt {
 }
 
 impl FileCrypt {
-    pub fn new(filename: String, ext: String, drive_id: String, full_path: PathBuf, hash: [u8; 32]) -> Self {
+    pub fn new(
+        filename: String,
+        ext: String,
+        drive_id: String,
+        full_path: PathBuf,
+        hash: [u8; 32],
+    ) -> Self {
         // generate key & nonce
         let mut key = [0u8; KEY_SIZE];
         let mut nonce = [0u8; NONCE_SIZE];

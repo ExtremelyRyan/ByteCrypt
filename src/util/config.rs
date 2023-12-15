@@ -176,23 +176,23 @@ pub fn load_config() -> anyhow::Result<Config> {
         warn!("No configuration found, reloading with defaults!");
         save_config(&config)?;
         return Ok(config);
-    } 
-    
+    }
+
     // config = match toml::from_str(CONFIG_PATH) {
     //     core::result::Result::Ok(config) => config,
     //     Err(e) => {
-            //Load the configuration file from stored json
-            let config_file = fs::File::open(CONFIG_PATH)
-                .map_err(|e| anyhow!("Failed to read config file: {}", e))?;
+    //Load the configuration file from stored json
+    let config_file =
+        fs::File::open(CONFIG_PATH).map_err(|e| anyhow!("Failed to read config file: {}", e))?;
 
-            //Parse the lines and correct any issues
-            parse_lines(&mut config, config_file);
-            //Save the config
-            save_config(&config)?;
+    //Parse the lines and correct any issues
+    parse_lines(&mut config, config_file);
+    //Save the config
+    save_config(&config)?;
     //         config
     //     },
     // };
-    
+
     Ok(config)
 }
 

@@ -3,7 +3,7 @@ mod database;
 mod filespawn;
 mod ui;
 mod util;
-use anyhow::{Ok, Result}; 
+use anyhow::{Ok, Result};
 use env_logger::Builder;
 use log::LevelFilter;
 use ui::cli::*;

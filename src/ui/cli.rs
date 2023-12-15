@@ -1,8 +1,5 @@
 use super::tui;
-use crate::util::{
-    config::Config,
-    directive::*,
-};
+use crate::util::{config::Config, directive::*};
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
@@ -72,7 +69,6 @@ pub enum CloudCommand {
     Google {
         #[command(subcommand)]
         task: Option<DriveCommand>,
-        
     },
 
     ///View, upload, or download actions for DropBox
@@ -80,8 +76,7 @@ pub enum CloudCommand {
     Dropbox {
         #[command(subcommand)]
         task: Option<DriveCommand>,
-
-    }
+    },
 }
 
 ///
@@ -188,51 +183,39 @@ pub fn load_cli(config: Config) -> anyhow::Result<()> {
         Some(Commands::Cloud { category }) => match category {
             Some(CloudCommand::Google { task }) => {
                 let (tsk, pth) = match task {
-                    Some(DriveCommand::Upload { path }) => {
-                        (CloudTask::Upload, path.to_owned())  
-                    },
-                    Some(DriveCommand::Download { path }) => {
-                        (CloudTask::Download, path.to_owned())                    
-                    },
-                    Some(DriveCommand::View { path }) => {
-                        (CloudTask::View, path.to_owned())                    
-                    },
+                    Some(DriveCommand::Upload { path }) => (CloudTask::Upload, path.to_owned()),
+                    Some(DriveCommand::Download { path }) => (CloudTask::Download, path.to_owned()),
+                    Some(DriveCommand::View { path }) => (CloudTask::View, path.to_owned()),
                     None => (CloudTask::View, "".to_owned()),
                 };
-                Directive::process_directive(Directive::Cloud(CloudInfo { 
+                Directive::process_directive(Directive::Cloud(CloudInfo {
                     platform: CloudPlatform::Google,
                     task: tsk,
                     path: pth,
                     config,
                 }));
                 Ok(())
-            },
+            }
             Some(CloudCommand::Dropbox { task }) => {
                 let (tsk, pth) = match task {
-                    Some(DriveCommand::Upload { path }) => {
-                        (CloudTask::Upload, path.to_owned())  
-                    },
-                    Some(DriveCommand::Download { path }) => {
-                        (CloudTask::Download, path.to_owned())                    
-                    },
-                    Some(DriveCommand::View { path }) => {
-                        (CloudTask::View, path.to_owned())                    
-                    },
+                    Some(DriveCommand::Upload { path }) => (CloudTask::Upload, path.to_owned()),
+                    Some(DriveCommand::Download { path }) => (CloudTask::Download, path.to_owned()),
+                    Some(DriveCommand::View { path }) => (CloudTask::View, path.to_owned()),
                     None => (CloudTask::View, "".to_owned()),
                 };
-                Directive::process_directive(Directive::Cloud(CloudInfo { 
+                Directive::process_directive(Directive::Cloud(CloudInfo {
                     platform: CloudPlatform::DropBox,
                     task: tsk,
                     path: pth,
                     config,
                 }));
                 Ok(())
-            },
+            }
             None => {
                 //TODO: print out default info?
                 todo!();
-            },
-        }
+            }
+        },
         //Config
         Some(Commands::Config { category }) => match category {
             Some(ConfigCommand::DatabasePath { path: value }) => {

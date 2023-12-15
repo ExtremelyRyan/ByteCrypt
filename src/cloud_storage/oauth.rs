@@ -7,7 +7,7 @@ use std::io::{BufRead, BufReader, Read, Write};
 use std::net::TcpListener;
 
 ///Holds the user credentials for the session
-#[derive(Deserialize)]
+#[derive(Deserialize, Clone)]
 pub struct UserToken {
     ///Grants access to the user account
     pub access_token: String,
@@ -128,7 +128,9 @@ pub fn google_access() -> anyhow::Result<UserToken> {
             }
         }
     }
-    let user_cred = UserToken { access_token: token.unwrap().to_string() };
+    let user_cred = UserToken {
+        access_token: token.unwrap().to_string(),
+    };
 
     return Ok(user_cred);
 }

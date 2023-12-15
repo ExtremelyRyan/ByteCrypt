@@ -1,9 +1,9 @@
+use crate::util::path::get_full_file_path;
+use anyhow::{Ok, Result};
 use std::{
     fs::{File, OpenOptions},
     io::{BufRead, BufReader, Write},
-}; 
-use anyhow::{Ok, Result}; 
-use crate::util::path::get_full_file_path;
+};
 
 /// read file, and return values within a Vector of Strings.
 pub fn read_to_vec_string(path: &str) -> Vec<String> {
@@ -43,7 +43,6 @@ pub fn prepend_uuid(uuid: &String, encrypted_contents: &mut Vec<u8>) -> Vec<u8> 
     uuid_bytes.append(encrypted_contents);
     uuid_bytes
 }
-
 
 #[cfg(test)]
 mod tests {

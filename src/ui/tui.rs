@@ -1,5 +1,5 @@
 use super::ui_repo::CharacterSet;
-use crate::util::path::{generate_directory, Directory, FileSystemEntity};
+use crate::util::path::{generate_directory, DirInfo, FileSystemEntity};
 use anyhow::{Ok, Result};
 use crossterm::{
     event::{self, Event, KeyCode, MouseButton},
@@ -248,7 +248,7 @@ fn event_handler(cursor: &mut Cursor) -> anyhow::Result<bool> {
 }
 
 ///Takes in the current directory and formats it into a string
-pub fn format_directory<'a>(directory: &Directory, depth: usize, cursor: &Cursor) -> Text<'a> {
+pub fn format_directory<'a>(directory: &DirInfo, depth: usize, cursor: &Cursor) -> Text<'a> {
     let char_set = CharacterSet::U8_SLINE;
     let mut lines: Vec<Line> = Vec::new();
     let mut line_span: Vec<Span> = Vec::new();
@@ -257,7 +257,7 @@ pub fn format_directory<'a>(directory: &Directory, depth: usize, cursor: &Cursor
     //Root directory
     if depth == 0 {
         result.push_str(&format! {"{}\n",
-            directory.path.file_name().unwrap().to_str().unwrap()
+            directory.path.full_path.file_name().unwrap().to_str().unwrap()
         });
     }
     line_span.push(Span::raw(result));
@@ -288,10 +288,21 @@ pub fn format_directory<'a>(directory: &Directory, depth: usize, cursor: &Cursor
         }
 
         let text = match entity {
-            FileSystemEntity::File(path) => path.file_name().unwrap().to_str().unwrap().to_string(),
-            FileSystemEntity::Directory(dir) => {
-                dir.path.file_name().unwrap().to_str().unwrap().to_string()
-            }
+            FileSystemEntity::File(path) => path
+                .full_path
+                .file_name()
+                .unwrap()
+                .to_str()
+                .unwrap()
+                .to_string(),
+            FileSystemEntity::Directory(dir) => dir
+                .path
+                .parent
+                .file_name()
+                .unwrap()
+                .to_str()
+                .unwrap()
+                .to_string(),
         };
 
         //Styles for selected items
