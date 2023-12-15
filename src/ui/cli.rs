@@ -2,7 +2,6 @@ use super::tui;
 use crate::util::{
     config::Config,
     directive::*,
-    directive::{self, Directive},
 };
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
@@ -50,9 +49,11 @@ enum Commands {
         output: Option<String>,
     },
 
-    ///Upload file or folder to cloud provider
-    Upload {
-        //TODO: Upload requirements and options
+    ///Upload, download, or view file or folder to cloud provider
+    Cloud {
+        ///Categories
+        #[command(subcommand)]
+        category: Option<CloudCommand>,
     },
 
     ///View or change configuration
@@ -63,10 +64,56 @@ enum Commands {
     },
 }
 
+///Subcommands for Upload
+#[derive(Subcommand, Debug)]
+pub enum CloudCommand {
+    ///View, upload, or download actions for Google Drive
+    #[command(short_flag = 'g')]
+    Google {
+        #[command(subcommand)]
+        task: Option<DriveCommand>,
+        
+    },
+
+    ///View, upload, or download actions for DropBox
+    #[command(short_flag = 'd')]
+    Dropbox {
+        #[command(subcommand)]
+        task: Option<DriveCommand>,
+
+    }
+}
+
+///
+#[derive(Subcommand, Debug, Clone)]
+pub enum DriveCommand {
+    ///Upload a file or folder
+    #[command(short_flag = 'u')]
+    Upload {
+        #[arg(required = false, default_value_t = String::from(""))]
+        path: String,
+    },
+
+    ///Download a file or folder
+    #[command(short_flag = 'd')]
+    Download {
+        #[arg(required = false, default_value_t = String::from(""))]
+        path: String,
+    },
+
+    ///View a file or folder
+    #[command(short_flag = 'v')]
+    View {
+        #[arg(required = false, default_value_t = String::from(""))]
+        path: String,
+    },
+}
+
 ///Subcommands for Config
 #[derive(Subcommand, Debug)]
 pub enum ConfigCommand {
     ///View or update the database path
+    #[command(short_flag = 'd')]
     DatabasePath {
         ///Database path; if empty, prints current path
         #[arg(required = false, default_value_t = String::from(""))]
@@ -74,6 +121,7 @@ pub enum ConfigCommand {
     },
 
     ///Update whether to retain original files after encryption or decryption
+    #[command(short_flag = 'r')]
     Retain {
         ///Configure retaining original file: kept if true
         #[arg(required = false, default_value_t = String::from(""))]
@@ -81,6 +129,7 @@ pub enum ConfigCommand {
     },
 
     ///View or change which directories and/or filetypes are to be ignored
+    #[command(short_flag = 'i')]
     IgnoreDirectories {
         /// value to update config
         #[arg(required = false, default_value_t = String::from(""))]
@@ -92,6 +141,7 @@ pub enum ConfigCommand {
     },
 
     ///View or change the compression level (-7 to 22) -- higher is more compression
+    #[command(short_flag = 'z')]
     ZstdLevel {
         /// value to update config
         #[arg(required = false, default_value_t = String::from(""))]
@@ -134,9 +184,54 @@ pub fn load_cli(config: Config) -> anyhow::Result<()> {
             }));
             Ok(())
         }
-        //Upload
-        Some(Commands::Upload {}) => {
-            todo!();
+        //Cloud
+        Some(Commands::Cloud { category }) => match category {
+            Some(CloudCommand::Google { task }) => {
+                let (tsk, pth) = match task {
+                    Some(DriveCommand::Upload { path }) => {
+                        (CloudTask::Upload, path.to_owned())  
+                    },
+                    Some(DriveCommand::Download { path }) => {
+                        (CloudTask::Download, path.to_owned())                    
+                    },
+                    Some(DriveCommand::View { path }) => {
+                        (CloudTask::View, path.to_owned())                    
+                    },
+                    None => (CloudTask::View, "".to_owned()),
+                };
+                Directive::process_directive(Directive::Cloud(CloudInfo { 
+                    platform: CloudPlatform::Google,
+                    task: tsk,
+                    path: pth,
+                    config,
+                }));
+                Ok(())
+            },
+            Some(CloudCommand::Dropbox { task }) => {
+                let (tsk, pth) = match task {
+                    Some(DriveCommand::Upload { path }) => {
+                        (CloudTask::Upload, path.to_owned())  
+                    },
+                    Some(DriveCommand::Download { path }) => {
+                        (CloudTask::Download, path.to_owned())                    
+                    },
+                    Some(DriveCommand::View { path }) => {
+                        (CloudTask::View, path.to_owned())                    
+                    },
+                    None => (CloudTask::View, "".to_owned()),
+                };
+                Directive::process_directive(Directive::Cloud(CloudInfo { 
+                    platform: CloudPlatform::DropBox,
+                    task: tsk,
+                    path: pth,
+                    config,
+                }));
+                Ok(())
+            },
+            None => {
+                //TODO: print out default info?
+                todo!();
+            },
         }
         //Config
         Some(Commands::Config { category }) => match category {

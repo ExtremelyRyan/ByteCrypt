@@ -26,6 +26,7 @@ pub struct FileCrypt {
     pub uuid: String,
     pub filename: String,
     pub ext: String,
+    pub drive_id: String,
     pub full_path: PathBuf,
     pub key: [u8; KEY_SIZE],
     pub nonce: [u8; NONCE_SIZE],
@@ -33,7 +34,7 @@ pub struct FileCrypt {
 }
 
 impl FileCrypt {
-    pub fn new(filename: String, ext: String, full_path: PathBuf, hash: [u8; 32]) -> Self {
+    pub fn new(filename: String, ext: String, drive_id: String, full_path: PathBuf, hash: [u8; 32]) -> Self {
         // generate key & nonce
         let mut key = [0u8; KEY_SIZE];
         let mut nonce = [0u8; NONCE_SIZE];
@@ -46,12 +47,17 @@ impl FileCrypt {
         Self {
             filename,
             full_path,
+            drive_id,
             key,
             nonce,
             ext,
             uuid,
             hash,
         }
+    }
+
+    pub fn set_drive_id(&mut self, drive_id: String) {
+        self.drive_id = drive_id;
     }
 }
 
@@ -178,7 +184,7 @@ pub fn encrypt_file(conf: &Config, path: &str, in_place: bool) {
     let hash = compute_hash(contents);
     // let hash = [0u8; 32]; // for benching w/o hashing only
 
-    let fc = FileCrypt::new(filename, extension, fp, hash);
+    let fc = FileCrypt::new(filename, extension, "".to_string(), fp, hash);
 
     // zip contents
     let binding = compress(contents, conf.zstd_level);

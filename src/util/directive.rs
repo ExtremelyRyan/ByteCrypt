@@ -6,7 +6,10 @@ use crate::{
         common::write_contents_to_file,
         path::{get_full_file_path, walk_directory},
     },
+    ui::cli::*,
+    cloud_storage::*,
 };
+use tokio::runtime::Runtime;
 use std::{ffi::OsStr, path::PathBuf};
 
 ///Information required for an encryption command
@@ -25,10 +28,27 @@ pub struct DecryptInfo {
     pub config: Config,
 }
 
+///Supported cloud platforms
+#[derive(Debug)]
+pub enum CloudPlatform {
+    Google,
+    DropBox,
+}
+
+///Supported tasks for cloud platforms
+#[derive(Debug)]
+pub enum CloudTask {
+    Upload,
+    Download,
+    View,
+}
+
 ///Information required for upload command
 #[derive(Debug)]
-pub struct UploadInfo {
-    pub placeholder: bool,
+pub struct CloudInfo {
+    pub platform: CloudPlatform,
+    pub task: CloudTask,
+    pub path: String,
     pub config: Config,
 }
 
@@ -46,7 +66,7 @@ pub struct ConfigInfo {
 pub enum Directive {
     Encrypt(EncryptInfo),
     Decrypt(DecryptInfo),
-    Upload(UploadInfo),
+    Cloud(CloudInfo),
     Config(ConfigInfo),
 }
 
@@ -57,7 +77,7 @@ impl Directive {
         match self {
             Directive::Encrypt(info) => Self::process_encrypt(info),
             Directive::Decrypt(info) => Self::process_decrypt(info),
-            Directive::Upload(info) => Self::process_upload(info),
+            Directive::Cloud(info) => Self::process_cloud(info),
             Directive::Config(info) => Self::process_config(info),
         }
     }
@@ -117,8 +137,80 @@ impl Directive {
     }
 
     ///Process the upload information directive
-    fn process_upload(_info: UploadInfo) {
-        todo!();
+    fn process_cloud(info: CloudInfo) {
+        println!("{:#?}", info);
+        let runtime = Runtime::new().unwrap();
+
+        match info.platform {
+            CloudPlatform::Google => {
+                //Grab user authentication token
+                let user_token = oauth::google_access()
+                    .expect("Could not access user credentials");
+                //Access google drive and ensure a crypt folder exists
+                let crypt_folder = match runtime
+                    .block_on(drive::g_create_folder(&user_token, None)) {
+                        Ok(folder_id) => folder_id,
+                        Err(e) => {
+                            println!("{}", e);
+                            "".to_string()
+                        }
+                };
+
+                let _ = runtime.block_on(drive::g_drive_info(&user_token));
+                match info.task {
+                    CloudTask::Upload => {
+                        let path = PathBuf::from(info.path.as_str());
+                        match path.is_dir() {
+                            true => {
+                                //If folder, verify that the folder exists, create it otherwise
+                                let folder_id = runtime.block_on(
+                                    drive::g_create_folder(&user_token, Some(&path))
+                                );
+
+                                
+                            },
+                            false => {
+                                let _ = runtime.block_on(
+                                    drive::g_upload(
+                                        user_token, &info.path, crypt_folder)
+                                );
+                            },
+                        }
+                    },
+                    CloudTask::Download => {
+                        todo!()
+                    },
+                    CloudTask::View => {
+                        todo!()
+                    },
+                }
+            },
+            CloudPlatform::DropBox => {
+                match info.task {
+                    CloudTask::Upload => {
+                        let path = PathBuf::from(info.path.as_str());
+                        match path.is_dir() {
+                            true => {
+                                //If folder, verify that the folder exists, create it otherwise
+
+                                
+                            },
+                            false => {
+                                
+                            },
+                        }
+                        //Determine if it's a file or a folder that's being uploaded
+                        todo!()
+                    },
+                    CloudTask::Download => {
+                        todo!()
+                    },
+                    CloudTask::View => {
+                        todo!()
+                    },
+                }
+            },
+        }
     }
 
     ///Processes the configuration change directive TODO: This needs to be redone, something isnt working.

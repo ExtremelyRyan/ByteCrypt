@@ -178,9 +178,9 @@ pub fn load_config() -> anyhow::Result<Config> {
         return Ok(config);
     } 
     
-    config = match toml::from_str(CONFIG_PATH) {
-        core::result::Result::Ok(config) => config,
-        Err(e) => {
+    // config = match toml::from_str(CONFIG_PATH) {
+    //     core::result::Result::Ok(config) => config,
+    //     Err(e) => {
             //Load the configuration file from stored json
             let config_file = fs::File::open(CONFIG_PATH)
                 .map_err(|e| anyhow!("Failed to read config file: {}", e))?;
@@ -189,9 +189,9 @@ pub fn load_config() -> anyhow::Result<Config> {
             parse_lines(&mut config, config_file);
             //Save the config
             save_config(&config)?;
-            config
-        },
-    };
+    //         config
+    //     },
+    // };
     
     Ok(config)
 }
@@ -256,6 +256,12 @@ fn parse_lines(config: &mut Config, file: fs::File) {
                         ignore_dir = value.to_owned();
                     } else if value.starts_with('[') || value.starts_with(']') {
                         read_dir = true;
+                        let value: Vec<String> = value
+                            .trim_matches(|c| c == '[' || c == ']' || c == ' ' || c == '"')
+                            .split(',')
+                            .map(|s| s.trim().trim_matches('"').to_string())
+                            .collect();
+                        ignore_dir = value.to_owned();
                     }
                 }
                 "retain" => config.retain = value.parse().unwrap_or(config.retain),

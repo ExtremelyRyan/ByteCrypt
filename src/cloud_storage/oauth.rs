@@ -1,14 +1,14 @@
 use super::drive;
+use oauth2::AccessToken;
 use oauth2::{basic::BasicClient, AuthUrl, ClientId, CsrfToken, RedirectUrl, ResponseType, Scope};
 use serde::Deserialize;
 use std::env;
 use std::io::{BufRead, BufReader, Read, Write};
 use std::net::TcpListener;
-use tokio::runtime::Runtime;
 
 ///Holds the user credentials for the session
 #[derive(Deserialize)]
-pub struct UserCredentials {
+pub struct UserToken {
     ///Grants access to the user account
     pub access_token: String,
     //    ///Type of token
@@ -22,7 +22,7 @@ pub struct UserCredentials {
 }
 
 ///Authenticate user with google and get access token for drive
-pub fn google_access() -> anyhow::Result<()> {
+pub fn google_access() -> anyhow::Result<UserToken> {
     // Set up the config for the Google OAuth2 process.
     let client = BasicClient::new(
         ClientId::new(drive::GOOGLE_CLIENT_ID.to_string()),
@@ -128,13 +128,9 @@ pub fn google_access() -> anyhow::Result<()> {
             }
         }
     }
-    //Testing google drive access
-    let runtime = Runtime::new().unwrap();
-    let _ = runtime.block_on(drive::get_drive_info(UserCredentials {
-        access_token: token.unwrap().to_string(),
-    }));
+    let user_cred = UserToken { access_token: token.unwrap().to_string() };
 
-    Ok(())
+    return Ok(user_cred);
 }
 
 pub fn dropbox_access() {
