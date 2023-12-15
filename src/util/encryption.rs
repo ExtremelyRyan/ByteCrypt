@@ -11,6 +11,8 @@ use chacha20poly1305::{
 use log::*;
 use rand::RngCore;
 use std::path::{Path, PathBuf};
+use serde::{Deserialize, Serialize};
+use blake2::Digest;
 
 pub const KEY_SIZE: usize = 32;
 pub const NONCE_SIZE: usize = 12;

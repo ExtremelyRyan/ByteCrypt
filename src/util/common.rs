@@ -60,7 +60,7 @@ pub fn get_backup_folder() -> PathBuf {
             .expect("failed to execute process")
     };
 
-    let mut stdout = output.stdout;
+    let stdout = output.stdout;
     let mut path = PathBuf::from(String::from_utf8(stdout).expect("ERROR").trim());
     path.push("crypt");
     path
@@ -72,7 +72,7 @@ pub enum Cloud {
 }
 
 /// depending on which cloud provider we are using, store the token in the user environment.
-pub fn get_token(token: String, cloud: Cloud) -> Option<String> {
+pub fn get_token(cloud: Cloud) -> Option<String> {
     
     let key =  match cloud {
         Cloud::Drive => "CRYPT_DRIVE_TOKEN",

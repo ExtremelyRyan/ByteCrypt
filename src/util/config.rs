@@ -180,7 +180,7 @@ pub fn load_config() -> anyhow::Result<Config> {
 
     config = match toml::from_str(CONFIG_PATH) {
         core::result::Result::Ok(config) => config,
-        Err(e) => {
+        Err(_) => {
             //Load the configuration file from stored json
             let config_file = fs::File::open(CONFIG_PATH)
                 .map_err(|e| anyhow!("Failed to read config file: {}", e))?;

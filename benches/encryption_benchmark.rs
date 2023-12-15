@@ -152,14 +152,14 @@ pub fn cleanup(_c: &mut Criterion) {
 criterion_group!(
     benches,
     test_zip,
-    // enc_benchmark,
-    // bench_just_enc,
-    // enc_benchmark_large,
-    // enc_many_files_benchmark,
-    // dec_benchmark,
-    // dec_benchmark_large,
-    // test_compute_hash,
-    // test_generate_uuid,
-    // cleanup
+    enc_benchmark,
+    bench_just_enc,
+    enc_benchmark_large,
+    enc_many_files_benchmark,
+    dec_benchmark,
+    dec_benchmark_large,
+    test_compute_hash,
+    test_generate_uuid,
+    cleanup
 );
 criterion_main!(benches);
