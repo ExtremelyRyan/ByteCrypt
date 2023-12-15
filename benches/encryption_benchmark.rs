@@ -5,10 +5,7 @@ use crypt_lib::{
     filespawn::file_generator::{generate_files, SAVE_PATH},
     util::{
         common::get_file_bytes,
-        encryption::{
-            self, compress, compute_hash, decrypt_file, encrypt_file, file_zip, generate_uuid,
-            FileCrypt,
-        },
+        encryption::{self, compute_hash, decrypt_file, encrypt_file, generate_uuid, FileCrypt},
     },
     util::{config::load_config, path::walk_directory},
 };
@@ -84,13 +81,16 @@ pub fn enc_many_files_benchmark(c: &mut Criterion) {
     // get vec of dir
     let dir = walk_directory(SAVE_PATH, &config).expect("could not find directory!");
 
-    c.bench_function("encrypt 100 random files", |b| {
-        b.iter(|| {
+    let mut group = c.benchmark_group("encrypt 10 random files 10 times");
+    group.sample_size(500);
+    group.bench_function("encrypt 100 random files", |c| {
+        c.iter(|| {
             for path in &dir {
                 encrypt_file(&config, path.display().to_string().as_str(), false)
             }
         })
     });
+    group.finish();
 }
 
 // decrypt test with 850kb file

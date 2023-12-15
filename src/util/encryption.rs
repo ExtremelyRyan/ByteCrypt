@@ -4,15 +4,15 @@ use crate::{
 };
 use anyhow::Result;
 use blake2::Blake2s256;
+use blake2::Digest;
 use chacha20poly1305::{
     aead::{Aead, KeyInit, OsRng},
     ChaCha20Poly1305, Key, Nonce,
 };
 use log::*;
 use rand::RngCore;
-use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
-use blake2::Digest;
+use std::path::{Path, PathBuf};
 
 pub const KEY_SIZE: usize = 32;
 pub const NONCE_SIZE: usize = 12;
@@ -309,15 +309,15 @@ pub fn get_file_info(path: &str) -> (PathBuf, PathBuf, String, String) {
 #[cfg(test)]
 mod test {
     use super::*;
-    use std::time::Duration;
+    use std::{os::windows::thread, time::Duration};
 
     #[test]
-    #[ignore = "not working when also tested with no_retain."]
+    // #[ignore = "not working when also tested with no_retain."]
     fn test_retain_encrypt_decrypt_file() {
         let mut config = config::load_config().unwrap();
         config.retain = true;
         encrypt_file(&config, "dracula.txt", false);
-        assert_eq!(Path::new("dracula.crypt").exists(), true);
+        thread::assert_eq!(Path::new("dracula.crypt").exists(), true);
         _ = decrypt_file(&config, "dracula.crypt", None);
         match config.retain {
             true => {

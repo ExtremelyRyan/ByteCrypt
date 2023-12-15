@@ -1,10 +1,11 @@
+use crate::util::path::get_full_file_path;
+use anyhow::{Ok, Result};
+use std::process::Command;
 use std::{
     fs::{File, OpenOptions},
-    io::{BufRead, BufReader, Write}, path::PathBuf,
-}; 
-use anyhow::{Ok, Result}; 
-use crate::util::path::get_full_file_path;
-use std::process::Command;
+    io::{BufRead, BufReader, Write},
+    path::PathBuf,
+};
 
 /// read file, and return values within a Vector of Strings.
 pub fn read_to_vec_string(path: &str) -> Vec<String> {
@@ -45,7 +46,6 @@ pub fn prepend_uuid(uuid: &String, encrypted_contents: &mut Vec<u8>) -> Vec<u8> 
     uuid_bytes
 }
 
-
 pub fn get_backup_folder() -> PathBuf {
     let output = if cfg!(target_os = "windows") {
         Command::new("cmd")
@@ -68,13 +68,12 @@ pub fn get_backup_folder() -> PathBuf {
 
 pub enum Cloud {
     Drive,
-    Dropbox
+    Dropbox,
 }
 
 /// depending on which cloud provider we are using, store the token in the user environment.
 pub fn get_token(cloud: Cloud) -> Option<String> {
-    
-    let key =  match cloud {
+    let key = match cloud {
         Cloud::Drive => "CRYPT_DRIVE_TOKEN",
         Cloud::Dropbox => "CRYPT_DROPBOX_TOKEN",
     };
@@ -85,15 +84,13 @@ pub fn get_token(cloud: Cloud) -> Option<String> {
 }
 
 /// depending on which cloud provider we are using, store the token in the user environment.
-pub fn store_token(token: String, cloud: Cloud) {
- 
-    let key =  match cloud {
+pub fn store_token(token: &String, cloud: Cloud) {
+    let key = match cloud {
         Cloud::Drive => "CRYPT_DRIVE_TOKEN",
         Cloud::Dropbox => "CRYPT_DROPBOX_TOKEN",
     };
-    std::env::set_var(key, token); 
+    std::env::set_var(key, token);
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -105,5 +102,15 @@ mod tests {
         let dracula = "./dracula.txt";
         let res = read_to_vec_string(dracula);
         assert_eq!(s, res[0]);
+    }
+
+    #[test]
+    fn test_get_set_token() {
+        let test_token = "abc123".to_string();
+        store_token(&test_token, Cloud::Drive);
+        let retrieved_token = get_token(Cloud::Drive).unwrap();
+        assert_eq!(test_token, retrieved_token);
+
+        std::env::remove_var("CRYPT_DRIVE_TOKEN".to_string());
     }
 }

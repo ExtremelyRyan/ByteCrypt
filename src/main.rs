@@ -19,7 +19,7 @@ fn main() -> Result<()> {
     _ = load_cli(config);
 
     // Testing:
-    // let _ = cloud_storage::oauth::google_access(); 
+    // let _ = cloud_storage::oauth::google_access();
 
     Ok(())
 }
