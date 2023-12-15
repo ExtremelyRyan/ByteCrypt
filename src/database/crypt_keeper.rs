@@ -68,9 +68,7 @@ pub fn export_keeper(_config: Config) -> Result<()> {
 }
 
 /// Imports csv into database. <b>WARNING</b>, overrides may occur!
-pub fn import_keeper(_config: Config) -> Result<()> {
-    let mut path = util::common::get_backup_folder(); // TODO: temp solution until we get this on config.
-    path.push("crypt_export.csv");
+pub fn import_keeper(_config: Config, path: &String) -> Result<()> {
 
     let mut rdr = csv::ReaderBuilder::new()
         .has_headers(false)

@@ -1,9 +1,9 @@
 use super::tui;
-use crate::util::{
+use crate::{util::{
     config::Config,
     directive::*,
     directive::{self, Directive},
-};
+}, database};
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
@@ -48,6 +48,21 @@ enum Commands {
         ///Perform an in-place decryption
         #[arg(short = 'o', long, required = false)]
         output: Option<String>,
+    },
+
+    ///Encrypt file or folder of files
+    Keeper {
+        ///Import CSV keeper file to database
+        #[arg(required = false)]
+        import: bool,
+
+        ///Export Keeper to CSV file
+        #[arg(required = false)]
+        export: bool,
+
+        //Path to CSV file for import
+        #[arg(required = false, default_value_t = String::from(""))]
+        csv_path: String,
     },
 
     ///Upload file or folder to cloud provider
@@ -116,6 +131,9 @@ pub fn load_cli(config: Config) {
 
     //Process the command passed by the user
     match &cli.command {
+        //Nothing passed (Help screen printed)
+        None =>(),
+
         //Encryption
         Some(Commands::Encrypt { path, in_place }) => {
             Directive::process_directive(Directive::Encrypt(EncryptInfo {
@@ -124,6 +142,7 @@ pub fn load_cli(config: Config) {
                 config,
             }));
         }
+
         //Decryption
         Some(Commands::Decrypt { path, output }) => {
             Directive::process_directive(Directive::Decrypt(DecryptInfo {
@@ -132,10 +151,25 @@ pub fn load_cli(config: Config) {
                 config,
             }));
         }
+
+        // Keeper
+        Some(Commands::Keeper { import, export, csv_path }) => {
+            match (import, export) {
+                (true, false) => { // UNTESTED
+                    _ = database::crypt_keeper::import_keeper(config, csv_path);
+                }
+                (false, true) => { // UNTESTED
+                    _ = database::crypt_keeper::export_keeper(config);
+                },
+                (false, false) | (true, true) | (false, false) => (), 
+            }
+        }
+
         //Upload
         Some(Commands::Upload {}) => {
             todo!();
         }
+
         //Config
         Some(Commands::Config { category }) => match category {
             Some(ConfigCommand::DatabasePath { path: value }) => {
@@ -146,6 +180,8 @@ pub fn load_cli(config: Config) {
                     config,
                 }));
             }
+
+            // Retain
             Some(ConfigCommand::Retain { value }) => {
                 Directive::process_directive(Directive::Config(ConfigInfo {
                     category: String::from("retain"),
@@ -154,6 +190,8 @@ pub fn load_cli(config: Config) {
                     config,
                 }));
             }
+
+            // IgnoreDirectories
             Some(ConfigCommand::IgnoreDirectories { value, value2 }) => {
                 Directive::process_directive(Directive::Config(ConfigInfo {
                     category: String::from("ignore_directories"),
@@ -162,6 +200,8 @@ pub fn load_cli(config: Config) {
                     config,
                 }));
             }
+            
+            // ZstdLevel
             Some(ConfigCommand::ZstdLevel { value }) => {
                 Directive::process_directive(Directive::Config(ConfigInfo {
                     category: String::from("zstd_level"),
@@ -174,8 +214,6 @@ pub fn load_cli(config: Config) {
                 println!("{}", config);
             }
         },
-        //Nothing passed (Help screen printed)
-        None =>(),
     }
 }
 
