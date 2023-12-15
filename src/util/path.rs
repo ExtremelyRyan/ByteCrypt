@@ -28,7 +28,10 @@ pub struct PathInfo {
 
 impl PathInfo {
     pub fn new(path: &str) -> Self {
-        let full_path = get_full_file_path(path).unwrap();
+        let full_path = match path.is_empty() {
+            true => std::env::current_dir().unwrap(),
+            false => get_full_file_path(path).unwrap(),
+        };
 
         Self {
             is_dir: full_path.is_dir(),

@@ -141,16 +141,6 @@ impl Directive {
         println!("{:#?}", info);
         let runtime = Runtime::new().unwrap();
 
-        //Fetch FileCrypts from crypt_keeper
-        let path_info = PathInfo::new(&info.path);
-        let paths =
-            walk_paths(info.path.as_str(), &info.config).expect("Could not generate path(s)");
-        let paths: Vec<PathInfo> = 
-            paths.into_iter().filter(|p| p.name != path_info.name).collect();
-        println!("{:#?}", paths);
-
-        //Track all folder ids
-        let mut folder_ids: HashMap<String, String> = HashMap::new();
         match info.platform {
             CloudPlatform::Google => {
                 //Grab user authentication token
@@ -167,10 +157,19 @@ impl Directive {
                         "".to_string()
                     }
                 };
-
+                println!("beep");
                 // let _ = runtime.block_on(drive::g_drive_info(&user_token));
                 match info.task {
                     CloudTask::Upload => {
+                        //Track all folder ids
+                        let mut folder_ids: HashMap<String, String> = HashMap::new();
+                        //Fetch FileCrypts from crypt_keeper
+                        let path_info = PathInfo::new(&info.path);
+                        let paths =
+                            walk_paths(info.path.as_str(), &info.config).expect("Could not generate path(s)");
+                        let paths: Vec<PathInfo> = 
+                            paths.into_iter().filter(|p| p.name != path_info.name).collect();
+                        println!("{:#?}", paths);
                         match path_info.is_dir {
                             true => {
                                 //Create the root directory
@@ -229,10 +228,18 @@ impl Directive {
                         }
                     }
                     CloudTask::Download => {
+                        let path_info = PathInfo::new(&info.path);
+                        let paths =
+                            walk_paths(info.path.as_str(), &info.config).expect("Could not generate path(s)");
+                        let paths: Vec<PathInfo> = 
+                            paths.into_iter().filter(|p| p.name != path_info.name).collect();
+                        println!("{:#?}", paths);
                         todo!()
                     }
                     CloudTask::View => {
-                        todo!()
+                        println!("biip");
+                        let items = runtime.block_on(drive::g_view(&info.path, user_token));
+                        println!("{:#?}", items);
                     }
                 }
             }

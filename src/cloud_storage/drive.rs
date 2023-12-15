@@ -210,11 +210,54 @@ pub async fn g_upload(creds: UserToken, path: &str, parent: String) -> anyhow::R
     Ok(())
 }
 
-//Check if drive path exists
-// - Name, MIME type, etc.
+pub async fn g_view(name: &str, creds: UserToken) -> anyhow::Result<Vec<String>> {
+    let client = reqwest::Client::new();
+    let mut folder_id = String::new();
+    let query = format!(
+        "name = '{}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false",
+        name
+    );
+    let url = format!("https://www.googleapis.com/drive/v3/files?q={}", query);
+    let response = client
+        .get(url)
+        .bearer_auth(&creds.access_token)
+        .send()
+        .await?;
+    //If drive query failed, break out and print error
+    if !response.status().is_success() {
+        return Err(anyhow::Error::msg(format!("{:?}", response.text().await?)));
+    }
+    //Search through and return id
+    let folders = response.json::<Value>().await?;
+    for item in folders["files"].as_array().unwrap_or(&vec![]) {
+        if item["name"].as_str() == Some(name) {
+            if let Some(id) = item["id"].as_str() {
+                folder_id = id.to_string();
+            }
+        }
+    }
 
-//Create folder if none
-// - MIME type application/vnd.google-apps.folder
-// - Create any subsequent folders
+    let url = format!(
+        "https://www.googleapis.com/drive/v3/files?q='{}' in parents",
+        folder_id
+    );
 
-//Upload file
+    let response = client
+        .get(&url)
+        .bearer_auth(&creds.access_token)
+        .send()
+        .await?;
+
+    if response.status().is_success() {
+        let files = response.json::<Value>().await?;
+        Ok(match files.as_array() {
+            Some(array) => array.iter()
+                .filter_map(|s| s.as_str())
+                .map(String::from)
+                .collect(),
+            None => Vec::new(),
+        })
+    } else {
+        Err(anyhow::Error::msg("Could not query folder"))
+    }
+}
