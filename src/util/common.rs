@@ -62,14 +62,35 @@ pub fn get_backup_folder() -> PathBuf {
 
     let stdout = output.stdout;
     let mut path = PathBuf::from(String::from_utf8(stdout).expect("ERROR").trim());
-    path.push("crypt");
+    path.push("crypt"); 
 
     if !path.exists() {
         _ = std::fs::create_dir(&path);
     }
 
     path
+
 }
+
+/// our hacky workarounds for converting pathbuf to string and str
+pub trait Convert {
+    /// using display() to convert to a String. <b>Can lose non-unicode characters!</b>
+    fn string(&self) -> String;
+    /// using display() to convert to a &str. <b>Can lose non-unicode characters!</b>
+    fn str(&self) -> &str;
+}
+
+impl Convert for PathBuf {
+    fn string(&self) -> String {
+        s.display().to_string()
+    }
+
+    fn str(&self) -> &str {
+        self.display().to_string().as_str()
+    }
+}
+
+
 
 pub enum Cloud {
     Drive,

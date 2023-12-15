@@ -194,6 +194,17 @@ pub fn encrypt_file(conf: &Config, path: &str, in_place: bool) {
         false => format!("{}/{}.crypt", &parent_dir.display(), fc.filename),
     };
 
+    // if we are backing up crypt files, then do so.
+    if conf.backup {
+        let mut path = util::common::get_backup_folder();
+        // make sure we append the filename, dummy.
+        path.push(format!("{}{}", fc.filename, ".crypt")); 
+    
+        common::write_contents_to_file(path.to_str().unwrap(), encrypted_contents.clone())
+        .expect("failed to write contents to backup!"); 
+    }
+    
+    // write to file
     common::write_contents_to_file(&crypt_file, encrypted_contents)
         .expect("failed to write contents to file!");
 
