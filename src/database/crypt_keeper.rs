@@ -1,9 +1,10 @@
 use crate::util::{
-    config,
-    encryption::{FileCrypt, KEY_SIZE, NONCE_SIZE},
+    config, config::Config,
+    encryption::{FileCrypt, KEY_SIZE, NONCE_SIZE}, self,
 };
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Result, Ok};
 use lazy_static::lazy_static;
+use log::info;
 use r2d2::Pool;
 use r2d2_sqlite::SqliteConnectionManager;
 use rusqlite::{params, Connection, Error as rusqliteError};
@@ -11,6 +12,7 @@ use std::{
     fs,
     path::{Path, PathBuf},
 };
+use csv::*; 
 
 //Connection pool maintains a single connection to db for life of program
 lazy_static! {
@@ -27,7 +29,7 @@ lazy_static! {
 
 ///Generates a connection to the database.
 ///Creates the database if one does not exist.
-fn init_keeper(conn: &Connection) -> anyhow::Result<()> {
+fn init_keeper(conn: &Connection) -> Result<()> {
     //Table for tracking the FileCrypt
     conn.execute(
         "CREATE TABLE IF NOT EXISTS crypt (
@@ -45,14 +47,59 @@ fn init_keeper(conn: &Connection) -> anyhow::Result<()> {
     Ok(())
 }
 
+///Exports ALL content within the `crypt_keeper` database to a csv for easy sharing. 
+/// Exports `crypt_export.csv` to crypt folder
+pub fn export_keeper(config: Config) -> Result<()> {
+    
+    // https://rust-lang-nursery.github.io/rust-cookbook/encoding/csv.html
+    let db_crypts = query_keeper().unwrap();
+    let mut wtr = WriterBuilder::new().has_headers(false).from_writer(vec![]);
+    for crypt in db_crypts { 
+        wtr.serialize(crypt)?;
+    }
+    let data = String::from_utf8(wtr.into_inner()?)?;
+
+    // get crypt dir "C:\\users\\USER\\crypt"
+    let mut path = util::common::get_backup_folder();
+    path.push("crypt_export.csv"); 
+
+    info!("writing export to {}",&path);
+    util::common::write_contents_to_file(path.to_str().unwrap(), data.into_bytes()) 
+}
+
+/// Imports csv into database. <b>WARNING</b>, overrides may occur!
+pub fn import_keeper(config: Config) -> Result<()> { 
+
+    // temp solution until we get this on config.
+    let mut path = util::common::get_backup_folder();
+    path.push("crypt_export.csv"); 
+
+    let mut rdr = csv::ReaderBuilder::new()
+        .has_headers(false)
+        .from_path(path)?;
+    
+    for result in rdr.records() {
+        let record: StringRecord = match result {
+            Ok(it) => it,
+            Err(err) => (), // TODO: Fix with more elegant handling.
+        }; 
+        insert_crypt(match record.deserialize(None) {
+            Ok(it) => it,
+            Err(err) => (), // TODO: Fix with more elegant handling.
+        });
+    }
+
+    Ok(())
+}
+
 ///Grabs the connection
-fn get_keeper() -> anyhow::Result<r2d2::PooledConnection<r2d2_sqlite::SqliteConnectionManager>> {
+pub fn get_keeper() -> Result<r2d2::PooledConnection<r2d2_sqlite::SqliteConnectionManager>> {
     //Returns the static connection
     KEEPER.get().map_err(|e| e.into())
 }
 
 ///Insert a crypt into the database
-pub fn insert_crypt(crypt: &FileCrypt) -> anyhow::Result<()> {
+pub fn insert_crypt(crypt: &FileCrypt) -> Result<()> {
     //Get the connection
     let conn = get_keeper().map_err(|_| anyhow!("Failed to get keeper"))?;
 
@@ -156,7 +203,7 @@ pub fn query_keeper_for_existing_file(full_path: PathBuf) -> Result<FileCrypt> {
 }
 
 ///Queries the database for all crypts
-pub fn query_keeper() -> anyhow::Result<Vec<FileCrypt>> {
+pub fn query_keeper() -> Result<Vec<FileCrypt>> {
     //Get the connection
     let conn = get_keeper().map_err(|_| anyhow!("Failed to get keeper"))?;
 
@@ -193,9 +240,10 @@ pub fn query_keeper() -> anyhow::Result<Vec<FileCrypt>> {
 
     Ok(crypts)
 }
+ 
 
 ///Deletes the crypt
-pub fn delete_crypt(uuid: String) -> anyhow::Result<()> {
+pub fn delete_crypt(uuid: String) -> Result<()> {
     //Get the connection
     let conn = get_keeper().map_err(|_| anyhow!("Failed to get keeper"))?;
 
@@ -210,7 +258,7 @@ pub fn delete_crypt(uuid: String) -> anyhow::Result<()> {
 }
 
 ///Delete the database
-pub fn delete_keeper() -> anyhow::Result<()> {
+pub fn delete_keeper() -> Result<()> {
     // TODO remove hardcoded pathways for this
     if Path::new("src/database/crypt_keeper.db").exists() {
         fs::remove_file("src/database/crypt_keeper.db")?;

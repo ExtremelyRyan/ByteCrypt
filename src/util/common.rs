@@ -63,6 +63,9 @@ pub fn get_backup_folder() -> PathBuf {
     let stdout = output.stdout;
     let mut path = PathBuf::from(String::from_utf8(stdout).expect("ERROR").trim());
     path.push("crypt");
+
+    if !path.exists() { _ = std::fs::create_dir(&path); }
+
     path
 }
 
