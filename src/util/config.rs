@@ -176,8 +176,8 @@ pub fn load_config() -> anyhow::Result<Config> {
         warn!("No configuration found, reloading with defaults!");
         save_config(&config)?;
         return Ok(config);
-    } 
-    
+    }
+
     config = match toml::from_str(CONFIG_PATH) {
         core::result::Result::Ok(config) => config,
         Err(e) => {
@@ -190,9 +190,9 @@ pub fn load_config() -> anyhow::Result<Config> {
             //Save the config
             save_config(&config)?;
             config
-        },
+        }
     };
-    
+
     Ok(config)
 }
 

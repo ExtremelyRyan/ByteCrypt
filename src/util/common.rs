@@ -1,9 +1,10 @@
 use std::{
     fs::{File, OpenOptions},
-    io::{BufRead, BufReader, Write},
+    io::{BufRead, BufReader, Write}, path::PathBuf,
 }; 
 use anyhow::{Ok, Result}; 
 use crate::util::path::get_full_file_path;
+use std::process::Command;
 
 /// read file, and return values within a Vector of Strings.
 pub fn read_to_vec_string(path: &str) -> Vec<String> {
@@ -42,6 +43,55 @@ pub fn prepend_uuid(uuid: &String, encrypted_contents: &mut Vec<u8>) -> Vec<u8> 
     let mut uuid_bytes = uuid.as_bytes().to_vec();
     uuid_bytes.append(encrypted_contents);
     uuid_bytes
+}
+
+
+pub fn get_backup_folder() -> PathBuf {
+    let output = if cfg!(target_os = "windows") {
+        Command::new("cmd")
+            .args(["/C", "echo %userprofile%"])
+            .output()
+            .expect("failed to execute process")
+    } else {
+        Command::new("sh")
+            .arg("-c")
+            .arg("cd ~")
+            .output()
+            .expect("failed to execute process")
+    };
+
+    let mut stdout = output.stdout;
+    let mut path = PathBuf::from(String::from_utf8(stdout).expect("ERROR").trim());
+    path.push("crypt");
+    path
+}
+
+pub enum Cloud {
+    Drive,
+    Dropbox
+}
+
+/// depending on which cloud provider we are using, store the token in the user environment.
+pub fn get_token(token: String, cloud: Cloud) -> Option<String> {
+    
+    let key =  match cloud {
+        Cloud::Drive => "CRYPT_DRIVE_TOKEN",
+        Cloud::Dropbox => "CRYPT_DROPBOX_TOKEN",
+    };
+    match std::env::var(key) {
+        std::result::Result::Ok(val) => Some(val),
+        Err(e) => None,
+    }
+}
+
+/// depending on which cloud provider we are using, store the token in the user environment.
+pub fn store_token(token: String, cloud: Cloud) {
+ 
+    let key =  match cloud {
+        Cloud::Drive => "CRYPT_DRIVE_TOKEN",
+        Cloud::Dropbox => "CRYPT_DROPBOX_TOKEN",
+    };
+    std::env::set_var(key, token); 
 }
 
 

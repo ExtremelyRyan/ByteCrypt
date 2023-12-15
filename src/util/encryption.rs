@@ -1,17 +1,15 @@
 use crate::{
     database::crypt_keeper,
-    util::{self, config::Config, common::write_contents_to_file, *},
+    util::{self, common::write_contents_to_file, config::Config, *},
 };
 use anyhow::Result;
-use blake2::{Blake2s256, Digest};
+use blake2::Blake2s256;
 use chacha20poly1305::{
     aead::{Aead, KeyInit, OsRng},
     ChaCha20Poly1305, Key, Nonce,
 };
-use hyper::header::ACCESS_CONTROL_ALLOW_CREDENTIALS;
 use log::*;
 use rand::RngCore;
-use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
 pub const KEY_SIZE: usize = 32;

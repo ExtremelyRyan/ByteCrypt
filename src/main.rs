@@ -3,7 +3,7 @@ mod database;
 mod filespawn;
 mod ui;
 mod util;
-use anyhow::{Ok, Result}; 
+use anyhow::Result;
 use env_logger::Builder;
 use log::LevelFilter;
 use ui::cli::*;
@@ -14,12 +14,12 @@ fn main() -> Result<()> {
     Builder::new().filter_level(LevelFilter::Trace).init();
 
     //Load config file or get default
-    let config = config::load_config().or_else(|_x| Ok(config::Config::default()))?;
+    let config = config::load_config().unwrap_or_default();
 
     _ = load_cli(config);
 
     // Testing:
-    // let _ = cloud_storage::oauth::google_access();
+    // let _ = cloud_storage::oauth::google_access(); 
 
     Ok(())
 }
