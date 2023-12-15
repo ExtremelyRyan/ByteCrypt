@@ -1,14 +1,14 @@
 use crate::{
     database::crypt_keeper,
-    util::{self, config::Config, common::write_contents_to_file, *},
+    util::{self, common::write_contents_to_file, config::Config, *},
 };
 use anyhow::Result;
-use blake2::{Blake2s256, Digest};
+use blake2::Blake2s256;
+use blake2::Digest;
 use chacha20poly1305::{
     aead::{Aead, KeyInit, OsRng},
     ChaCha20Poly1305, Key, Nonce,
 };
-use hyper::header::ACCESS_CONTROL_ALLOW_CREDENTIALS;
 use log::*;
 use rand::RngCore;
 use serde::{Deserialize, Serialize};
@@ -21,7 +21,7 @@ pub enum EncryptErrors {
     HashFail(String),
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct FileCrypt {
     pub uuid: String,
     pub filename: String,
@@ -194,6 +194,17 @@ pub fn encrypt_file(conf: &Config, path: &str, in_place: bool) {
         false => format!("{}/{}.crypt", &parent_dir.display(), fc.filename),
     };
 
+    // if we are backing up crypt files, then do so.
+    if conf.backup {
+        let mut path = util::common::get_backup_folder();
+        // make sure we append the filename, dummy.
+        path.push(format!("{}{}", fc.filename, ".crypt")); 
+    
+        common::write_contents_to_file(path.to_str().unwrap(), encrypted_contents.clone())
+        .expect("failed to write contents to backup!"); 
+    }
+    
+    // write to file
     common::write_contents_to_file(&crypt_file, encrypted_contents)
         .expect("failed to write contents to file!");
 
@@ -309,15 +320,15 @@ pub fn get_file_info(path: &str) -> (PathBuf, PathBuf, String, String) {
 #[cfg(test)]
 mod test {
     use super::*;
-    use std::time::Duration;
+    use std::{os::windows::thread, time::Duration};
 
     #[test]
-    #[ignore = "not working when also tested with no_retain."]
+    // #[ignore = "not working when also tested with no_retain."]
     fn test_retain_encrypt_decrypt_file() {
         let mut config = config::load_config().unwrap();
         config.retain = true;
         encrypt_file(&config, "dracula.txt", false);
-        assert_eq!(Path::new("dracula.crypt").exists(), true);
+        thread::assert_eq!(Path::new("dracula.crypt").exists(), true);
         _ = decrypt_file(&config, "dracula.crypt", None);
         match config.retain {
             true => {

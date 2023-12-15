@@ -5,10 +5,7 @@ use crypt_lib::{
     filespawn::file_generator::{generate_files, SAVE_PATH},
     util::{
         common::get_file_bytes,
-        encryption::{
-            self, compress, compute_hash, decrypt_file, encrypt_file, file_zip, generate_uuid,
-            FileCrypt,
-        },
+        encryption::{self, compute_hash, decrypt_file, encrypt_file, generate_uuid, FileCrypt},
     },
     util::{config::load_config, path::walk_directory},
 };
@@ -84,13 +81,16 @@ pub fn enc_many_files_benchmark(c: &mut Criterion) {
     // get vec of dir
     let dir = walk_directory(SAVE_PATH, &config).expect("could not find directory!");
 
-    c.bench_function("encrypt 100 random files", |b| {
-        b.iter(|| {
+    let mut group = c.benchmark_group("encrypt 10 random files 10 times");
+    group.sample_size(500);
+    group.bench_function("encrypt 100 random files", |c| {
+        c.iter(|| {
             for path in &dir {
                 encrypt_file(&config, path.display().to_string().as_str(), false)
             }
         })
     });
+    group.finish();
 }
 
 // decrypt test with 850kb file
@@ -152,14 +152,14 @@ pub fn cleanup(_c: &mut Criterion) {
 criterion_group!(
     benches,
     test_zip,
-    // enc_benchmark,
-    // bench_just_enc,
-    // enc_benchmark_large,
-    // enc_many_files_benchmark,
-    // dec_benchmark,
-    // dec_benchmark_large,
-    // test_compute_hash,
-    // test_generate_uuid,
-    // cleanup
+    enc_benchmark,
+    bench_just_enc,
+    enc_benchmark_large,
+    enc_many_files_benchmark,
+    dec_benchmark,
+    dec_benchmark_large,
+    test_compute_hash,
+    test_generate_uuid,
+    cleanup
 );
 criterion_main!(benches);

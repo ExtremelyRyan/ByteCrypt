@@ -1,9 +1,9 @@
 use crate::{
     database::crypt_keeper,
     util::{
+        common::write_contents_to_file,
         config::Config,
         encryption::{decrypt_file, encrypt_file},
-        common::write_contents_to_file,
         path::{get_full_file_path, walk_directory},
     },
 };
