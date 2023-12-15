@@ -1,10 +1,12 @@
 use crate::util::{
-    config, config::Config,
-    encryption::{FileCrypt, KEY_SIZE, NONCE_SIZE}, self,
+    self, config,
+    config::Config,
+    encryption::{FileCrypt, KEY_SIZE, NONCE_SIZE},
 };
-use anyhow::{anyhow, Result, Ok};
+use anyhow::{anyhow, Result};
+use csv::*;
 use lazy_static::lazy_static;
-use log::info;
+use log::*;
 use r2d2::Pool;
 use r2d2_sqlite::SqliteConnectionManager;
 use rusqlite::{params, Connection, Error as rusqliteError};
@@ -12,7 +14,6 @@ use std::{
     fs,
     path::{Path, PathBuf},
 };
-use csv::*; 
 
 //Connection pool maintains a single connection to db for life of program
 lazy_static! {
@@ -47,46 +48,50 @@ fn init_keeper(conn: &Connection) -> Result<()> {
     Ok(())
 }
 
-///Exports ALL content within the `crypt_keeper` database to a csv for easy sharing. 
+///Exports ALL content within the `crypt_keeper` database to a csv for easy sharing.
 /// Exports `crypt_export.csv` to crypt folder
-pub fn export_keeper(config: Config) -> Result<()> {
-    
+pub fn export_keeper(_config: Config) -> Result<()> {
     // https://rust-lang-nursery.github.io/rust-cookbook/encoding/csv.html
     let db_crypts = query_keeper().unwrap();
     let mut wtr = WriterBuilder::new().has_headers(false).from_writer(vec![]);
-    for crypt in db_crypts { 
+    for crypt in db_crypts {
         wtr.serialize(crypt)?;
     }
     let data = String::from_utf8(wtr.into_inner()?)?;
 
     // get crypt dir "C:\\users\\USER\\crypt"
     let mut path = util::common::get_backup_folder();
-    path.push("crypt_export.csv"); 
+    path.push("crypt_export.csv");
 
-    info!("writing export to {}",&path);
-    util::common::write_contents_to_file(path.to_str().unwrap(), data.into_bytes()) 
+    info!("writing export to {}", &path.display());
+    util::common::write_contents_to_file(path.to_str().unwrap(), data.into_bytes())
 }
 
 /// Imports csv into database. <b>WARNING</b>, overrides may occur!
-pub fn import_keeper(config: Config) -> Result<()> { 
-
-    // temp solution until we get this on config.
-    let mut path = util::common::get_backup_folder();
-    path.push("crypt_export.csv"); 
+pub fn import_keeper(_config: Config) -> Result<()> {
+    let mut path = util::common::get_backup_folder(); // TODO: temp solution until we get this on config.
+    path.push("crypt_export.csv");
 
     let mut rdr = csv::ReaderBuilder::new()
         .has_headers(false)
         .from_path(path)?;
-    
+
     for result in rdr.records() {
         let record: StringRecord = match result {
             Ok(it) => it,
-            Err(err) => (), // TODO: Fix with more elegant handling.
-        }; 
-        insert_crypt(match record.deserialize(None) {
+            Err(err) => {
+                error!("Failed to convert csv to StringRecord!: {err}");
+                continue;
+            } // TODO: Fix with more elegant handling.
+        };
+        let fc: FileCrypt = match record.deserialize(None) {
             Ok(it) => it,
-            Err(err) => (), // TODO: Fix with more elegant handling.
-        });
+            Err(err) => {
+                error!("Failed to convert StringRecord to FileCrypt!: {err}");
+                FileCrypt::default()
+            } // TODO: Fix with more elegant handling.
+        };
+        _ = insert_crypt(&fc);
     }
 
     Ok(())
@@ -240,7 +245,6 @@ pub fn query_keeper() -> Result<Vec<FileCrypt>> {
 
     Ok(crypts)
 }
- 
 
 ///Deletes the crypt
 pub fn delete_crypt(uuid: String) -> Result<()> {

@@ -21,7 +21,7 @@ pub enum EncryptErrors {
     HashFail(String),
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct FileCrypt {
     pub uuid: String,
     pub filename: String,

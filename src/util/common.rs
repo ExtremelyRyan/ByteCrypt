@@ -64,7 +64,9 @@ pub fn get_backup_folder() -> PathBuf {
     let mut path = PathBuf::from(String::from_utf8(stdout).expect("ERROR").trim());
     path.push("crypt");
 
-    if !path.exists() { _ = std::fs::create_dir(&path); }
+    if !path.exists() {
+        _ = std::fs::create_dir(&path);
+    }
 
     path
 }
@@ -82,7 +84,10 @@ pub fn get_token(cloud: Cloud) -> Option<String> {
     };
     match std::env::var(key) {
         std::result::Result::Ok(val) => Some(val),
-        Err(e) => None,
+        Err(e) => {
+            log::error!("issue getting token!: {e}");
+            None
+        }
     }
 }
 
