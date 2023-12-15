@@ -83,7 +83,7 @@ impl Directive {
     }
 
     ///Process the encryption directive
-    pub fn process_encrypt(info: EncryptInfo) {
+    fn process_encrypt(info: EncryptInfo) {
         //Determine if file or directory
         match PathBuf::from(&info.path).is_dir() {
             //if directory
