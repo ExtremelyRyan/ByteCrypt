@@ -54,11 +54,32 @@ enum Commands {
         output: Option<String>,
     },
 
+
     ///Upload, download, or view file or folder to cloud provider
     Cloud {
         ///Categories
         #[command(subcommand)]
         category: Option<CloudCommand>,
+
+    ///Import | Export database
+    Keeper {
+        ///Import CSV keeper file to database
+        #[arg(short = 'i', required = false, default_value_t = false)]
+        import: bool,
+
+        ///Export Keeper to CSV file
+        #[arg(short = 'e', required = false, default_value_t = false)]
+        export: bool,
+
+        //Path to CSV file for import
+        #[arg(required = false, default_value_t = String::from(""))]
+        csv_path: String,
+    },
+
+    ///Upload file or folder to cloud provider
+    Upload {
+        //TODO: Upload requirements and options
+
     },
 
     ///View or change configuration
@@ -153,7 +174,7 @@ pub enum ConfigCommand {
 }
 
 ///Runs the CLI and returns a directive to be processed
-pub fn load_cli(config: Config) -> anyhow::Result<()> {
+pub fn load_cli(config: Config) {
     //Run the cli and get responses
     let cli = CommandLineArgs::parse();
 
@@ -164,17 +185,21 @@ pub fn load_cli(config: Config) -> anyhow::Result<()> {
 
     //Call TUI if flag was passed
     if cli.tui {
-        tui::load_tui()?;
+        tui::load_tui().expect("failed to load TUI");
     }
 
     //Process the command passed by the user
     match &cli.command {
+        //Nothing passed (Help screen printed)
+        None => (),
+
         //Encryption
         Some(Commands::Encrypt { path, in_place, output }) => {
             let directive = Directive::new(path.to_owned());
             directive.encrypt(in_place.to_owned(), output.to_owned());
             Ok(())
         }
+
         //Decryption
         Some(Commands::Decrypt { path, in_place, output }) => {
             let directive = Directive::new(path.to_owned());
@@ -209,13 +234,37 @@ pub fn load_cli(config: Config) -> anyhow::Result<()> {
                 todo!();
             }
         },
+        // Keeper
+        Some(Commands::Keeper {
+            import,
+            export,
+            csv_path,
+        }) => {
+            match (import, export) {
+                (true, false) => {
+                    // UNTESTED
+                    if csv_path.is_empty() {
+                        println!("please add a path to the csv");
+                        return;
+                    }
+                    _ = database::crypt_keeper::import_keeper(config, csv_path);
+                }
+                (false, true) => {
+                    _ = database::crypt_keeper::export_keeper(config);
+                }
+                (false, false) | (true, true) => (),
+            }
+        }
         //Config
         Some(Commands::Config { category }) => match category {
             Some(ConfigCommand::DatabasePath { path }) => {
                 let directive = Directive::new(path.to_owned());
                 directive.config(ConfigTask::DatabasePath);
                 Ok(())
+
             }
+
+            // Retain
             Some(ConfigCommand::Retain { value }) => {
                 let directive = Directive::new("".to_owned());
                 let choice = match value.to_lowercase().as_str() {
@@ -245,12 +294,9 @@ pub fn load_cli(config: Config) -> anyhow::Result<()> {
                 Ok(())
             }
             None => {
-                println!("Current config: \n{}", config);
-                Ok(())
+                println!("{}", config);
             }
         },
-        //Nothing passed (Help screen printed)
-        None => Ok(()),
     }
 }
 

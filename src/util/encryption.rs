@@ -3,12 +3,12 @@ use crate::{
     util::{self, common::write_contents_to_file, config::Config, *},
 };
 use anyhow::Result;
-use blake2::{Blake2s256, Digest};
+use blake2::Blake2s256;
+use blake2::Digest;
 use chacha20poly1305::{
-    aead::{Aead, KeyInit, OsRng},
-    ChaCha20Poly1305, Key, Nonce,
+    aead::{Aead, AeadCore, KeyInit, OsRng},
+    ChaCha20Poly1305, Nonce, Key
 };
-use hyper::header::ACCESS_CONTROL_ALLOW_CREDENTIALS;
 use log::*;
 use rand::RngCore;
 use serde::{Deserialize, Serialize};
@@ -21,7 +21,7 @@ pub enum EncryptErrors {
     HashFail(String),
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct FileCrypt {
     pub uuid: String,
     pub filename: String,
@@ -41,11 +41,9 @@ impl FileCrypt {
         full_path: PathBuf,
         hash: [u8; 32],
     ) -> Self {
-        // generate key & nonce
-        let mut key = [0u8; KEY_SIZE];
-        let mut nonce = [0u8; NONCE_SIZE];
-        OsRng.fill_bytes(&mut key);
-        OsRng.fill_bytes(&mut nonce);
+        // generate key & nonce 
+        let key: [u8; KEY_SIZE] = ChaCha20Poly1305::generate_key(&mut OsRng).into();
+        let nonce: [u8; NONCE_SIZE] = ChaCha20Poly1305::generate_nonce(&mut OsRng).into();
 
         // generate file uuid
         let uuid = generate_uuid();
@@ -67,6 +65,26 @@ impl FileCrypt {
     }
 }
 
+/// Computes a 256-bit BLAKE2s hash for the given byte slice contents.
+///
+/// # Arguments
+///
+/// * `contents` - A reference to a slice of bytes representing the data to be hashed.
+///
+/// # Returns
+///
+/// Returns a fixed-size array of 32 bytes representing the computed hash.
+///
+/// # Example
+///
+/// ```no_run
+/// let data = b"Hello, World!";
+/// let hash_result = compute_hash(data);
+/// println!("Computed Hash: {:?}", hash_result);
+/// ```
+/// # Panics
+///
+/// The function may panic if there are issues with the BLAKE2s hashing algorithm.
 pub fn compute_hash(contents: &[u8]) -> [u8; 32] {
     info!("computing hash");
     // compute hash on contents
@@ -171,26 +189,66 @@ pub fn decrypt_file(
     Ok(())
 }
 
-/// takes a FileCrypt and encrypts contents
+/// Takes a `FileCrypt` struct and encrypts the provided contents using the ChaCha20-Poly1305 cipher.
+///
+/// # Arguments
+///
+/// * `fc` - A reference to a `FileCrypt` struct containing encryption parameters, including the key and nonce.
+/// * `contents` - A slice of bytes representing the contents to be encrypted.
+///
+/// # Returns
+///
+/// Returns a `Result` containing the encrypted contents as a `Vec<u8>` if successful, or an `Error` if encryption fails.
+///
+/// # Example
+///
+/// ```rust no_run
+/// # use crypt_lib::{FileCrypt, encrypt};
+///
+/// let fc = FileCrypt::new(/* initialize FileCrypt parameters */);
+/// let contents = b"Hello, World!";
+/// let encrypted_contents = encrypt(&fc, contents).expect("Encryption failed!");
+/// ```
+/// # Panics
+///
+/// The function panics if encryption using ChaCha20-Poly1305 fails.
 pub fn encrypt(fc: &FileCrypt, contents: &[u8]) -> Result<Vec<u8>> {
     info!("encrypting contents");
     let k = Key::from_slice(&fc.key);
     let n = Nonce::from_slice(&fc.nonce);
-    let cipher = ChaCha20Poly1305::new(k).encrypt(n, contents).unwrap();
+    let cipher = ChaCha20Poly1305::new(k)
+        .encrypt(n, contents)
+        .expect("failed to encrypt contents");
     Ok(cipher)
 }
 
+/// Encrypts the contents of a file and performs additional operations based on the provided configuration.
+///
+/// # Arguments
+///
+/// * `conf` - A reference to a Config struct containing encryption and configuration settings.
+/// * `path` - A string representing the path to the file to be encrypted.
+/// * `in_place` - A boolean indicating whether to perform in-place encryption.
+///
+/// # Example
+///
+/// ```no_run
+/// # use crypt_lib::util::config::{Config, load_config};
+/// # use crypt_lib::util::encryption::{encrypt_file};
+///
+/// let conf = Config::(); // Initialize your Config struct accordingly
+/// let path = "/path/to/your/file.txt";
+/// encrypt_file(&conf, path, false);
+/// ```
 pub fn encrypt_file(conf: &Config, path: &str, in_place: bool) {
+    // parse out file path
     let (fp, parent_dir, filename, extension) = get_file_info(path);
 
     // get contents of file
     let binding = util::common::get_file_bytes(path);
     let mut contents = binding.as_slice();
 
-    let hash = compute_hash(contents);
-    // let hash = [0u8; 32]; // for benching w/o hashing only
-
-    let fc = FileCrypt::new(filename, extension, "".to_string(), fp, hash);
+    let fc = FileCrypt::new(filename, extension, fp, compute_hash(contents));
 
     // zip contents
     let binding = compress(contents, conf.zstd_level);
@@ -206,6 +264,17 @@ pub fn encrypt_file(conf: &Config, path: &str, in_place: bool) {
         false => format!("{}/{}.crypt", &parent_dir.display(), fc.filename),
     };
 
+    // if we are backing up crypt files, then do so.
+    if conf.backup {
+        let mut path = util::common::get_backup_folder();
+        // make sure we append the filename, dummy.
+        path.push(format!("{}{}", fc.filename, ".crypt"));
+
+        common::write_contents_to_file(path.to_str().unwrap(), encrypted_contents.clone())
+            .expect("failed to write contents to backup!");
+    }
+
+    // write to file
     common::write_contents_to_file(&crypt_file, encrypted_contents)
         .expect("failed to write contents to file!");
 
@@ -217,7 +286,24 @@ pub fn encrypt_file(conf: &Config, path: &str, in_place: bool) {
     }
 }
 
-/// generates a UUID v7 string using a unix timestamp and random bytes.
+/// Generates a Universally Unique Identifier (UUID) incorporating a timestamp and random bytes.
+///
+/// # Returns
+///
+/// Returns a string representation of the generated UUID.
+///
+/// # Example
+///
+/// ```rust
+/// # use crypt_lib::util::encryption::generate_uuid;
+///
+/// let uuid_string = generate_uuid();
+/// println!("Generated UUID: {}", uuid_string);
+/// ```
+///
+/// # Panics
+///
+/// The function may panic if the system time cannot be retrieved or if the random bytes generation fails.
 pub fn generate_uuid() -> String {
     info!("generating uuid");
     let ts = std::time::SystemTime::now()
@@ -232,6 +318,31 @@ pub fn generate_uuid() -> String {
         .to_string()
 }
 
+/// Generates the output file path for decrypted content based on the provided parameters.
+///
+/// # Arguments
+///
+/// * `fc` - A reference to a `FileCrypt` struct containing file information.
+/// * `output` - An optional string specifying an alternative output path or filename.
+/// * `parent_dir` - A reference to the parent directory where the output file will be created.
+///
+/// # Returns
+///
+/// Returns a string representing the final output file path.
+///
+/// # Example
+///
+/// ```no_run
+///
+/// let fc = FileCrypt::new(/* initialize FileCrypt parameters */);
+/// let parent_dir = "/path/to/parent/directory";
+/// let output_file = generate_output_file(&fc, Some("/path/to/custom/output.txt".to_string()), &Path::new(parent_dir));
+/// println!("Output File: {}", output_file);
+/// ```
+///
+/// # Panics
+///
+/// The function may panic if there are issues with creating directories or manipulating file paths.
 fn generate_output_file(fc: &FileCrypt, output: Option<String>, parent_dir: &Path) -> String {
     // default output case
     let mut file = format!("{}/{}{}", &parent_dir.display(), &fc.filename, &fc.ext);
@@ -321,10 +432,9 @@ pub fn get_file_info(path: &str) -> (PathBuf, PathBuf, String, String) {
 #[cfg(test)]
 mod test {
     use super::*;
-    use std::time::Duration;
 
     #[test]
-    #[ignore = "not working when also tested with no_retain."]
+    // #[ignore = "not working when also tested with no_retain."]
     fn test_retain_encrypt_decrypt_file() {
         let mut config = config::load_config().unwrap();
         config.retain = true;

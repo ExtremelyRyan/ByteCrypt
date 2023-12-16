@@ -1,8 +1,10 @@
 use crate::util::path::get_full_file_path;
 use anyhow::{Ok, Result};
+
 use std::{
     fs::{File, OpenOptions},
     io::{BufRead, BufReader, Write},
+
 };
 
 /// read file, and return values within a Vector of Strings.
@@ -44,6 +46,73 @@ pub fn prepend_uuid(uuid: &String, encrypted_contents: &mut Vec<u8>) -> Vec<u8> 
     uuid_bytes
 }
 
+
+pub fn get_backup_folder() -> PathBuf {
+    let output = if cfg!(target_os = "windows") {
+        Command::new("cmd")
+            .args(["/C", "echo %userprofile%"])
+            .output()
+            .expect("failed to execute process")
+    } else {
+        Command::new("sh")
+            .arg("-c")
+            .arg("cd ~")
+            .output()
+            .expect("failed to execute process")
+    };
+
+    let stdout = output.stdout;
+    let mut path = PathBuf::from(String::from_utf8(stdout).expect("ERROR").trim());
+    path.push("crypt");
+
+    if !path.exists() {
+        _ = std::fs::create_dir(&path);
+    }
+
+    path
+}
+
+/// our hacky workarounds for converting pathbuf to string and str
+pub trait Convert {
+    /// using display() to convert to a String. <b>Can lose non-unicode characters!</b>
+    fn string(&self) -> String;
+}
+
+impl Convert for PathBuf {
+    fn string(&self) -> String {
+        self.display().to_string()
+    }
+}
+
+pub enum Cloud {
+    Drive,
+    Dropbox,
+}
+
+/// depending on which cloud provider we are using, store the token in the user environment.
+pub fn get_token(cloud: Cloud) -> Option<String> {
+    let key = match cloud {
+        Cloud::Drive => "CRYPT_DRIVE_TOKEN",
+        Cloud::Dropbox => "CRYPT_DROPBOX_TOKEN",
+    };
+    match std::env::var(key) {
+        std::result::Result::Ok(val) => Some(val),
+        Err(e) => {
+            log::error!("issue getting token!: {e}");
+            None
+        }
+    }
+}
+
+/// depending on which cloud provider we are using, store the token in the user environment.
+pub fn store_token(token: &String, cloud: Cloud) {
+    let key = match cloud {
+        Cloud::Drive => "CRYPT_DRIVE_TOKEN",
+        Cloud::Dropbox => "CRYPT_DROPBOX_TOKEN",
+    };
+    std::env::set_var(key, token);
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -54,5 +123,15 @@ mod tests {
         let dracula = "./dracula.txt";
         let res = read_to_vec_string(dracula);
         assert_eq!(s, res[0]);
+    }
+
+    #[test]
+    fn test_get_set_token() {
+        let test_token = "abc123".to_string();
+        store_token(&test_token, Cloud::Drive);
+        let retrieved_token = get_token(Cloud::Drive).unwrap();
+        assert_eq!(test_token, retrieved_token);
+
+        std::env::remove_var("CRYPT_DRIVE_TOKEN".to_string());
     }
 }

@@ -4,7 +4,7 @@
 </p>
 <br/>
  
-Encryption command line application on single file or entire directories. ByteCrypt uses [chacha20poly1305](https://en.wikipedia.org/wiki/ChaCha20-Poly1305) for it's encryption, ensuring fast yet secure encryption for your files.
+Encryption command line application on single file or entire directories.
 
 Currently Working:
 
@@ -19,18 +19,20 @@ ByteCrypt came about because I wanted the conveience of using all of the popular
 
 I also wanted a way for people who are not adept in encryption, computers, etc. to be able to get a simple program that they can use as a additional layer of security to protect their most senitive files, while maintaining ease of use.
 
+### Encryption
+ ByteCrypt uses [chacha20poly1305](https://en.wikipedia.org/wiki/ChaCha20-Poly1305) for it's encryption, ensuring fast yet secure encryption for your files.
+
 ## Getting Started
 
 ### Dependencies
 
 currently being tested on windows 10,11, wsl(ubuntu), and Arch linux.
-requires min Rust 1.70.
+requires minimum Rust version > 1.70.
 
 ### Installing
 
 * Clone the repository, and go to the root project directory. Run `cargo install --path .`
 
-will publish crate once MVP is finished.
 
 ### Executing program
 

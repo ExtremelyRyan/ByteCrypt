@@ -43,6 +43,11 @@ pub struct Config {
     /// if false, deletes files after encryption / decryption.
     pub retain: bool,
 
+    /// option to retain a backup copy of all `*.crypt` files into a backup folder for
+    /// redundant storage. This only keeps the LATEST version, to not take up too much
+    /// space.
+    pub backup: bool,
+
     /// zstd level is for file compression, from [fastest, least compression]
     /// to [slowest, highest compression] `-7 to 22`. Default compression level is 3.
     pub zstd_level: i32,
@@ -66,6 +71,7 @@ impl Default for Config {
         Config {
             database_path: "crypt_keeper.db".to_string(),
             // cloud_services: Vec::new(),
+            backup: true,
             retain: true,
             ignore_items: vec![".".to_string()],
             zstd_level: 3,
@@ -74,10 +80,10 @@ impl Default for Config {
 }
 
 impl Config {
-    //Should I be returning anyhow error handling things?
     fn new(
         database_path: String,
         // cloud_services: Vec<String>,
+        backup: bool,
         retain: bool,
         ignore_directories: Vec<String>,
         zstd_level: i32,
@@ -85,6 +91,7 @@ impl Config {
         Self {
             database_path,
             // cloud_services,
+            backup,
             retain,
             ignore_items: ignore_directories,
             zstd_level,
@@ -122,6 +129,22 @@ impl Config {
     pub fn set_database_path(&mut self, path: &String) {
         self.database_path = path.to_owned();
         _ = save_config(self);
+    }
+
+    pub fn backup(&self) -> bool {
+        self.backup
+    }
+
+    pub fn set_backup(&mut self, backup: String) -> bool {
+        match backup.to_lowercase().as_str() {
+            "true" | "t" => self.backup = true,
+            "false" | "f" => self.backup = false,
+            _ => return false,
+        }
+        if save_config(self).is_err() {
+            return false;
+        }
+        true
     }
 
     pub fn retain(&self) -> bool {
@@ -189,6 +212,7 @@ pub fn load_config() -> anyhow::Result<Config> {
         return Ok(config);
     }
 
+
     // config = match toml::from_str(CONFIG_PATH) {
     //     core::result::Result::Ok(config) => config,
     //     Err(e) => {
@@ -203,6 +227,7 @@ pub fn load_config() -> anyhow::Result<Config> {
     //         config
     //     },
     // };
+
 
     Ok(config)
 }
@@ -275,6 +300,7 @@ fn parse_lines(config: &mut Config, file: fs::File) {
                         ignore_dir = value.to_owned();
                     }
                 }
+                "backup" => config.backup = value.parse().unwrap_or(config.backup),
                 "retain" => config.retain = value.parse().unwrap_or(config.retain),
                 "zstd_level" => config.zstd_level = value.parse().unwrap_or(config.zstd_level),
                 _ => (),
