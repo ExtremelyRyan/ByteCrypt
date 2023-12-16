@@ -1,7 +1,9 @@
-use anyhow::{anyhow, Error, Ok, Result};
+use anyhow::anyhow;
 use log::{error, info, warn};
+use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 use std::{
+    sync::Mutex,
     collections::HashMap,
     fs,
     io::{self, BufRead, BufReader, ErrorKind, Write},
@@ -10,6 +12,19 @@ use std::{
 use toml::*;
 
 const CONFIG_PATH: &str = "config.toml";
+
+lazy_static! {
+    static ref CONFIG: Mutex<Config> = Mutex::new({
+        match load_config() {
+            Ok(config) => config,
+            Err(err) => panic!("Failed to load config: {}", err),
+        }
+    });
+}
+
+pub fn get_config() -> std::sync::MutexGuard<'static, Config> {
+    CONFIG.lock().expect("Config is currently in lock")
+}
 
 #[derive(Deserialize, Serialize, Debug)]
 ///Holds the configuration for the program
@@ -20,7 +35,7 @@ pub struct Config {
     pub database_path: String,
 
     /// collection of any directories to ignore during folder encryption.
-    pub ignore_directories: Vec<String>,
+    pub ignore_items: Vec<String>,
 
     /// option to retain both the original file after encryption,
     /// as well as the .crypt file after decryption.
@@ -44,7 +59,7 @@ impl std::fmt::Display for Config {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         // _ = writeln!(f, "cloud_services: {:?}", self.cloud_services);
         _ = writeln!(f, " database_path: {}", self.database_path);
-        _ = writeln!(f, " ignore_directories: {:?}", self.ignore_directories);
+        _ = writeln!(f, " ignore_directories: {:?}", self.ignore_items);
         _ = writeln!(f, " retain: {}", self.retain);
         _ = writeln!(f, " zstd_level: {}", self.zstd_level);
         std::fmt::Result::Ok(())
@@ -58,7 +73,7 @@ impl Default for Config {
             // cloud_services: Vec::new(),
             backup: true,
             retain: true,
-            ignore_directories: vec![".".to_string()],
+            ignore_items: vec![".".to_string()],
             zstd_level: 3,
         }
     }
@@ -78,7 +93,7 @@ impl Config {
             // cloud_services,
             backup,
             retain,
-            ignore_directories,
+            ignore_items: ignore_directories,
             zstd_level,
         }
     }
@@ -136,36 +151,32 @@ impl Config {
         self.retain
     }
 
-    pub fn set_retain(&mut self, retain: String) -> bool {
-        match retain.to_lowercase().as_str() {
-            "true" | "t" => self.retain = true,
-            "false" | "f" => self.retain = false,
-            _ => return false,
-        }
+    pub fn set_retain(&mut self, retain: bool) -> bool {
+        self.retain = retain;
         if save_config(self).is_err() {
             return false;
         }
         true
     }
 
-    pub fn ignore_directories(&self) -> &[String] {
-        self.ignore_directories.as_ref()
+    pub fn ignore_items(&self) -> &[String] {
+        self.ignore_items.as_ref()
     }
 
-    pub fn set_ignore_directories(&mut self, ignore_directories: Vec<String>) {
-        self.ignore_directories = ignore_directories;
+    pub fn set_ignore_items(&mut self, ignore_directories: Vec<String>) {
+        self.ignore_items = ignore_directories;
         _ = save_config(self);
     }
-    pub fn append_ignore_directories(&mut self, item: &String) {
-        self.ignore_directories.push(item.to_owned());
+    pub fn append_ignore_items(&mut self, item: &String) {
+        self.ignore_items.push(item.to_owned());
         _ = save_config(self);
     }
 
-    pub fn remove_item_from_ignore_directories(&mut self, item: &String) {
-        if self.ignore_directories.contains(item) {
-            let index = &self.ignore_directories.iter().position(|x| x == item);
+    pub fn remove_item(&mut self, item: &String) {
+        if self.ignore_items.contains(item) {
+            let index = &self.ignore_items.iter().position(|x| x == item);
             let num = index.unwrap();
-            self.ignore_directories.remove(num);
+            self.ignore_items.remove(num);
             _ = save_config(self);
         }
     }
@@ -201,20 +212,22 @@ pub fn load_config() -> anyhow::Result<Config> {
         return Ok(config);
     }
 
-    config = match toml::from_str(CONFIG_PATH) {
-        core::result::Result::Ok(config) => config,
-        Err(_) => {
-            //Load the configuration file from stored json
-            let config_file = fs::File::open(CONFIG_PATH)
-                .map_err(|e| anyhow!("Failed to read config file: {}", e))?;
 
-            //Parse the lines and correct any issues
-            parse_lines(&mut config, config_file);
-            //Save the config
-            save_config(&config)?;
-            config
-        }
-    };
+    // config = match toml::from_str(CONFIG_PATH) {
+    //     core::result::Result::Ok(config) => config,
+    //     Err(e) => {
+    //Load the configuration file from stored json
+    let config_file =
+        fs::File::open(CONFIG_PATH).map_err(|e| anyhow!("Failed to read config file: {}", e))?;
+
+    //Parse the lines and correct any issues
+    parse_lines(&mut config, config_file);
+    //Save the config
+    save_config(&config)?;
+    //         config
+    //     },
+    // };
+
 
     Ok(config)
 }
@@ -279,6 +292,12 @@ fn parse_lines(config: &mut Config, file: fs::File) {
                         ignore_dir = value.to_owned();
                     } else if value.starts_with('[') || value.starts_with(']') {
                         read_dir = true;
+                        let value: Vec<String> = value
+                            .trim_matches(|c| c == '[' || c == ']' || c == ' ' || c == '"')
+                            .split(',')
+                            .map(|s| s.trim().trim_matches('"').to_string())
+                            .collect();
+                        ignore_dir = value.to_owned();
                     }
                 }
                 "backup" => config.backup = value.parse().unwrap_or(config.backup),
@@ -290,14 +309,15 @@ fn parse_lines(config: &mut Config, file: fs::File) {
     }
     //Add the ignore directory vec
     if !ignore_dir.is_empty() {
-        config.ignore_directories = ignore_dir.into_iter().filter(|s| !s.is_empty()).collect();
+        config.ignore_items = ignore_dir.into_iter().filter(|s| !s.is_empty()).collect();
     }
 }
 
 ///Saves the configuration file
-pub fn save_config(config: &Config) -> Result<()> {
+pub fn save_config(config: &Config) -> anyhow::Result<()> {
     info!("saving config");
     //Serialize config
     let serialized_config = toml::to_string_pretty(&config)?;
-    Ok(fs::write(CONFIG_PATH, serialized_config)?)
+    fs::write(CONFIG_PATH, serialized_config)?;
+    Ok(())
 }

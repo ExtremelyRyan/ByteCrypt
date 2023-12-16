@@ -26,6 +26,7 @@ pub struct FileCrypt {
     pub uuid: String,
     pub filename: String,
     pub ext: String,
+    pub drive_id: String,
     pub full_path: PathBuf,
     pub key: [u8; KEY_SIZE],
     pub nonce: [u8; NONCE_SIZE],
@@ -33,22 +34,34 @@ pub struct FileCrypt {
 }
 
 impl FileCrypt {
-    pub fn new(filename: String, ext: String, full_path: PathBuf, hash: [u8; 32]) -> Self {
+    pub fn new(
+        filename: String,
+        ext: String,
+        drive_id: String,
+        full_path: PathBuf,
+        hash: [u8; 32],
+    ) -> Self {
         // generate key & nonce 
         let key: [u8; KEY_SIZE] = ChaCha20Poly1305::generate_key(&mut OsRng).into();
         let nonce: [u8; NONCE_SIZE] = ChaCha20Poly1305::generate_nonce(&mut OsRng).into();
+
         // generate file uuid
         let uuid = generate_uuid();
 
         Self {
             filename,
             full_path,
+            drive_id,
             key,
             nonce,
             ext,
             uuid,
             hash,
         }
+    }
+
+    pub fn set_drive_id(&mut self, drive_id: String) {
+        self.drive_id = drive_id;
     }
 }
 
@@ -246,7 +259,7 @@ pub fn encrypt_file(conf: &Config, path: &str, in_place: bool) {
     // prepend uuid to contents
     encrypted_contents = common::prepend_uuid(&fc.uuid, &mut encrypted_contents);
 
-    let crypt_file = match in_place || conf.retain {
+    let crypt_file = match in_place || !conf.retain {
         true => format!("{}/{}{}", parent_dir.display(), fc.filename, fc.ext),
         false => format!("{}/{}.crypt", &parent_dir.display(), fc.filename),
     };

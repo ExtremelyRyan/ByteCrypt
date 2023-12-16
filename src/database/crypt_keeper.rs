@@ -37,6 +37,7 @@ fn init_keeper(conn: &Connection) -> Result<()> {
             uuid TEXT PRIMARY KEY,
             filename TEXT NOT NULL,
             extension TEXT NOT NULL,
+            drive_id TEXT NOT NULL,
             full_path TEXT NOT NULL,
             key_seed BLOB NOT NULL,
             nonce_seed BLOB NOT NULL,
@@ -111,14 +112,16 @@ pub fn insert_crypt(crypt: &FileCrypt) -> Result<()> {
             uuid,
             filename,
             extension,
+            drive_id,
             full_path,
             key_seed,
             nonce_seed,
             hash
-        ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+        ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
         ON CONFLICT(uuid) DO UPDATE SET
             filename = excluded.filename,
             extension = excluded.extension,
+            drive_id = excluded.drive_id,
             full_path = excluded.full_path,
             key_seed = excluded.key_seed,
             nonce_seed = excluded.nonce_seed,
@@ -127,6 +130,7 @@ pub fn insert_crypt(crypt: &FileCrypt) -> Result<()> {
             &crypt.uuid,
             &crypt.filename,
             &crypt.ext,
+            &crypt.drive_id,
             &crypt.full_path.to_str().unwrap(),
             &crypt.key.as_ref(),
             &crypt.nonce.as_ref(),
@@ -150,15 +154,16 @@ pub fn query_crypt(uuid: String) -> Result<FileCrypt> {
         WHERE uuid = ?1",
         params![uuid],
         |row| {
-            let get: String = row.get(3)?;
+            let get: String = row.get(4)?;
             Ok(FileCrypt {
                 uuid: row.get(0)?,
                 filename: row.get(1)?,
                 ext: row.get(2)?,
+                drive_id: row.get(3)?,
                 full_path: PathBuf::from(get),
-                key: row.get(4)?,
-                nonce: row.get(5)?,
-                hash: row.get(6)?,
+                key: row.get(5)?,
+                nonce: row.get(6)?,
+                hash: row.get(7)?,
             })
         },
     )
@@ -183,15 +188,16 @@ pub fn query_keeper_for_existing_file(full_path: PathBuf) -> Result<FileCrypt> {
         WHERE full_path = ?1",
         params![full_path.to_str().unwrap().to_string()],
         |row| {
-            let get: String = row.get(3)?;
+            let get: String = row.get(4)?;
             Ok(FileCrypt {
                 uuid: row.get(0)?,
                 filename: row.get(1)?,
                 ext: row.get(2)?,
+                drive_id: row.get(3)?,
                 full_path: PathBuf::from(get),
-                key: row.get(4)?,
-                nonce: row.get(5)?,
-                hash: row.get(6)?,
+                key: row.get(5)?,
+                nonce: row.get(6)?,
+                hash: row.get(7)?,
             })
         },
     )
@@ -218,15 +224,16 @@ pub fn query_keeper() -> Result<Vec<FileCrypt>> {
 
     //Get the results of the query
     let query_result = query.query_map([], |row| {
-        let get: String = row.get(3)?;
-        let key: [u8; KEY_SIZE] = row.get(4)?;
-        let nonce: [u8; NONCE_SIZE] = row.get(5)?;
-        let hash: [u8; KEY_SIZE] = row.get(6)?;
+        let get: String = row.get(4)?;
+        let key: [u8; KEY_SIZE] = row.get(5)?;
+        let nonce: [u8; NONCE_SIZE] = row.get(6)?;
+        let hash: [u8; KEY_SIZE] = row.get(7)?;
 
         Ok(FileCrypt {
             uuid: row.get(0)?,
             filename: row.get(1)?,
             ext: row.get(2)?,
+            drive_id: row.get(3)?,
             full_path: PathBuf::from(get),
             key,
             nonce,
