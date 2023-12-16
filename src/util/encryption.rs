@@ -55,6 +55,26 @@ impl FileCrypt {
     }
 }
 
+/// Computes a 256-bit BLAKE2s hash for the given byte slice contents.
+///
+/// # Arguments
+///
+/// * `contents` - A reference to a slice of bytes representing the data to be hashed.
+///
+/// # Returns
+///
+/// Returns a fixed-size array of 32 bytes representing the computed hash.
+///
+/// # Example
+///
+/// ```no_run
+/// let data = b"Hello, World!";
+/// let hash_result = compute_hash(data);
+/// println!("Computed Hash: {:?}", hash_result);
+/// ```
+/// # Panics
+///
+/// The function may panic if there are issues with the BLAKE2s hashing algorithm.
 pub fn compute_hash(contents: &[u8]) -> [u8; 32] {
     info!("computing hash");
     // compute hash on contents
