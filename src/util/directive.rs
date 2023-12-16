@@ -16,6 +16,13 @@ use super::config;
 
 
 ///Supported cloud platforms
+///
+/// # Options:
+///```no_run
+/// # use crypt_lib::util::directive::CloudPlatform;
+/// CloudPlatform::Google
+/// CloudPlatform::DropBox
+///```
 #[derive(Debug)]
 pub enum CloudPlatform {
     Google,
@@ -23,6 +30,14 @@ pub enum CloudPlatform {
 }
 
 ///Supported tasks for cloud platforms
+///
+/// # Options:
+///```no_run
+/// # use crypt_lib::util::directive::CloudTask;
+/// CloudTask::Upload
+/// CloudTask::Download
+/// CloudTask::View
+///```
 #[derive(Debug)]
 pub enum CloudTask {
     Upload,
@@ -31,6 +46,15 @@ pub enum CloudTask {
 }
 
 ///Tasks for changing configuration
+///
+/// # Options:
+///```no_run
+/// # use crypt_lib::util::directive::ConfigTask;
+/// ConfigTask::DatabasePath
+/// ConfigTask::Retain(bool)
+/// ConfigTask::IgnoreItems(ItemTask, String)
+/// ConfigTask::ZstdLevel(i32)
+///```
 pub enum ConfigTask {
     DatabasePath,
     Retain(String),
@@ -39,14 +63,24 @@ pub enum ConfigTask {
 }
 
 ///Ignore Items options
+///
+/// # Options
+///```no_run
+/// # use crypt_lib::util::directive::ItemsTask;
+/// ItemsTask::Add
+/// ItemsTask::Remove
+///```
 pub enum ItemsTask {
     Add,
     Remove,
 }
 
 ///Base information required for all directive calls
-///```no_run
 ///
+/// # Example
+///```no_run
+/// # use crypt_lib::util::directive::Directive;
+/// let directive = Directive::new("relevant/file.path".to_string());
 ///```
 #[derive(Debug)]
 pub struct Directive {
