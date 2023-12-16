@@ -248,7 +248,7 @@ pub fn encrypt_file(conf: &Config, path: &str, in_place: bool) {
     let binding = util::common::get_file_bytes(path);
     let mut contents = binding.as_slice();
 
-    let fc = FileCrypt::new(filename, extension, fp, compute_hash(contents));
+    let fc = FileCrypt::new(filename, extension, "".to_string(), fp, compute_hash(contents));
 
     // zip contents
     let binding = compress(contents, conf.zstd_level);

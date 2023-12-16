@@ -2,6 +2,7 @@ use super::tui;
 use crate::util::{config::Config, directive::*};
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
+use crate::database;
 
 ///CLI arguments
 #[derive(Parser, Debug)]
@@ -60,6 +61,7 @@ enum Commands {
         ///Categories
         #[command(subcommand)]
         category: Option<CloudCommand>,
+    },
 
     ///Import | Export database
     Keeper {
@@ -74,12 +76,6 @@ enum Commands {
         //Path to CSV file for import
         #[arg(required = false, default_value_t = String::from(""))]
         csv_path: String,
-    },
-
-    ///Upload file or folder to cloud provider
-    Upload {
-        //TODO: Upload requirements and options
-
     },
 
     ///View or change configuration
@@ -154,7 +150,7 @@ pub enum ConfigCommand {
 
     ///View or change which directories and/or filetypes are to be ignored
     #[command(short_flag = 'i')]
-    IgnoreDirectories {
+    IgnoreItems {
         /// value to update config
         #[arg(required = false, default_value_t = String::from(""))]
         add_remove: String,
@@ -197,14 +193,12 @@ pub fn load_cli(config: Config) {
         Some(Commands::Encrypt { path, in_place, output }) => {
             let directive = Directive::new(path.to_owned());
             directive.encrypt(in_place.to_owned(), output.to_owned());
-            Ok(())
         }
 
         //Decryption
         Some(Commands::Decrypt { path, in_place, output }) => {
             let directive = Directive::new(path.to_owned());
             directive.decrypt(in_place.to_owned(), output.to_owned());
-            Ok(())
         } //Cloud
         Some(Commands::Cloud { category }) => match category {
             Some(CloudCommand::Google { task }) => {
@@ -216,7 +210,6 @@ pub fn load_cli(config: Config) {
                 };
                 let directive = Directive::new(pth.to_owned());
                 directive.cloud(CloudPlatform::Google, tsk);
-                Ok(())
             }
             Some(CloudCommand::Dropbox { task }) => {
                 let (tsk, pth) = match task {
@@ -227,7 +220,6 @@ pub fn load_cli(config: Config) {
                 };
                 let directive = Directive::new(pth.to_owned());
                 directive.cloud(CloudPlatform::DropBox, tsk);
-                Ok(())
             }
             None => {
                 //TODO: print out default info?
@@ -247,54 +239,53 @@ pub fn load_cli(config: Config) {
                         println!("please add a path to the csv");
                         return;
                     }
-                    _ = database::crypt_keeper::import_keeper(config, csv_path);
+                    let _ = database::crypt_keeper::import_keeper(config, csv_path);
                 }
                 (false, true) => {
-                    _ = database::crypt_keeper::export_keeper(config);
+                    let _ = database::crypt_keeper::export_keeper(config);
                 }
                 (false, false) | (true, true) => (),
             }
         }
         //Config
-        Some(Commands::Config { category }) => match category {
-            Some(ConfigCommand::DatabasePath { path }) => {
-                let directive = Directive::new(path.to_owned());
-                directive.config(ConfigTask::DatabasePath);
-                Ok(())
+        Some(Commands::Config { category }) => {
+            //Regardles, print the config
+            println!("{:#?}", config);
+            match category {
+                Some(ConfigCommand::DatabasePath { path }) => {
+                    let directive = Directive::new(path.to_owned());
+                    directive.config(ConfigTask::DatabasePath);
+                },
 
-            }
-
-            // Retain
-            Some(ConfigCommand::Retain { value }) => {
-                let directive = Directive::new("".to_owned());
-                let choice = match value.to_lowercase().as_str() {
-                    "true" | "t" => true,
-                    "false" | "f" => false,
-                    _ => panic!("Unable to parse passed value"),
-                };
-                directive.config(ConfigTask::Retain(choice));
-                Ok(())
-            }
-            Some(ConfigCommand::IgnoreDirectories { add_remove, item }) => {
-                let add_remove = match add_remove.to_lowercase().as_str() {
-                    "add" | "a" => ItemsTask::Add,
-                    "remove" | "r" => ItemsTask::Remove,
-                    _ => panic!("invalid input"),
-                };
+                // Retain
+                Some(ConfigCommand::Retain { value }) => {
+                    let directive = Directive::new("".to_owned());
+                    let choice = match value.to_lowercase().as_str() {
+                        "true" | "t" => true,
+                        "false" | "f" => false,
+                        _ => panic!("Unable to parse passed value"),
+                    };
+                    directive.config(ConfigTask::Retain(choice));
+                },
+                Some(ConfigCommand::IgnoreItems { add_remove, item }) => {
+                    let add_remove = match add_remove.to_lowercase().as_str() {
+                        "add" | "a" => ItemsTask::Add,
+                        "remove" | "r" => ItemsTask::Remove,
+                        _ => panic!("invalid input"),
+                    };
     
-                let directive = Directive::new("".to_owned());
-                directive.config(ConfigTask::IgnoreItems(add_remove, item.to_owned()));
-                Ok(())
-            }
-            Some(ConfigCommand::ZstdLevel { level }) => {
-                let directive = Directive::new("".to_owned());
-                let level: i32 = level.parse()
-                    .expect("Could not interpret passed value");
-                directive.config(ConfigTask::ZstdLevel(level));
-                Ok(())
-            }
-            None => {
-                println!("{}", config);
+                    let directive = Directive::new("".to_owned());
+                    directive.config(ConfigTask::IgnoreItems(add_remove, item.to_owned()));
+                },
+                Some(ConfigCommand::ZstdLevel { level }) => {
+                    let directive = Directive::new("".to_owned());
+                    let level: i32 = level.parse()
+                        .expect("Could not interpret passed value");
+                    directive.config(ConfigTask::ZstdLevel(level));
+                },
+                None => {
+                    println!("{}", config);
+                },
             }
         },
     }

@@ -333,8 +333,6 @@ impl Directive {
     ///```
     pub fn config(&self, config_task: ConfigTask) {
         let mut config = config::get_config();
-        //Regardles, print the config
-        println!("{:#?}", config);
 
         //Process the directive
         match config_task {
