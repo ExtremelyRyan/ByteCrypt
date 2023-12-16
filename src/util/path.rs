@@ -138,6 +138,6 @@ pub fn is_hidden(entry: &walkdir::DirEntry, conf: &Config) -> bool {
     entry
         .file_name()
         .to_str()
-        .map(|s| conf.ignore_directories.contains(&s.to_string()))
+        .map(|s| conf.ignore_items.contains(&s.to_string()))
         .unwrap_or(false)
 }

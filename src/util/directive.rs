@@ -12,21 +12,8 @@ use crate::{
 use std::{ffi::OsStr, path::PathBuf, collections::HashMap};
 use tokio::runtime::Runtime;
 
-///Information required for an encryption command
-#[derive(Debug)]
-pub struct EncryptInfo {
-    pub path: String,
-    pub in_place: bool,
-    pub config: Config,
-}
+use super::config;
 
-///Information required for a deryption command
-#[derive(Debug)]
-pub struct DecryptInfo {
-    pub path: String,
-    pub output: Option<String>,
-    pub config: Config,
-}
 
 ///Supported cloud platforms
 #[derive(Debug)]
@@ -43,105 +30,138 @@ pub enum CloudTask {
     View,
 }
 
-///Information required for upload command
-#[derive(Debug)]
-pub struct CloudInfo {
-    pub platform: CloudPlatform,
-    pub task: CloudTask,
-    pub path: String,
-    pub config: Config,
+///Tasks for changing configuration
+pub enum ConfigTask {
+    DatabasePath,
+    Retain(String),
+    IgnoreItems(ItemsTask, String),
+    ZstdLevel(i32),
 }
 
-///Information required for config command
-#[derive(Debug)]
-pub struct ConfigInfo {
-    pub category: String,
-    pub value: String,
-    pub value2: String,
-    pub config: Config,
+///Ignore Items options
+pub enum ItemsTask {
+    Add,
+    Remove,
 }
 
-///Passes the directive to the caller
+///Base information required for all directive calls
+///```no_run
+///
+///```
 #[derive(Debug)]
-pub enum Directive {
-    Encrypt(EncryptInfo),
-    Decrypt(DecryptInfo),
-    Cloud(CloudInfo),
-    Config(ConfigInfo),
+pub struct Directive {
+    path: String
 }
 
 impl Directive {
-    ///Processes all directives passed through -- acts as an API
     ///Accepts a directive with the requisite struct and information
-    pub fn process_directive(self) {
-        match self {
-            Directive::Encrypt(info) => Self::process_encrypt(info),
-            Directive::Decrypt(info) => Self::process_decrypt(info),
-            Directive::Cloud(info) => Self::process_cloud(info),
-            Directive::Config(info) => Self::process_config(info),
+    ///
+    /// # Example
+    ///```no_run
+    /// # use crypt_lib::util::directive::Directive;
+    /// let directive = Directive::new("relevant/file.path".to_string());
+    ///```
+    pub fn new(path: String) -> Self {
+        Self {
+            path,
         }
     }
-
+    
     ///Process the encryption directive
-    fn process_encrypt(info: EncryptInfo) {
+    ///
+    /// # Example
+    ///```no_run
+    /// # use crypt_lib::util::directive::Directive;
+    /// let in_place = false;
+    /// let output = "desired/output/path".to_string();
+    ///
+    /// let directive = Directive::new("relevant/file.path".to_string());
+    /// directive.encrypt(in_place, output);
+    ///```
+    ///TODO: implement output
+    pub fn encrypt(&self, in_place: bool, _output: Option<String>) {
+        let config = config::get_config();
         //Determine if file or directory
-        match PathBuf::from(&info.path).is_dir() {
+        match PathBuf::from(&self.path).is_dir() {
             //if directory
             true => {
                 // get vec of dir
                 let dir =
-                    walk_directory(&info.path, &info.config).expect("could not find directory!");
+                    walk_directory(&self.path, &config).expect("could not find directory!");
                 // dbg!(&dir);
                 for path in dir {
                     println!("Encrypting file: {}", path.display());
                     encrypt_file(
-                        &info.config,
+                        &config,
                         path.display().to_string().as_str(),
-                        info.in_place.to_owned(),
+                        in_place,
                     )
                 }
             }
             //if file
             false => {
-                encrypt_file(&info.config, &info.path, info.in_place);
+                encrypt_file(&config, &self.path, in_place);
             }
         };
     }
 
     ///Process the decryption directive
-    fn process_decrypt(info: DecryptInfo) {
+    ///
+    /// # Example
+    ///```no_run
+    /// # use crypt_lib::util::directive::Directive;
+    /// let in_place = false;
+    /// let output = "desired/output/path".to_string();
+    ///
+    /// let directive = Directive::new("relevant/file.path".to_string());
+    /// directive.decrypt(in_place, output);
+    ///```
+    ///TODO: rework output for in-place
+    ///TODO: implement output to just change save_location
+    pub fn decrypt(&self, _in_place: bool, output: Option<String>) {
+        let config = config::get_config();
         //Determine if file or directory
-        match PathBuf::from(&info.path).is_dir() {
+        match PathBuf::from(&self.path).is_dir() {
             //if directory
             true => {
                 // get vec of dir
                 let dir =
-                    walk_directory(&info.path, &info.config).expect("could not find directory!");
+                    walk_directory(&self.path, &config).expect("could not find directory!");
                 // dbg!(&dir);
                 for path in dir {
                     if path.extension().unwrap() == "crypt" {
                         println!("Decrypting file: {}", path.display());
                         let _ = decrypt_file(
-                            &info.config,
+                            &config,
                             path.display().to_string().as_str(),
-                            info.output.to_owned(),
+                            output.to_owned(),
                         );
                     }
                 }
             }
             //if file
             false => {
-                let _ = decrypt_file(&info.config, &info.path, info.output.to_owned());
+                let _ = decrypt_file(&config, &self.path, output.to_owned());
             }
         };
     }
 
-    ///Process the upload information directive
-    fn process_cloud(info: CloudInfo) {
-        println!("{:#?}", info);
+    ///View, upload, or download files from supported cloud service
+    ///
+    /// # Example
+    ///```no_run
+    /// # use crypt_lib::util::directive::Directive;
+    /// let platform = CloudPlatform::Google;
+    /// let task = CloudTask::Upload;
+    ///
+    /// let directive = Directive::new("relevant/file.path".to_string());
+    /// directive.cloud(platform, task);
+    ///```
+    pub fn cloud(&self, platform: CloudPlatform, task: CloudTask) {
+        let config = config::get_config();
         let runtime = Runtime::new().unwrap();
 
-        match info.platform {
+        match platform {
             CloudPlatform::Google => {
                 //Grab user authentication token
                 let user_token = oauth::google_access().expect("Could not access user credentials");
@@ -157,16 +177,15 @@ impl Directive {
                         "".to_string()
                     }
                 };
-                println!("beep");
                 // let _ = runtime.block_on(drive::g_drive_info(&user_token));
-                match info.task {
+                match task {
                     CloudTask::Upload => {
                         //Track all folder ids
                         let mut folder_ids: HashMap<String, String> = HashMap::new();
                         //Fetch FileCrypts from crypt_keeper
-                        let path_info = PathInfo::new(&info.path);
+                        let path_info = PathInfo::new(&self.path);
                         let paths =
-                            walk_paths(info.path.as_str(), &info.config).expect("Could not generate path(s)");
+                            walk_paths(self.path.as_str(), &config).expect("Could not generate path(s)");
                         let paths: Vec<PathInfo> = 
                             paths.into_iter().filter(|p| p.name != path_info.name).collect();
                         println!("{:#?}", paths);
@@ -222,15 +241,15 @@ impl Directive {
                             false => {
                                 let _ = runtime.block_on(
                                     drive::g_upload(
-                                        user_token, &info.path, crypt_folder)
+                                        user_token, &self.path, crypt_folder)
                                 );
                             }
                         }
                     }
                     CloudTask::Download => {
-                        let path_info = PathInfo::new(&info.path);
+                        let path_info = PathInfo::new(&self.path);
                         let paths =
-                            walk_paths(info.path.as_str(), &info.config).expect("Could not generate path(s)");
+                            walk_paths(self.path.as_str(), &config).expect("Could not generate path(s)");
                         let paths: Vec<PathInfo> = 
                             paths.into_iter().filter(|p| p.name != path_info.name).collect();
                         println!("{:#?}", paths);
@@ -238,15 +257,15 @@ impl Directive {
                     }
                     CloudTask::View => {
                         println!("biip");
-                        let items = runtime.block_on(drive::g_view(&info.path, user_token));
+                        let items = runtime.block_on(drive::g_view(&self.path, user_token));
                         println!("{:#?}", items);
                     }
                 }
             }
             CloudPlatform::DropBox => {
-                match info.task {
+                match task {
                     CloudTask::Upload => {
-                        let path = PathBuf::from(info.path.as_str());
+                        let path = PathBuf::from(self.path.as_str());
                         match path.is_dir() {
                             true => {
                                 //If folder, verify that the folder exists, create it otherwise
@@ -267,16 +286,27 @@ impl Directive {
         }
     }
 
-    ///Processes the configuration change directive TODO: This needs to be redone, something isnt working.
-    fn process_config(mut info: ConfigInfo) {
+    ///Change configuration settings
+    ///
+    /// # Example
+    ///```no_run
+    /// # use crypt_lib::util::directive::Directive;
+    /// let add_remove = ItemTask::Add;
+    /// let item = "ignore.txt".to_string();
+    ///
+    /// let directive = Directive::new("relevant/file.path".to_string());
+    /// directive.config(add_remove, item);
+    ///```
+    pub fn config(&self, config_task: ConfigTask) {
+        let mut config = config::get_config();
         //Regardles, print the config
-        println!("{:#?}", info.config);
+        println!("{:#?}", config);
 
         //Process the directive
-        match info.category.as_str() {
-            "database_path" => match info.value.to_lowercase().as_str() {
+        match config_task {
+            ConfigTask::DatabasePath => match self.path.to_lowercase().as_str() {
                 "" => {
-                    let path = get_full_file_path(&info.config.database_path)
+                    let path = get_full_file_path(&config.database_path)
                         .expect("Error fetching database path");
                     println!("Current Database Path:\n  {}", path.display());
                 }
@@ -294,20 +324,20 @@ impl Directive {
                     }
 
                     if s.as_str() == "y" {
-                        if PathBuf::from(&info.value).exists() {
-                            info.config.set_database_path(&info.value2);
+                        if PathBuf::from(&self.path).exists() {
+                            config.set_database_path(&self.path);
                         } else {
                             //TODO: create path
                         }
-                        info.config.set_database_path(&info.value2);
+                        config.set_database_path(&self.path);
                     }
                 }
             },
 
-            "retain" => match info.config.set_retain(info.value.to_owned()) {
+            ConfigTask::Retain(value) => match config.set_retain(value.to_owned()) {
                 true => println!(
                     "Retain changed to: {}",
-                    match info.value.as_str() {
+                    match value.as_str() {
                         "true" | "t" => "true",
                         "false" | "f" => "false",
                         _ => unreachable!(),
@@ -316,21 +346,15 @@ impl Directive {
                 false => eprintln!("Error occured, please verify parameters."),
             },
 
-            "ignore_directories" => match info.value.to_lowercase().as_str() {
-                "add" | "a" => info.config.append_ignore_directories(&info.value2),
-                "remove" | "r" => info
-                    .config
-                    .remove_item_from_ignore_directories(&info.value2),
-                _ => println!("invalid input"),
+            ConfigTask::IgnoreItems(add_remove, item)=> match add_remove {
+                ItemsTask::Add => config.append_ignore_items(&item),
+                ItemsTask::Remove => config.remove_item(&item),
             },
 
-            "zstd_level" => match info.config.set_zstd_level(info.value2.parse().unwrap()) {
+            ConfigTask::ZstdLevel(level) => match config.set_zstd_level(level) {
                 false => println!("Error occured, please verify parameters."),
-                true => println!("{} value changed to: {}", info.category, info.value),
+                true => println!("Zstd Level value changed to: {}", level),
             },
-            _ => eprintln!(
-                "invalid selection!\n use `crypt config` to see available config options."
-            ),
         };
     }
 }

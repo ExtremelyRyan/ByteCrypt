@@ -30,9 +30,13 @@ enum Commands {
         #[arg(required = true)]
         path: String,
 
-        //Perform an in-place encryption
+        ///Perform an in-place encryption
         #[arg(short = 'p', long, default_value_t = false)]
         in_place: bool,
+
+        ///Change the output path
+        #[arg(short = 'o', long, required = false)]
+        output: Option<String>,
     },
 
     ///Decrypt file or folder of files
@@ -42,6 +46,10 @@ enum Commands {
         path: String,
 
         ///Perform an in-place decryption
+        #[arg(short = 'p', long, default_value_t = false)]
+        in_place: bool,
+
+        ///Change the output path
         #[arg(short = 'o', long, required = false)]
         output: Option<String>,
     },
@@ -128,11 +136,11 @@ pub enum ConfigCommand {
     IgnoreDirectories {
         /// value to update config
         #[arg(required = false, default_value_t = String::from(""))]
-        value: String,
+        add_remove: String,
 
         /// value to update config
         #[arg(required = false, default_value_t = String::from(""))]
-        value2: String,
+        item: String,
     },
 
     ///View or change the compression level (-7 to 22) -- higher is more compression
@@ -140,7 +148,7 @@ pub enum ConfigCommand {
     ZstdLevel {
         /// value to update config
         #[arg(required = false, default_value_t = String::from(""))]
-        value: String,
+        level: String,
     },
 }
 
@@ -162,24 +170,17 @@ pub fn load_cli(config: Config) -> anyhow::Result<()> {
     //Process the command passed by the user
     match &cli.command {
         //Encryption
-        Some(Commands::Encrypt { path, in_place }) => {
-            Directive::process_directive(Directive::Encrypt(EncryptInfo {
-                path: path.to_owned(),
-                in_place: in_place.to_owned(),
-                config,
-            }));
+        Some(Commands::Encrypt { path, in_place, output }) => {
+            let directive = Directive::new(path.to_owned());
+            directive.encrypt(in_place.to_owned(), output.to_owned());
             Ok(())
         }
         //Decryption
-        Some(Commands::Decrypt { path, output }) => {
-            Directive::process_directive(Directive::Decrypt(DecryptInfo {
-                path: path.to_owned(),
-                output: output.to_owned(),
-                config,
-            }));
+        Some(Commands::Decrypt { path, in_place, output }) => {
+            let directive = Directive::new(path.to_owned());
+            directive.decrypt(in_place.to_owned(), output.to_owned());
             Ok(())
-        }
-        //Cloud
+        } //Cloud
         Some(Commands::Cloud { category }) => match category {
             Some(CloudCommand::Google { task }) => {
                 let (tsk, pth) = match task {
@@ -188,12 +189,8 @@ pub fn load_cli(config: Config) -> anyhow::Result<()> {
                     Some(DriveCommand::View { path }) => (CloudTask::View, path.to_owned()),
                     None => (CloudTask::View, "".to_owned()),
                 };
-                Directive::process_directive(Directive::Cloud(CloudInfo {
-                    platform: CloudPlatform::Google,
-                    task: tsk,
-                    path: pth,
-                    config,
-                }));
+                let directive = Directive::new(pth.to_owned());
+                directive.cloud(CloudPlatform::Google, tsk);
                 Ok(())
             }
             Some(CloudCommand::Dropbox { task }) => {
@@ -203,12 +200,8 @@ pub fn load_cli(config: Config) -> anyhow::Result<()> {
                     Some(DriveCommand::View { path }) => (CloudTask::View, path.to_owned()),
                     None => (CloudTask::View, "".to_owned()),
                 };
-                Directive::process_directive(Directive::Cloud(CloudInfo {
-                    platform: CloudPlatform::DropBox,
-                    task: tsk,
-                    path: pth,
-                    config,
-                }));
+                let directive = Directive::new(pth.to_owned());
+                directive.cloud(CloudPlatform::DropBox, tsk);
                 Ok(())
             }
             None => {
@@ -218,40 +211,32 @@ pub fn load_cli(config: Config) -> anyhow::Result<()> {
         },
         //Config
         Some(Commands::Config { category }) => match category {
-            Some(ConfigCommand::DatabasePath { path: value }) => {
-                Directive::process_directive(Directive::Config(ConfigInfo {
-                    category: String::from("database_path"),
-                    value: value.to_owned(),
-                    value2: String::from(""),
-                    config,
-                }));
+            Some(ConfigCommand::DatabasePath { path }) => {
+                let directive = Directive::new(path.to_owned());
+                directive.config(ConfigTask::DatabasePath);
                 Ok(())
             }
             Some(ConfigCommand::Retain { value }) => {
-                Directive::process_directive(Directive::Config(ConfigInfo {
-                    category: String::from("retain"),
-                    value: value.to_owned(),
-                    value2: String::from(""),
-                    config,
-                }));
+                let directive = Directive::new("".to_owned());
+                directive.config(ConfigTask::Retain(value.to_owned()));
                 Ok(())
             }
-            Some(ConfigCommand::IgnoreDirectories { value, value2 }) => {
-                Directive::process_directive(Directive::Config(ConfigInfo {
-                    category: String::from("ignore_directories"),
-                    value: value.to_owned(),
-                    value2: value2.to_owned(),
-                    config,
-                }));
+            Some(ConfigCommand::IgnoreDirectories { add_remove, item }) => {
+                let add_remove = match add_remove.to_lowercase().as_str() {
+                    "add" | "a" => ItemsTask::Add,
+                    "remove" | "r" => ItemsTask::Remove,
+                    _ => panic!("invalid input"),
+                };
+    
+                let directive = Directive::new("".to_owned());
+                directive.config(ConfigTask::IgnoreItems(add_remove, item.to_owned()));
                 Ok(())
             }
-            Some(ConfigCommand::ZstdLevel { value }) => {
-                Directive::process_directive(Directive::Config(ConfigInfo {
-                    category: String::from("zstd_level"),
-                    value: value.to_owned(),
-                    value2: String::from(""),
-                    config,
-                }));
+            Some(ConfigCommand::ZstdLevel { level }) => {
+                let directive = Directive::new("".to_owned());
+                let level: i32 = level.parse()
+                    .expect("Could not interpret passed value");
+                directive.config(ConfigTask::ZstdLevel(level));
                 Ok(())
             }
             None => {
