@@ -286,7 +286,6 @@ impl Directive {
                         todo!()
                     }
                     CloudTask::View => {
-                        println!("biip");
                         let items = runtime.block_on(drive::g_view(&self.path, user_token));
                         println!("{:#?}", items);
                     }

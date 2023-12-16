@@ -211,8 +211,10 @@ pub async fn g_upload(creds: UserToken, path: &str, parent: String) -> anyhow::R
     Ok(())
 }
 
+///Query google drive and return a Vec<String> of each item within the relevant folder
 pub async fn g_view(name: &str, creds: UserToken) -> anyhow::Result<Vec<String>> {
     let client = reqwest::Client::new();
+    //Get the folder id
     let mut folder_id = String::new();
     let query = format!(
         "name = '{}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false",
@@ -228,7 +230,7 @@ pub async fn g_view(name: &str, creds: UserToken) -> anyhow::Result<Vec<String>>
     if !response.status().is_success() {
         return Err(anyhow::Error::msg(format!("{:?}", response.text().await?)));
     }
-    //Search through and return id
+    //Search through response and return id
     let folders = response.json::<Value>().await?;
     for item in folders["files"].as_array().unwrap_or(&vec![]) {
         if item["name"].as_str() == Some(name) {
@@ -237,23 +239,22 @@ pub async fn g_view(name: &str, creds: UserToken) -> anyhow::Result<Vec<String>>
             }
         }
     }
-
+    //Use the ID to now get the folder's contents
     let url = format!(
         "https://www.googleapis.com/drive/v3/files?q='{}' in parents",
         folder_id
     );
-
     let response = client
         .get(&url)
         .bearer_auth(&creds.access_token)
         .send()
         .await?;
-
+    //If successful, convert to vec<string>
     if response.status().is_success() {
         let files = response.json::<Value>().await?;
-        Ok(match files.as_array() {
+        Ok(match files["files"].as_array() {
             Some(array) => array.iter()
-                .filter_map(|s| s.as_str())
+                .filter_map(|item| item["name"].as_str())
                 .map(String::from)
                 .collect(),
             None => Vec::new(),
