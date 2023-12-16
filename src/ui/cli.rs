@@ -1,9 +1,12 @@
 use super::tui;
-use crate::{util::{
-    config::Config,
-    directive::*,
-    directive::{self, Directive},
-}, database};
+use crate::{
+    database,
+    util::{
+        config::Config,
+        directive::*,
+        directive::{self, Directive},
+    },
+};
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
@@ -50,14 +53,14 @@ enum Commands {
         output: Option<String>,
     },
 
-    ///Encrypt file or folder of files
+    ///Import | Export database
     Keeper {
         ///Import CSV keeper file to database
-        #[arg(required = false)]
+        #[arg(short = 'i', required = false, default_value_t = false)]
         import: bool,
 
         ///Export Keeper to CSV file
-        #[arg(required = false)]
+        #[arg(short = 'e', required = false, default_value_t = false)]
         export: bool,
 
         //Path to CSV file for import
@@ -132,7 +135,7 @@ pub fn load_cli(config: Config) {
     //Process the command passed by the user
     match &cli.command {
         //Nothing passed (Help screen printed)
-        None =>(),
+        None => (),
 
         //Encryption
         Some(Commands::Encrypt { path, in_place }) => {
@@ -153,15 +156,24 @@ pub fn load_cli(config: Config) {
         }
 
         // Keeper
-        Some(Commands::Keeper { import, export, csv_path }) => {
+        Some(Commands::Keeper {
+            import,
+            export,
+            csv_path,
+        }) => {
             match (import, export) {
-                (true, false) => { // UNTESTED
+                (true, false) => {
+                    // UNTESTED
+                    if csv_path.is_empty() {
+                        println!("please add a path to the csv");
+                        return;
+                    }
                     _ = database::crypt_keeper::import_keeper(config, csv_path);
                 }
-                (false, true) => { // UNTESTED
+                (false, true) => {
                     _ = database::crypt_keeper::export_keeper(config);
-                },
-                (false, false) | (true, true) | (false, false) => (), 
+                }
+                (false, false) | (true, true) => (),
             }
         }
 
@@ -200,7 +212,7 @@ pub fn load_cli(config: Config) {
                     config,
                 }));
             }
-            
+
             // ZstdLevel
             Some(ConfigCommand::ZstdLevel { value }) => {
                 Directive::process_directive(Directive::Config(ConfigInfo {

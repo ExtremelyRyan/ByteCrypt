@@ -69,7 +69,6 @@ pub fn export_keeper(_config: Config) -> Result<()> {
 
 /// Imports csv into database. <b>WARNING</b>, overrides may occur!
 pub fn import_keeper(_config: Config, path: &String) -> Result<()> {
-
     let mut rdr = csv::ReaderBuilder::new()
         .has_headers(false)
         .from_path(path)?;

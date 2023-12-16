@@ -9,7 +9,7 @@ use std::{
 };
 use toml::*;
 
-const CONFIG_PATH: &str = "config.toml"; 
+const CONFIG_PATH: &str = "config.toml";
 
 #[derive(Deserialize, Serialize, Debug)]
 ///Holds the configuration for the program
@@ -28,7 +28,7 @@ pub struct Config {
     /// if false, deletes files after encryption / decryption.
     pub retain: bool,
 
-    /// option to retain a backup copy of all `*.crypt` files into a backup folder for 
+    /// option to retain a backup copy of all `*.crypt` files into a backup folder for
     /// redundant storage. This only keeps the LATEST version, to not take up too much
     /// space.
     pub backup: bool,
@@ -60,12 +60,11 @@ impl Default for Config {
             retain: true,
             ignore_directories: vec![".".to_string()],
             zstd_level: 3,
-            
         }
     }
 }
 
-impl Config { 
+impl Config {
     fn new(
         database_path: String,
         // cloud_services: Vec<String>,
@@ -78,7 +77,7 @@ impl Config {
             database_path,
             // cloud_services,
             backup,
-            retain, 
+            retain,
             ignore_directories,
             zstd_level,
         }
