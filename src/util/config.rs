@@ -61,11 +61,13 @@ pub struct Config {
 //TODO: Update for TUI purposes when completed
 impl std::fmt::Display for Config {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        _ = writeln!(f, "Config:");
         // _ = writeln!(f, "cloud_services: {:?}", self.cloud_services);
-        _ = writeln!(f, " database_path: {}", self.database_path);
-        _ = writeln!(f, " ignore_directories: {:?}", self.ignore_items);
-        _ = writeln!(f, " retain: {}", self.retain);
-        _ = writeln!(f, " zstd_level: {}", self.zstd_level);
+        _ = writeln!(f, "  database_path: {}", self.database_path);
+        _ = writeln!(f, "  ignore_directories: {:?}", self.ignore_items);
+        _ = writeln!(f, "  backup: {}", self.backup);
+        _ = writeln!(f, "  retain: {}", self.retain);
+        _ = writeln!(f, "  zstd_level: {}", self.zstd_level);
         std::fmt::Result::Ok(())
     }
 }
@@ -139,12 +141,8 @@ impl Config {
         self.backup
     }
 
-    pub fn set_backup(&mut self, backup: String) -> bool {
-        match backup.to_lowercase().as_str() {
-            "true" | "t" => self.backup = true,
-            "false" | "f" => self.backup = false,
-            _ => return false,
-        }
+    pub fn set_backup(&mut self, backup: bool) -> bool {
+        self.backup = backup;
         if save_config(self).is_err() {
             return false;
         }

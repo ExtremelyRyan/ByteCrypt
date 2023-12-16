@@ -251,7 +251,7 @@ pub fn load_cli() {
         //Config
         Some(Commands::Config { category }) => {
             //Regardles, print the config
-            println!("{:#?}", config);
+            println!("{}", config);
             match category {
                 Some(ConfigCommand::DatabasePath { path }) => {
                     let directive = Directive::new(path.to_owned());
@@ -284,11 +284,21 @@ pub fn load_cli() {
                         .expect("Could not interpret passed value");
                     directive.config(ConfigTask::ZstdLevel(level));
                 },
-                None => {
-                    println!("{}", config);
-                },
+                None => (),
             }
         },
+    }
+}
+        // match backup.to_lowercase().as_str() {
+        //     "true" | "t" => self.backup = true,
+        //     "false" | "f" => self.backup = false,
+        //     _ => return false,
+        // }
+
+///Called to print any information passed
+pub fn print_information(info: Vec<String>) {
+    for item in info {
+        println!("Item: {}", item);
     }
 }
 

@@ -1,7 +1,7 @@
 use crate::{
     cloud_storage::*,
     database::crypt_keeper,
-    ui::cli::*,
+    ui::cli::{*, self},
     util::{
         common::write_contents_to_file,
         config::Config,
@@ -51,14 +51,16 @@ pub enum CloudTask {
 ///```no_run
 /// # use crypt_lib::util::directive::ConfigTask;
 /// ConfigTask::DatabasePath
-/// ConfigTask::Retain(bool)
 /// ConfigTask::IgnoreItems(ItemTask, String)
+/// ConfigTask::Backup(bool)
+/// ConfigTask::Retain(bool)
 /// ConfigTask::ZstdLevel(i32)
 ///```
 pub enum ConfigTask {
     DatabasePath,
-    Retain(bool),
     IgnoreItems(ItemsTask, String),
+    Backup(bool),
+    Retain(bool),
     ZstdLevel(i32),
 }
 
@@ -120,7 +122,8 @@ impl Directive {
             true => {
                 // get vec of dir
                 let dir =
-                    walk_directory(&self.path).expect("could not find directory!");
+                    walk_directory(&self.path)
+                        .expect("could not find directory!");
                 // dbg!(&dir);
                 for path in dir {
                     println!("Encrypting file: {}", path.display());
@@ -218,7 +221,7 @@ impl Directive {
                             walk_paths(self.path.as_str()).expect("Could not generate path(s)");
                         let paths: Vec<PathInfo> = 
                             paths.into_iter().filter(|p| p.name != path_info.name).collect();
-                        println!("{:#?}", paths);
+                        
                         match path_info.is_dir {
                             true => {
                                 //Create the root directory
@@ -234,7 +237,6 @@ impl Directive {
                                 //Create all folders relative to the root directory
                                 for path in paths.clone() {
                                     let parent_path = path.parent.display().to_string();
-                                    println!("{:#?}\n{}", folder_ids, parent_path);
                                     let parent_id = folder_ids.get(&parent_path)
                                         .expect("Could not retrieve parent ID")
                                         .to_string();
@@ -286,8 +288,10 @@ impl Directive {
                         todo!()
                     }
                     CloudTask::View => {
-                        let items = runtime.block_on(drive::g_view(&self.path, user_token));
-                        println!("{:#?}", items);
+                        let items = runtime.block_on(drive::g_view(&self.path, user_token))
+                            .expect("Unable to retrieve drive information"); 
+                        //check if CLI or etc...
+                        cli::print_information(items);
                     }
                 }
             }
@@ -335,14 +339,20 @@ impl Directive {
                 "" => {
                     let path = get_full_file_path(&config.database_path)
                         .expect("Error fetching database path");
-                    println!("Current Database Path:\n  {}", path.display());
-                }
+                    send_information(vec![
+                        format!("Current Database Path:\n  {}", path.display())
+                    ]);
+                },
                 _ => {
-                    println!(
-                        "WARNING: changing your database will prevent you from decrypting existing
-                     files until you change the path back. ARE YOU SURE? (Y/N)"
-                    );
+                    send_information(vec![
+                        format!(
+                            "{} {}",
+                            "WARNING: changing your database will prevent you from decrypting existing",
+                            "files until you change the path back. ARE YOU SURE? (Y/N)"
+                        )
+                    ]);
 
+                    //TODO: Modify to properly handle tui/gui interactions
                     let mut s = String::new();
                     while s.to_lowercase() != *"y" || s.to_lowercase() != *"n" {
                         std::io::stdin()
@@ -361,11 +371,22 @@ impl Directive {
                 }
             },
 
+            ConfigTask::Backup(value) => match config.set_backup(value) {
+                true => send_information(vec![
+                    format!("Backup changed to {}", value)
+                ]),
+                false => send_information(vec![
+                    format!("Error occured, please verify parameters")
+                ])
+            },
+
             ConfigTask::Retain(value) => match config.set_retain(value) {
-                true => println!(
-                    "Retain changed to: {}", value.to_string()
-                ),
-                false => eprintln!("Error occured, please verify parameters."),
+                true => send_information(vec![
+                    format!("Retain changed to {}", value)
+                ]),
+                false => send_information(vec![
+                    format!("Error occured, please verify parameters")
+                ])
             },
 
             ConfigTask::IgnoreItems(add_remove, item)=> match add_remove {
@@ -374,9 +395,22 @@ impl Directive {
             },
 
             ConfigTask::ZstdLevel(level) => match config.set_zstd_level(level) {
-                false => println!("Error occured, please verify parameters."),
-                true => println!("Zstd Level value changed to: {}", level),
+                true => send_information(vec![
+                    format!("Zstd Level value changed to: {}", level)
+                ]),
+                false => send_information(vec![
+                    format!("Error occured, please verify parameters")
+                ])
             },
         };
     }
+}
+
+
+fn send_information(info: Vec<String>) {
+    //TODO: Check which platform
+    //CLI
+    cli::print_information(info);
+    //TODO: TUI
+    //TODO: GUI
 }
