@@ -88,7 +88,7 @@ pub struct Directive {
 }
 
 impl Directive {
-    ///Accepts a directive with the requisite struct and information
+    ///Creates a directive with the requisite path
     ///
     /// # Example
     ///```no_run
@@ -114,19 +114,17 @@ impl Directive {
     ///```
     ///TODO: implement output
     pub fn encrypt(&self, in_place: bool, _output: Option<String>) {
-        let config = config::get_config();
         //Determine if file or directory
         match PathBuf::from(&self.path).is_dir() {
             //if directory
             true => {
                 // get vec of dir
                 let dir =
-                    walk_directory(&self.path, &config).expect("could not find directory!");
+                    walk_directory(&self.path).expect("could not find directory!");
                 // dbg!(&dir);
                 for path in dir {
                     println!("Encrypting file: {}", path.display());
                     encrypt_file(
-                        &config,
                         path.display().to_string().as_str(),
                         in_place,
                     )
@@ -134,7 +132,7 @@ impl Directive {
             }
             //if file
             false => {
-                encrypt_file(&config, &self.path, in_place);
+                encrypt_file(&self.path, in_place);
             }
         };
     }
@@ -160,7 +158,7 @@ impl Directive {
             true => {
                 // get vec of dir
                 let dir =
-                    walk_directory(&self.path, &config).expect("could not find directory!");
+                    walk_directory(&self.path).expect("could not find directory!");
                 // dbg!(&dir);
                 for path in dir {
                     if path.extension().unwrap() == "crypt" {
@@ -192,7 +190,6 @@ impl Directive {
     /// directive.cloud(platform, task);
     ///```
     pub fn cloud(&self, platform: CloudPlatform, task: CloudTask) {
-        let config = config::get_config();
         let runtime = Runtime::new().unwrap();
 
         match platform {
@@ -219,7 +216,7 @@ impl Directive {
                         //Fetch FileCrypts from crypt_keeper
                         let path_info = PathInfo::new(&self.path);
                         let paths =
-                            walk_paths(self.path.as_str(), &config).expect("Could not generate path(s)");
+                            walk_paths(self.path.as_str()).expect("Could not generate path(s)");
                         let paths: Vec<PathInfo> = 
                             paths.into_iter().filter(|p| p.name != path_info.name).collect();
                         println!("{:#?}", paths);
@@ -283,7 +280,7 @@ impl Directive {
                     CloudTask::Download => {
                         let path_info = PathInfo::new(&self.path);
                         let paths =
-                            walk_paths(self.path.as_str(), &config).expect("Could not generate path(s)");
+                            walk_paths(self.path.as_str()).expect("Could not generate path(s)");
                         let paths: Vec<PathInfo> = 
                             paths.into_iter().filter(|p| p.name != path_info.name).collect();
                         println!("{:#?}", paths);
@@ -332,7 +329,7 @@ impl Directive {
     /// directive.config(add_remove, item);
     ///```
     pub fn config(&self, config_task: ConfigTask) {
-        let mut config = config::get_config();
+        let mut config = config::get_config_write();
 
         //Process the directive
         match config_task {

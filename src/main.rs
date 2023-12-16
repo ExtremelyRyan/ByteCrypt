@@ -16,9 +16,9 @@ fn main() -> Result<()> {
     Builder::new().filter_level(LevelFilter::Trace).init();
 
     //Load config file or get default
-    let config = config::load_config()?;
+    // let config = config::load_config();
 
-    load_cli(config);
+    load_cli();
 
     // Testing:
     // let _ = cloud_storage::oauth::google_access();

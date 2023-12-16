@@ -7,7 +7,7 @@ use crypt_lib::{
         common::get_file_bytes,
         encryption::{self, compute_hash, decrypt_file, encrypt_file, generate_uuid, FileCrypt},
     },
-    util::{config::load_config, path::walk_directory},
+    util::{config::get_config_write, path::walk_directory},
 };
 
 #[cfg(target_os = "linux")]
@@ -38,11 +38,11 @@ static DRACULA_LDECRYPT: &str = "benches\\files\\dracula-large-decrypted.txt";
 
 // encrypt test with 850kb file
 pub fn enc_benchmark(c: &mut Criterion) {
-    let mut config = load_config().unwrap();
+    let mut config = get_config_write();
     config.retain = true;
 
     c.bench_function("encrypt dracula", |b| {
-        b.iter(|| encrypt_file(&config, DRACULA_NORMAL, false))
+        b.iter(|| encrypt_file(DRACULA_NORMAL, false))
     });
 }
 
@@ -52,7 +52,7 @@ pub fn bench_just_enc(c: &mut Criterion) {
     let s = String::from("");
     let pb = PathBuf::new();
     let b: [u8; 32] = [0u8; 32];
-    let mut fc = FileCrypt::new(s.clone(), s, pb, b);
+    let mut fc = FileCrypt::new(s.clone(), s, "".to_string(), pb, b);
     let contents = get_file_bytes(DRACULA_NORMAL);
 
     c.bench_function("encrypt contents of dracula", |b| {
@@ -62,31 +62,31 @@ pub fn bench_just_enc(c: &mut Criterion) {
 
 // encrypt test with 5mb file
 pub fn enc_benchmark_large(c: &mut Criterion) {
-    let mut config = load_config().unwrap();
+    let mut config = get_config_write();
     config.retain = true;
 
     c.bench_function("encrypt dracula large", |b| {
-        b.iter(|| encrypt_file(&config, DRACULA_LARGE, false))
+        b.iter(|| encrypt_file(DRACULA_LARGE, false))
     });
 }
 
 // encrypt test with 850kb file
 pub fn enc_many_files_benchmark(c: &mut Criterion) {
-    let mut config: crypt_lib::util::config::Config = load_config().unwrap();
+    let mut config = get_config_write();
     config.retain = true;
 
     // c.sample_size(10);
 
     _ = generate_files();
     // get vec of dir
-    let dir = walk_directory(SAVE_PATH, &config).expect("could not find directory!");
+    let dir = walk_directory(SAVE_PATH).expect("could not find directory!");
 
     let mut group = c.benchmark_group("encrypt 10 random files 10 times");
     group.sample_size(500);
     group.bench_function("encrypt 100 random files", |c| {
         c.iter(|| {
             for path in &dir {
-                encrypt_file(&config, path.display().to_string().as_str(), false)
+                encrypt_file(path.display().to_string().as_str(), false)
             }
         })
     });
@@ -95,7 +95,7 @@ pub fn enc_many_files_benchmark(c: &mut Criterion) {
 
 // decrypt test with 850kb file
 pub fn dec_benchmark(c: &mut Criterion) {
-    let mut config = load_config().unwrap();
+    let mut config = get_config_write();
     config.retain = true;
 
     c.bench_function("decrypt dracula", |b| {
@@ -105,7 +105,7 @@ pub fn dec_benchmark(c: &mut Criterion) {
 
 // decrypt test with 5mb file
 pub fn dec_benchmark_large(c: &mut Criterion) {
-    let mut config = load_config().unwrap();
+    let mut config = get_config_write();
     config.retain = true;
 
     c.bench_function("decrypt dracula large file", |b| {

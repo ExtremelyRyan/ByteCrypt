@@ -3,7 +3,7 @@ use log::{error, info, warn};
 use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 use std::{
-    sync::Mutex,
+    sync::RwLock,
     collections::HashMap,
     fs,
     io::{self, BufRead, BufReader, ErrorKind, Write},
@@ -14,7 +14,7 @@ use toml::*;
 const CONFIG_PATH: &str = "config.toml";
 
 lazy_static! {
-    static ref CONFIG: Mutex<Config> = Mutex::new({
+    static ref CONFIG: RwLock<Config> = RwLock::new({
         match load_config() {
             Ok(config) => config,
             Err(err) => panic!("Failed to load config: {}", err),
@@ -22,8 +22,12 @@ lazy_static! {
     });
 }
 
-pub fn get_config() -> std::sync::MutexGuard<'static, Config> {
-    CONFIG.lock().expect("Config is currently in lock")
+pub fn get_config() -> std::sync::RwLockReadGuard<'static, Config> {
+    CONFIG.read().expect("Cannot read config, locked")
+}
+
+pub fn get_config_write() -> std::sync::RwLockWriteGuard<'static, Config> {
+    CONFIG.write().expect("Cannot write to config, locked")
 }
 
 #[derive(Deserialize, Serialize, Debug)]

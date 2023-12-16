@@ -1,8 +1,8 @@
 use anyhow::{Ok, Result};
 use std::{fs, path::PathBuf};
 use walkdir::WalkDir;
+use crate::util::config;
 
-use super::config::Config;
 
 /// given a path, dissect and return a struct containing the full path, is_dir, parent path, and name.
 ///
@@ -92,7 +92,7 @@ pub fn generate_directory(path: &PathBuf) -> anyhow::Result<DirInfo> {
 }
 
 /// takes in a path, and recursively walks the subdirectories and returns a vec<pathbuf>
-pub fn walk_directory(path_in: &str, conf: &Config) -> Result<Vec<PathBuf>> {
+pub fn walk_directory(path_in: &str) -> Result<Vec<PathBuf>> {
     let path = match path_in.is_empty() {
         true => std::env::current_dir()?,
         false => get_full_file_path(path_in)?,
@@ -101,7 +101,7 @@ pub fn walk_directory(path_in: &str, conf: &Config) -> Result<Vec<PathBuf>> {
     let walker = WalkDir::new(path).into_iter();
     let mut pathlist: Vec<PathBuf> = Vec::new();
 
-    for entry in walker.filter_entry(|e| !is_hidden(e, conf)) {
+    for entry in walker.filter_entry(|e| !is_hidden(e)) {
         let entry = entry.unwrap();
         // we only want to save paths that are towards a file.
         if entry.path().display().to_string().find('.').is_some() {
@@ -112,7 +112,7 @@ pub fn walk_directory(path_in: &str, conf: &Config) -> Result<Vec<PathBuf>> {
 }
 
 /// takes in a path, and recursively walks the subdirectories and returns a vec<pathbuf>
-pub fn walk_paths(path_in: &str, conf: &Config) -> Result<Vec<PathInfo>> {
+pub fn walk_paths(path_in: &str) -> Result<Vec<PathInfo>> {
     let path = match path_in.is_empty() {
         true => std::env::current_dir()?,
         false => get_full_file_path(path_in)?,
@@ -121,7 +121,7 @@ pub fn walk_paths(path_in: &str, conf: &Config) -> Result<Vec<PathInfo>> {
     let walker = WalkDir::new(path).into_iter();
     let mut pathlist: Vec<PathInfo> = Vec::new();
 
-    for entry in walker.filter_entry(|e| !is_hidden(e, conf)) {
+    for entry in walker.filter_entry(|e| !is_hidden(e)) {
         let entry = entry.unwrap().path().display().to_string();
         pathlist.push(PathInfo::new(entry.as_str()));
     }
@@ -134,7 +134,8 @@ pub fn get_full_file_path(path: &str) -> Result<PathBuf> {
     Ok(dunce::canonicalize(path)?)
 }
 
-pub fn is_hidden(entry: &walkdir::DirEntry, conf: &Config) -> bool {
+pub fn is_hidden(entry: &walkdir::DirEntry) -> bool {
+    let conf = config::get_config();
     entry
         .file_name()
         .to_str()

@@ -1,5 +1,5 @@
 use super::tui;
-use crate::util::{config::Config, directive::*};
+use crate::util::{config::{Config, self}, directive::*};
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 use crate::database;
@@ -170,7 +170,8 @@ pub enum ConfigCommand {
 }
 
 ///Runs the CLI and returns a directive to be processed
-pub fn load_cli(config: Config) {
+pub fn load_cli() {
+    let config = config::get_config();
     //Run the cli and get responses
     let cli = CommandLineArgs::parse();
 
@@ -239,10 +240,10 @@ pub fn load_cli(config: Config) {
                         println!("please add a path to the csv");
                         return;
                     }
-                    let _ = database::crypt_keeper::import_keeper(config, csv_path);
+                    let _ = database::crypt_keeper::import_keeper(csv_path);
                 }
                 (false, true) => {
-                    let _ = database::crypt_keeper::export_keeper(config);
+                    let _ = database::crypt_keeper::export_keeper();
                 }
                 (false, false) | (true, true) => (),
             }

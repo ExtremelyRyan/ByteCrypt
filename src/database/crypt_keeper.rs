@@ -1,6 +1,5 @@
 use crate::util::{
     self, config,
-    config::Config,
     encryption::{FileCrypt, KEY_SIZE, NONCE_SIZE},
 };
 use anyhow::{anyhow, Result};
@@ -18,8 +17,13 @@ use std::{
 //Connection pool maintains a single connection to db for life of program
 lazy_static! {
     static ref KEEPER: Pool<SqliteConnectionManager> = {
-        let config = config::load_config().unwrap();
-        let manager = SqliteConnectionManager::file(config.get_database_path());
+        info!("Initializing database");
+        let path;
+        {//Ensure to only borrow config and release asap
+            let config = config::get_config();
+            path = config.database_path.to_string();
+        }
+        let manager = SqliteConnectionManager::file(path);
         let pool = Pool::new(manager).expect("Failed to generate pool");
 
         init_keeper(&pool.get().unwrap()).expect("Failed to initialize keeper");
@@ -51,7 +55,7 @@ fn init_keeper(conn: &Connection) -> Result<()> {
 
 ///Exports ALL content within the `crypt_keeper` database to a csv for easy sharing.
 /// Exports `crypt_export.csv` to crypt folder
-pub fn export_keeper(_config: Config) -> Result<()> {
+pub fn export_keeper() -> Result<()> {
     // https://rust-lang-nursery.github.io/rust-cookbook/encoding/csv.html
     let db_crypts = query_keeper().unwrap();
     let mut wtr = WriterBuilder::new().has_headers(false).from_writer(vec![]);
@@ -69,7 +73,7 @@ pub fn export_keeper(_config: Config) -> Result<()> {
 }
 
 /// Imports csv into database. <b>WARNING</b>, overrides may occur!
-pub fn import_keeper(_config: Config, path: &String) -> Result<()> {
+pub fn import_keeper(path: &String) -> Result<()> {
     let mut rdr = csv::ReaderBuilder::new()
         .has_headers(false)
         .from_path(path)?;

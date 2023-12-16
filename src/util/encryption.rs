@@ -240,7 +240,8 @@ pub fn encrypt(fc: &FileCrypt, contents: &[u8]) -> Result<Vec<u8>> {
 /// let path = "/path/to/your/file.txt";
 /// encrypt_file(&conf, path, false);
 /// ```
-pub fn encrypt_file(conf: &Config, path: &str, in_place: bool) {
+pub fn encrypt_file(path: &str, in_place: bool) {
+    let conf = config::get_config();
     // parse out file path
     let (fp, parent_dir, filename, extension) = get_file_info(path);
 
@@ -263,7 +264,6 @@ pub fn encrypt_file(conf: &Config, path: &str, in_place: bool) {
         true => format!("{}/{}{}", parent_dir.display(), fc.filename, fc.ext),
         false => format!("{}/{}.crypt", &parent_dir.display(), fc.filename),
     };
-
     // if we are backing up crypt files, then do so.
     if conf.backup {
         let mut path = util::common::get_backup_folder();
@@ -438,7 +438,7 @@ mod test {
     fn test_retain_encrypt_decrypt_file() {
         let mut config = config::load_config().unwrap();
         config.retain = true;
-        encrypt_file(&config, "dracula.txt", false);
+        encrypt_file("dracula.txt", false);
         assert_eq!(Path::new("dracula.crypt").exists(), true);
         _ = decrypt_file(&config, "dracula.crypt", None);
         match config.retain {
@@ -454,7 +454,7 @@ mod test {
     fn test_no_retain_encrypt_decrypt_file() {
         let mut config = config::load_config().unwrap();
         config.retain = false;
-        encrypt_file(&config, "dracula.txt", false);
+        encrypt_file("dracula.txt", false);
         assert_eq!(Path::new("dracula.txt").exists(), false);
         _ = decrypt_file(&config, "dracula.crypt", None);
         match config.retain {
