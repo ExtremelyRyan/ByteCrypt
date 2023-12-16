@@ -128,12 +128,8 @@ impl Config {
         self.retain
     }
 
-    pub fn set_retain(&mut self, retain: String) -> bool {
-        match retain.to_lowercase().as_str() {
-            "true" | "t" => self.retain = true,
-            "false" | "f" => self.retain = false,
-            _ => return false,
-        }
+    pub fn set_retain(&mut self, retain: bool) -> bool {
+        self.retain = retain;
         if save_config(self).is_err() {
             return false;
         }

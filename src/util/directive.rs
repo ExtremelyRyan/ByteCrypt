@@ -57,7 +57,7 @@ pub enum CloudTask {
 ///```
 pub enum ConfigTask {
     DatabasePath,
-    Retain(String),
+    Retain(bool),
     IgnoreItems(ItemsTask, String),
     ZstdLevel(i32),
 }
@@ -368,14 +368,9 @@ impl Directive {
                 }
             },
 
-            ConfigTask::Retain(value) => match config.set_retain(value.to_owned()) {
+            ConfigTask::Retain(value) => match config.set_retain(value) {
                 true => println!(
-                    "Retain changed to: {}",
-                    match value.as_str() {
-                        "true" | "t" => "true",
-                        "false" | "f" => "false",
-                        _ => unreachable!(),
-                    }
+                    "Retain changed to: {}", value.to_string()
                 ),
                 false => eprintln!("Error occured, please verify parameters."),
             },

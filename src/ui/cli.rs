@@ -218,7 +218,12 @@ pub fn load_cli(config: Config) -> anyhow::Result<()> {
             }
             Some(ConfigCommand::Retain { value }) => {
                 let directive = Directive::new("".to_owned());
-                directive.config(ConfigTask::Retain(value.to_owned()));
+                let choice = match value.to_lowercase().as_str() {
+                    "true" | "t" => true,
+                    "false" | "f" => false,
+                    _ => panic!("Unable to parse passed value"),
+                };
+                directive.config(ConfigTask::Retain(choice));
                 Ok(())
             }
             Some(ConfigCommand::IgnoreDirectories { add_remove, item }) => {

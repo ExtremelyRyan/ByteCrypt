@@ -119,7 +119,6 @@ pub fn google_access() -> anyhow::Result<UserToken> {
                     .find(|param| param.starts_with("access_token"))
                     .and_then(|param| param.split('=').nth(1))
                     .map(str::to_string);
-                println!("Access Token: {:?}", token);
 
                 //Respond to close connection
                 let response = "HTTP/1.1 200 OK\r\n\r\n";

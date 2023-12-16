@@ -201,7 +201,7 @@ pub fn encrypt_file(conf: &Config, path: &str, in_place: bool) {
     // prepend uuid to contents
     encrypted_contents = common::prepend_uuid(&fc.uuid, &mut encrypted_contents);
 
-    let crypt_file = match in_place || conf.retain {
+    let crypt_file = match in_place || !conf.retain {
         true => format!("{}/{}{}", parent_dir.display(), fc.filename, fc.ext),
         false => format!("{}/{}.crypt", &parent_dir.display(), fc.filename),
     };
