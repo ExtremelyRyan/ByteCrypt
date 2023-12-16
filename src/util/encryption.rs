@@ -6,8 +6,8 @@ use anyhow::Result;
 use blake2::Blake2s256;
 use blake2::Digest;
 use chacha20poly1305::{
-    aead::{Aead, KeyInit, OsRng},
-    ChaCha20Poly1305, Key, Nonce,
+    aead::{Aead, AeadCore, KeyInit, OsRng},
+    ChaCha20Poly1305, Nonce, Key
 };
 use log::*;
 use rand::RngCore;
@@ -34,12 +34,9 @@ pub struct FileCrypt {
 
 impl FileCrypt {
     pub fn new(filename: String, ext: String, full_path: PathBuf, hash: [u8; 32]) -> Self {
-        // generate key & nonce
-        let mut key = [0u8; KEY_SIZE];
-        let mut nonce = [0u8; NONCE_SIZE];
-        OsRng.fill_bytes(&mut key);
-        OsRng.fill_bytes(&mut nonce);
-
+        // generate key & nonce 
+        let key: [u8; KEY_SIZE] = ChaCha20Poly1305::generate_key(&mut OsRng).into();
+        let nonce: [u8; NONCE_SIZE] = ChaCha20Poly1305::generate_nonce(&mut OsRng).into();
         // generate file uuid
         let uuid = generate_uuid();
 
@@ -192,8 +189,8 @@ pub fn decrypt_file(
 ///
 /// # Example
 ///
-/// ```no-run
-/// #use crypt_lib::{FileCrypt, encrypt};
+/// ```rust no_run
+/// # use crypt_lib::{FileCrypt, encrypt};
 ///
 /// let fc = FileCrypt::new(/* initialize FileCrypt parameters */);
 /// let contents = b"Hello, World!";
@@ -422,7 +419,6 @@ pub fn get_file_info(path: &str) -> (PathBuf, PathBuf, String, String) {
 #[cfg(test)]
 mod test {
     use super::*;
-    use std::{os::windows::thread, time::Duration};
 
     #[test]
     // #[ignore = "not working when also tested with no_retain."]
@@ -430,7 +426,7 @@ mod test {
         let mut config = config::load_config().unwrap();
         config.retain = true;
         encrypt_file(&config, "dracula.txt", false);
-        thread::assert_eq!(Path::new("dracula.crypt").exists(), true);
+        assert_eq!(Path::new("dracula.crypt").exists(), true);
         _ = decrypt_file(&config, "dracula.crypt", None);
         match config.retain {
             true => {
