@@ -50,28 +50,20 @@ pub fn prepend_uuid(uuid: &String, encrypted_contents: &mut Vec<u8>) -> Vec<u8> 
 
 pub fn get_backup_folder() -> PathBuf {
     let output = if cfg!(target_os = "windows") {
-        std::env::var("HOMEDRIVE")
-            .ok()
-            .and_then(|drive| {
-                std::env::var("HOMEPATH").ok().map(|path| format!("{}{}", drive, path))
-            })
-        // Command::new("cmd")
-        //     .args(["/C", "echo %userprofile%"])
-        //     .output()
-        //     .expect("failed to execute process")
+        Command::new("cmd")
+            .args(["/C", "echo %userprofile%"])
+            .output()
+            .expect("failed to execute process")
     } else {
-        std::env::var("HOME").ok()
-        // Command::new("sh")
-        //     .arg("-c")
-        //     .arg("cd ~")
-        //     .output()
-        //     .expect("failed to execute process")
+        Command::new("sh")
+            .arg("-c")
+            .arg("echo $HOME")
+            .output()
+            .expect("failed to execute process")
     };
-    println!("{:?}", output);
-    let stdout = output.unwrap();
-    // let stdout = output.stdout;
-    // let mut path = PathBuf::from(String::from_utf8(stdout).expect("ERROR").trim());
-    let mut path = PathBuf::from(stdout);
+
+    let stdout = output.stdout;
+    let mut path = PathBuf::from(String::from_utf8(stdout).expect("ERROR").trim());
     path.push("crypt");
 
     if !path.exists() {
