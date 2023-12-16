@@ -38,8 +38,10 @@ static DRACULA_LDECRYPT: &str = "benches\\files\\dracula-large-decrypted.txt";
 
 // encrypt test with 850kb file
 pub fn enc_benchmark(c: &mut Criterion) {
-    let mut config = get_config_write();
-    config.retain = true;
+    {
+        let mut config = get_config_write();
+        config.retain = true;
+    }
 
     c.bench_function("encrypt dracula", |b| {
         b.iter(|| encrypt_file(DRACULA_NORMAL, false))
@@ -62,8 +64,10 @@ pub fn bench_just_enc(c: &mut Criterion) {
 
 // encrypt test with 5mb file
 pub fn enc_benchmark_large(c: &mut Criterion) {
-    let mut config = get_config_write();
-    config.retain = true;
+    {
+        let mut config = get_config_write();
+        config.retain = true;
+    }
 
     c.bench_function("encrypt dracula large", |b| {
         b.iter(|| encrypt_file(DRACULA_LARGE, false))
@@ -72,8 +76,10 @@ pub fn enc_benchmark_large(c: &mut Criterion) {
 
 // encrypt test with 850kb file
 pub fn enc_many_files_benchmark(c: &mut Criterion) {
-    let mut config = get_config_write();
-    config.retain = true;
+    {
+        let mut config = get_config_write();
+        config.retain = true;
+    }
 
     // c.sample_size(10);
 
@@ -95,21 +101,25 @@ pub fn enc_many_files_benchmark(c: &mut Criterion) {
 
 // decrypt test with 850kb file
 pub fn dec_benchmark(c: &mut Criterion) {
-    let mut config = get_config_write();
-    config.retain = true;
+    {
+        let mut config = get_config_write();
+        config.retain = true;
+    }
 
     c.bench_function("decrypt dracula", |b| {
-        b.iter(|| decrypt_file(&config, DRACULA_CRYPT, None))
+        b.iter(|| decrypt_file(DRACULA_CRYPT, None))
     });
 }
 
 // decrypt test with 5mb file
 pub fn dec_benchmark_large(c: &mut Criterion) {
-    let mut config = get_config_write();
-    config.retain = true;
+    {
+        let mut config = get_config_write();
+        config.retain = true;
+    }
 
     c.bench_function("decrypt dracula large file", |b| {
-        b.iter(|| decrypt_file(&config, DRACULA_LCRYPT, None))
+        b.iter(|| decrypt_file(DRACULA_LCRYPT, None))
     });
 }
 

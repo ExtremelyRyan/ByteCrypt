@@ -139,10 +139,10 @@ pub fn decrypt(fc: FileCrypt, contents: &Vec<u8>) -> Result<Vec<u8>> {
 }
 
 pub fn decrypt_file(
-    conf: &Config,
     path: &str,
     output: Option<String>,
 ) -> Result<(), EncryptErrors> {
+    let conf = config::get_config();
     // get path to encrypted file
     let fp = util::path::get_full_file_path(path).unwrap();
     let parent_dir = &fp.parent().unwrap().to_owned();
@@ -440,7 +440,7 @@ mod test {
         config.retain = true;
         encrypt_file("dracula.txt", false);
         assert_eq!(Path::new("dracula.crypt").exists(), true);
-        _ = decrypt_file(&config, "dracula.crypt", None);
+        _ = decrypt_file("dracula.crypt", None);
         match config.retain {
             true => {
                 assert_eq!(Path::new("dracula-decrypted.txt").exists(), true);
@@ -456,7 +456,7 @@ mod test {
         config.retain = false;
         encrypt_file("dracula.txt", false);
         assert_eq!(Path::new("dracula.txt").exists(), false);
-        _ = decrypt_file(&config, "dracula.crypt", None);
+        _ = decrypt_file("dracula.crypt", None);
         match config.retain {
             true => {
                 assert_eq!(Path::new("dracula-decrypted.txt").exists(), true);

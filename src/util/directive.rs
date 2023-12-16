@@ -164,7 +164,6 @@ impl Directive {
                     if path.extension().unwrap() == "crypt" {
                         println!("Decrypting file: {}", path.display());
                         let _ = decrypt_file(
-                            &config,
                             path.display().to_string().as_str(),
                             output.to_owned(),
                         );
@@ -173,7 +172,7 @@ impl Directive {
             }
             //if file
             false => {
-                let _ = decrypt_file(&config, &self.path, output.to_owned());
+                let _ = decrypt_file(&self.path, output.to_owned());
             }
         };
     }
