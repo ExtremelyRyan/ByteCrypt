@@ -4,7 +4,7 @@ use crate::{
     ui::cli::{*, self},
     util::{
         common::write_contents_to_file,
-        config::Config,
+        config::{Config, ConfigTask, ItemsTask},
         encryption::{decrypt_file, encrypt_file},
         path::{generate_directory, get_full_file_path, walk_directory, walk_paths, PathInfo},
         config,
@@ -15,90 +15,6 @@ use std::{ffi::OsStr, path::PathBuf, collections::HashMap};
 use tokio::runtime::Runtime;
 
 
-
-///Supported cloud platforms
-///
-/// # Options:
-///```no_run
-/// # use crypt_lib::util::directive::CloudPlatform;
-/// CloudPlatform::Google
-/// CloudPlatform::DropBox
-///```
-#[derive(Debug, Serialize, Deserialize, Clone)] 
-pub enum CloudPlatform {
-    Google,
-    DropBox,
-}
-
-///For conversion to String from enum
-impl ToString for CloudPlatform {
-    fn to_string(&self) -> String {
-        match self {
-            Self::Google => "Google".to_string(),
-            Self::DropBox => "DropBox".to_string(),
-        }
-    }
-}
-
-///For conversion from &str to String
-impl From<&str> for CloudPlatform {
-    fn from(service: &str) -> Self {
-        match service {
-            "Google" => Self::Google,
-            "DropBox" => Self::DropBox,
-            _ => panic!("Invalid platform"),
-        }
-    }
-}
-
-///Supported tasks for cloud platforms
-///
-/// # Options:
-///```no_run
-/// # use crypt_lib::util::directive::CloudTask;
-/// CloudTask::Upload
-/// CloudTask::Download
-/// CloudTask::View
-///```
-#[derive(Debug)]
-pub enum CloudTask {
-    Upload,
-    Download,
-    View,
-}
-
-///Tasks for changing configuration
-///
-/// # Options:
-///```no_run
-/// # use crypt_lib::util::directive::ConfigTask;
-/// ConfigTask::DatabasePath
-/// ConfigTask::IgnoreItems(ItemTask, String)
-/// ConfigTask::Backup(bool)
-/// ConfigTask::Retain(bool)
-/// ConfigTask::ZstdLevel(i32)
-///```
-pub enum ConfigTask {
-    DatabasePath,
-    IgnoreItems(ItemsTask, String),
-    Retain(bool),
-    Backup(bool),
-    ZstdLevel(i32),
-    LoadDefault,
-}
-
-///Ignore Items options
-///
-/// # Options
-///```no_run
-/// # use crypt_lib::util::directive::ItemsTask;
-/// ItemsTask::Add
-/// ItemsTask::Remove
-///```
-pub enum ItemsTask {
-    Add,
-    Remove,
-}
 
 ///Base information required for all directive calls
 ///
@@ -213,13 +129,14 @@ impl Directive {
     /// let directive = Directive::new("relevant/file.path".to_string());
     /// directive.cloud(platform, task);
     ///```
-    pub fn cloud(&self, platform: CloudPlatform, task: CloudTask) {
+    pub fn cloud(&self, platform: oauth::CloudPlatform, task: oauth::CloudTask) {
         let runtime = Runtime::new().unwrap();
 
         match platform {
-            CloudPlatform::Google => {
+            oauth::CloudPlatform::Google => {
                 //Grab user authentication token
-                let user_token = oauth::google_access().expect("Could not access user credentials");
+                let user_token = oauth::UserToken::new_google();
+                println!("{:#?}", user_token);
                 //Access google drive and ensure a crypt folder exists
                 let crypt_folder = match runtime.block_on(drive::g_create_folder(
                     &user_token,
@@ -234,7 +151,7 @@ impl Directive {
                 };
                 // let _ = runtime.block_on(drive::g_drive_info(&user_token));
                 match task {
-                    CloudTask::Upload => {
+                    oauth::CloudTask::Upload => {
                         //Track all folder ids
                         let mut folder_ids: HashMap<String, String> = HashMap::new();
                         //Fetch FileCrypts from crypt_keeper
@@ -300,7 +217,7 @@ impl Directive {
                             }
                         }
                     }
-                    CloudTask::Download => {
+                    oauth::CloudTask::Download => {
                         let path_info = PathInfo::new(&self.path);
                         let paths =
                             walk_paths(self.path.as_str()).expect("Could not generate path(s)");
@@ -309,7 +226,7 @@ impl Directive {
                         println!("{:#?}", paths);
                         todo!()
                     }
-                    CloudTask::View => {
+                    oauth::CloudTask::View => {
                         let items = runtime.block_on(drive::g_view(&self.path, user_token))
                             .expect("Unable to retrieve drive information"); 
                         //check if CLI or etc...
@@ -317,9 +234,9 @@ impl Directive {
                     }
                 }
             }
-            CloudPlatform::DropBox => {
+            oauth::CloudPlatform::Dropbox => {
                 match task {
-                    CloudTask::Upload => {
+                    oauth::CloudTask::Upload => {
                         let path = PathBuf::from(self.path.as_str());
                         match path.is_dir() {
                             true => {
@@ -330,10 +247,10 @@ impl Directive {
                         //Determine if it's a file or a folder that's being uploaded
                         todo!()
                     }
-                    CloudTask::Download => {
+                    oauth::CloudTask::Download => {
                         todo!()
                     }
-                    CloudTask::View => {
+                    oauth::CloudTask::View => {
                         todo!()
                     }
                 }
@@ -438,7 +355,7 @@ impl Directive {
 }
 
 
-fn send_information(info: Vec<String>) {
+pub fn send_information(info: Vec<String>) {
     //TODO: Check which platform
     //CLI
     cli::print_information(info);

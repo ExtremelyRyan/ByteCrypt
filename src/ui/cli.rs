@@ -1,8 +1,14 @@
-use super::tui;
-use crate::util::{config::{Config, self}, directive::*};
+use crate::{
+    ui::tui,
+    util::{
+        config::{self, Config, ConfigTask, ItemsTask}, 
+        directive,
+    },
+    cloud_storage::oauth,
+    database,
+};
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
-use crate::database;
 
 ///CLI arguments
 #[derive(Parser, Debug)]
@@ -203,35 +209,35 @@ pub fn load_cli() {
 
         //Encryption
         Some(Commands::Encrypt { path, in_place, output }) => {
-            let directive = Directive::new(path.to_owned());
+            let directive = directive::Directive::new(path.to_owned());
             directive.encrypt(in_place.to_owned(), output.to_owned());
         }
 
         //Decryption
         Some(Commands::Decrypt { path, in_place, output }) => {
-            let directive = Directive::new(path.to_owned());
+            let directive = directive::Directive::new(path.to_owned());
             directive.decrypt(in_place.to_owned(), output.to_owned());
         } //Cloud
         Some(Commands::Cloud { category }) => match category {
             Some(CloudCommand::Google { task }) => {
                 let (tsk, pth) = match task {
-                    Some(DriveCommand::Upload { path }) => (CloudTask::Upload, path.to_owned()),
-                    Some(DriveCommand::Download { path }) => (CloudTask::Download, path.to_owned()),
-                    Some(DriveCommand::View { path }) => (CloudTask::View, path.to_owned()),
-                    None => (CloudTask::View, "".to_owned()),
+                    Some(DriveCommand::Upload { path }) => (oauth::CloudTask::Upload, path.to_owned()),
+                    Some(DriveCommand::Download { path }) => (oauth::CloudTask::Download, path.to_owned()),
+                    Some(DriveCommand::View { path }) => (oauth::CloudTask::View, path.to_owned()),
+                    None => (oauth::CloudTask::View, "".to_owned()),
                 };
-                let directive = Directive::new(pth.to_owned());
-                directive.cloud(CloudPlatform::Google, tsk);
+                let directive = directive::Directive::new(pth.to_owned());
+                directive.cloud(oauth::CloudPlatform::Google, tsk);
             }
             Some(CloudCommand::Dropbox { task }) => {
                 let (tsk, pth) = match task {
-                    Some(DriveCommand::Upload { path }) => (CloudTask::Upload, path.to_owned()),
-                    Some(DriveCommand::Download { path }) => (CloudTask::Download, path.to_owned()),
-                    Some(DriveCommand::View { path }) => (CloudTask::View, path.to_owned()),
-                    None => (CloudTask::View, "".to_owned()),
+                    Some(DriveCommand::Upload { path }) => (oauth::CloudTask::Upload, path.to_owned()),
+                    Some(DriveCommand::Download { path }) => (oauth::CloudTask::Download, path.to_owned()),
+                    Some(DriveCommand::View { path }) => (oauth::CloudTask::View, path.to_owned()),
+                    None => (oauth::CloudTask::View, "".to_owned()),
                 };
-                let directive = Directive::new(pth.to_owned());
-                directive.cloud(CloudPlatform::DropBox, tsk);
+                let directive = directive::Directive::new(pth.to_owned());
+                directive.cloud(oauth::CloudPlatform::Dropbox, tsk);
             }
             None => {
                 //TODO: print out default info?
@@ -267,7 +273,7 @@ pub fn load_cli() {
             // println!("{}", config);
             match category {
                 Some(ConfigCommand::DatabasePath { path }) => {
-                    let directive = Directive::new(path.to_owned());
+                    let directive = directive::Directive::new(path.to_owned());
                     directive.config(ConfigTask::DatabasePath);
                 },
 
@@ -278,13 +284,13 @@ pub fn load_cli() {
                         _ => panic!("invalid input"),
                     };
     
-                    let directive = Directive::new("".to_owned());
+                    let directive = directive::Directive::new("".to_owned());
                     directive.config(ConfigTask::IgnoreItems(add_remove, item.to_owned()));
                 },
 
                 //Retain
                 Some(ConfigCommand::Retain { choice }) => {
-                    let directive = Directive::new("".to_owned());
+                    let directive = directive::Directive::new("".to_owned());
                     let choice = match choice.to_lowercase().as_str() {
                         "true" | "t" => true,
                         "false" | "f" => false,
@@ -295,7 +301,7 @@ pub fn load_cli() {
 
                 //Backup
                 Some(ConfigCommand::Backup { choice }) => {
-                    let directive = Directive::new("".to_owned());
+                    let directive = directive::Directive::new("".to_owned());
                     let choice = match choice.to_lowercase().as_str() {
                         "true" | "t" => true,
                         "false" | "f" => false,
@@ -305,14 +311,14 @@ pub fn load_cli() {
                 },
 
                 Some(ConfigCommand::ZstdLevel { level }) => {
-                    let directive = Directive::new("".to_owned());
+                    let directive = directive::Directive::new("".to_owned());
                     let level: i32 = level.parse()
                         .expect("Could not interpret passed value");
                     directive.config(ConfigTask::ZstdLevel(level));
                 },
 
                 Some(ConfigCommand::LoadDefault) => {
-                    let directive = Directive::new("".to_string());
+                    let directive = directive::Directive::new("".to_string());
                     directive.config(ConfigTask::LoadDefault);
                 }
 

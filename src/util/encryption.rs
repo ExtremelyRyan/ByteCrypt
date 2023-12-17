@@ -42,8 +42,7 @@ impl FileCrypt {
         hash: [u8; 32],
     ) -> Self {
         // generate key & nonce 
-        let key: [u8; KEY_SIZE] = ChaCha20Poly1305::generate_key(&mut OsRng).into();
-        let nonce: [u8; NONCE_SIZE] = ChaCha20Poly1305::generate_nonce(&mut OsRng).into();
+        let (key, nonce) = generate_seeds();
 
         // generate file uuid
         let uuid = generate_uuid();

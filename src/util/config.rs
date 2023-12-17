@@ -11,7 +11,7 @@ use std::{
 };
 use toml::*;
 
-use crate::ui::cli;
+use crate::util::directive;
 
 const CONFIG_PATH: &str = "config.toml";
 
@@ -59,6 +59,59 @@ pub struct Config {
     pub zstd_level: i32,
 }
 
+pub enum ConfigOptions {
+    DatabasePath,
+    IgnoreItems,
+    Retain,
+    Backup,
+    ZstdLevel,
+}
+
+impl ToString for ConfigOptions {
+    fn to_string(&self) -> String {
+        match self {
+            Self::DatabasePath => "database_path".to_string(),
+            Self::IgnoreItems => "ignore_items".to_string(),
+            Self::Retain => "retain".to_string(),
+            Self::Backup => "backup".to_string(),
+            Self::ZstdLevel => "zstd_level".to_string(),
+        }
+    }
+}
+
+///Tasks for changing configuration
+///
+/// # Options:
+///```no_run
+/// # use crypt_lib::util::directive::ConfigTask;
+/// ConfigTask::DatabasePath
+/// ConfigTask::IgnoreItems(ItemTask, String)
+/// ConfigTask::Backup(bool)
+/// ConfigTask::Retain(bool)
+/// ConfigTask::ZstdLevel(i32)
+///```
+pub enum ConfigTask {
+    DatabasePath,
+    IgnoreItems(ItemsTask, String),
+    Retain(bool),
+    Backup(bool),
+    ZstdLevel(i32),
+    LoadDefault,
+}
+
+///Ignore Items options
+///
+/// # Options
+///```no_run
+/// # use crypt_lib::util::directive::ItemsTask;
+/// ItemsTask::Add
+/// ItemsTask::Remove
+///```
+pub enum ItemsTask {
+    Add,
+    Remove,
+}
+
 ///Standard format for both CLI and TUI display
 //TODO: Update for TUI purposes when completed
 impl std::fmt::Display for Config {
@@ -73,6 +126,7 @@ impl std::fmt::Display for Config {
         std::fmt::Result::Ok(())
     }
 }
+
 
 impl Default for Config {
     fn default() -> Self {
@@ -113,17 +167,6 @@ impl Config {
             return false;
         }
         return true;
-    }
-
-    pub fn get_fields() -> Vec<&'static str> {
-        vec![
-            "database_path",
-            // "cloud_services",
-            "ignore_directories",
-            "retain",
-            "backup",
-            "zstd_level",
-        ]
     }
 
     ///Changes the database path
@@ -232,7 +275,7 @@ pub fn load_config() -> anyhow::Result<Config> {
     config = match toml::from_str(content.as_str()) {
          core::result::Result::Ok(config) => config,
          Err(e) => {
-            cli::print_information(vec![
+            directive::send_information(vec![
                 format!("Error loading config: {}\nloading from default", e)
             ]);
             //Save the config
