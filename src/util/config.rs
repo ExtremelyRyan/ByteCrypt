@@ -121,6 +121,7 @@ impl Config {
             // "cloud_services",
             "ignore_directories",
             "retain",
+            "backup",
             "zstd_level",
         ]
     }
