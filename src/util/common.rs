@@ -48,7 +48,7 @@ pub fn prepend_uuid(uuid: &String, encrypted_contents: &mut Vec<u8>) -> Vec<u8> 
 }
 
 
-pub fn get_backup_folder() -> PathBuf {
+pub fn get_crypt_folder() -> PathBuf {
     let output = if cfg!(target_os = "windows") {
         Command::new("cmd")
             .args(["/C", "echo %userprofile%"])

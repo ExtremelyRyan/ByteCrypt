@@ -78,7 +78,7 @@ pub fn export_keeper() -> Result<()> {
     let data = String::from_utf8(wtr.into_inner()?)?;
 
     // get crypt dir "C:\\users\\USER\\crypt"
-    let mut path = util::common::get_backup_folder();
+    let mut path = util::common::get_crypt_folder();
     path.push("crypt_export.csv");
 
     info!("writing export to {}", &path.display());
@@ -159,7 +159,7 @@ pub fn insert_crypt(crypt: &FileCrypt) -> Result<()> {
     Ok(())
 }
 
-pub fn insert_key(user_token: &UserToken) -> Result<()> {
+pub fn insert_token(user_token: &UserToken) -> Result<()> {
     //Get the connection
     let conn = get_keeper().map_err(|_| anyhow!("Failed to get keeper"))?;
 

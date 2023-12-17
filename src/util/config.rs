@@ -1,3 +1,4 @@
+use crate::util::{directive, common};
 use anyhow::anyhow;
 use log::{error, info, warn};
 use lazy_static::lazy_static;
@@ -11,11 +12,22 @@ use std::{
 };
 use toml::*;
 
-use crate::util::directive;
-
-const CONFIG_PATH: &str = "config.toml";
+lazy_static! {
+    ///Config path pointing to default home
+    pub static ref CONFIG_PATH: String = {
+        let mut path = common::get_crypt_folder();
+        path.push(".config");
+        
+        if !path.exists() {
+            _ = std::fs::create_dir(&path);
+        }
+        path.push("config.toml");
+        format!("{}", path.display())
+    };
+}
 
 lazy_static! {
+    ///Loads and holds config for session
     static ref CONFIG: RwLock<Config> = RwLock::new({
         match load_config() {
             Ok(config) => config,
@@ -86,9 +98,10 @@ impl ToString for ConfigOptions {
 /// # use crypt_lib::util::directive::ConfigTask;
 /// ConfigTask::DatabasePath
 /// ConfigTask::IgnoreItems(ItemTask, String)
-/// ConfigTask::Backup(bool)
 /// ConfigTask::Retain(bool)
+/// ConfigTask::Backup(bool)
 /// ConfigTask::ZstdLevel(i32)
+/// ConfigTask::LoadDefault
 ///```
 pub enum ConfigTask {
     DatabasePath,
@@ -263,7 +276,7 @@ pub fn load_config() -> anyhow::Result<Config> {
     let mut config: Config = Config::default();
 
     //If the file doesn't exist, re-create and load defaults
-    if !Path::new(CONFIG_PATH).exists() {
+    if !Path::new(CONFIG_PATH.as_str()).exists() {
         warn!("No configuration found, reloading with defaults!");
         save_config(&config)?;
         return Ok(config);
@@ -271,7 +284,7 @@ pub fn load_config() -> anyhow::Result<Config> {
 
     //Attempt to import config
     //TODO: handle more gracefully - ask user for desired change
-    let content = fs::read_to_string(CONFIG_PATH)?;
+    let content = fs::read_to_string(CONFIG_PATH.as_str())?;
     config = match toml::from_str(content.as_str()) {
          core::result::Result::Ok(config) => config,
          Err(e) => {
@@ -292,6 +305,6 @@ pub fn save_config(config: &Config) -> anyhow::Result<()> {
     info!("saving config");
     //Serialize config
     let serialized_config = toml::to_string_pretty(&config)?;
-    fs::write(CONFIG_PATH, serialized_config)?;
+    fs::write(CONFIG_PATH.as_str(), serialized_config)?;
     Ok(())
 }

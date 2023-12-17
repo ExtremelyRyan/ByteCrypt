@@ -272,7 +272,7 @@ pub fn encrypt_file(path: &str, in_place: bool) {
     };
     // if we are backing up crypt files, then do so.
     if conf.backup {
-        let mut path = util::common::get_backup_folder();
+        let mut path = util::common::get_crypt_folder();
         // make sure we append the filename, dummy.
         path.push(format!("{}{}", fc.filename, ".crypt"));
 

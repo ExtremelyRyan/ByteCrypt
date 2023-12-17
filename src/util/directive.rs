@@ -136,6 +136,8 @@ impl Directive {
             oauth::CloudPlatform::Google => {
                 //Grab user authentication token
                 let user_token = oauth::UserToken::new_google();
+                let _ = crypt_keeper::insert_token(&user_token);
+
                 println!("{:#?}", user_token);
                 //Access google drive and ensure a crypt folder exists
                 let crypt_folder = match runtime.block_on(drive::g_create_folder(
