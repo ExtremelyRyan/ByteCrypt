@@ -143,8 +143,11 @@ impl std::fmt::Display for Config {
 
 impl Default for Config {
     fn default() -> Self {
+        let mut database_path = common::get_crypt_folder();
+        database_path.push(".config/crypt_keeper.db");
+
         Config {
-            database_path: "crypt_keeper.db".to_string(),
+            database_path: format!("{}", database_path.display()),
             // cloud_services: Vec::new(),
             ignore_items: vec![".".to_string()],
             retain: true,
