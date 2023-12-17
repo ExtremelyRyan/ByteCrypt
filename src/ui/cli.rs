@@ -175,6 +175,10 @@ pub enum ConfigCommand {
         #[arg(required = false, default_value_t = String::from(""))]
         level: String,
     },
+
+    ///Revert config back to default
+    #[command(short_flag = 'l')]
+    LoadDefault,
 }
 
 ///Runs the CLI and returns a directive to be processed
@@ -306,6 +310,11 @@ pub fn load_cli() {
                         .expect("Could not interpret passed value");
                     directive.config(ConfigTask::ZstdLevel(level));
                 },
+
+                Some(ConfigCommand::LoadDefault) => {
+                    let directive = Directive::new("".to_string());
+                    directive.config(ConfigTask::LoadDefault);
+                }
 
                 None => (),
             }

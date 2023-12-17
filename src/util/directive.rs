@@ -62,6 +62,7 @@ pub enum ConfigTask {
     Retain(bool),
     Backup(bool),
     ZstdLevel(i32),
+    LoadDefault,
 }
 
 ///Ignore Items options
@@ -401,6 +402,15 @@ impl Directive {
                     format!("Error occured, please verify parameters")
                 ])
             },
+
+            ConfigTask::LoadDefault => match config.restore_default() {
+                true => send_information(vec![
+                    format!("Default configuration has been restored")
+                ]),
+                false => send_information(vec![
+                    format!("An error has occured attmepting to load defaults")
+                ])
+            }
         };
     }
 }

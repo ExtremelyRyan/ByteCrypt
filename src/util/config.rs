@@ -106,6 +106,15 @@ impl Config {
         }
     }
 
+    pub fn restore_default(&mut self) -> bool {
+        *self = Config::default();
+
+        if save_config(self).is_err() {
+            return false;
+        }
+        return true;
+    }
+
     pub fn get_fields() -> Vec<&'static str> {
         vec![
             "database_path",
@@ -215,7 +224,9 @@ pub fn load_config() -> anyhow::Result<Config> {
         save_config(&config)?;
         return Ok(config);
     }
-    
+
+    //Attempt to import config
+    //TODO: handle more gracefully - ask user for desired change
     let content = fs::read_to_string(CONFIG_PATH)?;
     config = match toml::from_str(content.as_str()) {
          core::result::Result::Ok(config) => config,
