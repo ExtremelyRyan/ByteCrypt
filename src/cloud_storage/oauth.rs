@@ -1,24 +1,36 @@
-use super::drive;
-use oauth2::AccessToken;
-use oauth2::{basic::BasicClient, AuthUrl, ClientId, CsrfToken, RedirectUrl, ResponseType, Scope};
-use serde::Deserialize;
-use std::env;
-use std::io::{BufRead, BufReader, Read, Write};
-use std::net::TcpListener;
+use crate::{
+    util::{
+        directive::CloudPlatform,
+        encryption::{generate_seeds, KEY_SIZE, NONCE_SIZE},
+    },
+    cloud_storage::drive,
+};
+use oauth2::{
+    basic::BasicClient, 
+    AccessToken, AuthUrl, ClientId, CsrfToken, 
+    RedirectUrl, ResponseType, Scope
+};
+use serde::{Serialize,Deserialize};
+use std::{
+    env, 
+    time::{SystemTime, UNIX_EPOCH},
+    io::{BufRead, BufReader, Read, Write},
+    net::TcpListener,
+};
 
 ///Holds the user credentials for the session
-#[derive(Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct UserToken {
+    ///Platform the token is used for
+    pub service: CloudPlatform,
+    ///Key for en/decrypting the user token
+    pub key_seed: [u8; KEY_SIZE],
+    ///Nonce for en/decrypting the user token
+    pub nonce_seed: [u8; NONCE_SIZE],
+    ///Time stamp for the user token
+    pub time_stamp: u64,
     ///Grants access to the user account
     pub access_token: String,
-    //    ///Type of token
-    // token_type: String,
-    // ///(Optional) -> get new access token when current one expires
-    // refresh_token: String,
-    // ///(Optional) -> Lifetime of token in seconds
-    // expires_in: Option<u64>,
-    // ///Scope of access and permissions granted
-    // scope: Option<String>,
 }
 
 ///Authenticate user with google and get access token for drive
@@ -127,11 +139,21 @@ pub fn google_access() -> anyhow::Result<UserToken> {
             }
         }
     }
-    let user_cred = UserToken {
+
+    //Create the user_token
+    let (key_seed, nonce_seed) = generate_seeds();
+    let user_token = UserToken {
+        service: CloudPlatform::Google,
+        key_seed,
+        nonce_seed,
+        time_stamp: SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("Somehow, time has gone backwards")
+            .as_secs(),
         access_token: token.unwrap().to_string(),
     };
 
-    return Ok(user_cred);
+    return Ok(user_token);
 }
 
 pub fn dropbox_access() {

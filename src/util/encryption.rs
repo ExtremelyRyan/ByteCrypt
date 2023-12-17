@@ -128,6 +128,13 @@ pub fn decompress(contents: &[u8]) -> Vec<u8> {
     zstd::decode_all(contents).expect("failed to unzip!")
 }
 
+///Seed me daddy
+pub fn generate_seeds() -> ([u8; KEY_SIZE], [u8; NONCE_SIZE]) {
+    let key: [u8; KEY_SIZE] = ChaCha20Poly1305::generate_key(&mut OsRng).into();
+    let nonce: [u8; NONCE_SIZE] = ChaCha20Poly1305::generate_nonce(&mut OsRng).into();
+    (key , nonce)
+}
+
 pub fn decrypt(fc: FileCrypt, contents: &Vec<u8>) -> Result<Vec<u8>> {
     info!("decrypting contents");
     let k = Key::from_slice(&fc.key);

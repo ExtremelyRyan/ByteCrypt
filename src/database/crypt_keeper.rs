@@ -1,6 +1,9 @@
-use crate::util::{
-    self, config,
-    encryption::{FileCrypt, KEY_SIZE, NONCE_SIZE},
+use crate::{
+    cloud_storage::oauth::UserToken,
+    util::{
+        self, config,
+        encryption::{FileCrypt, KEY_SIZE, NONCE_SIZE},
+    },
 };
 use anyhow::{anyhow, Result};
 use csv::*;
@@ -46,6 +49,16 @@ fn init_keeper(conn: &Connection) -> Result<()> {
             key_seed BLOB NOT NULL,
             nonce_seed BLOB NOT NULL,
             hash BLOB NOT NULL
+        )",
+        [],
+    )?;
+
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS token (
+            provider TEXT PRIMARY KEY,
+            key_seed BLOB NOT NULL,
+            nonce_seed BLOB NOT NULL,
+            time_stamp INTEGER NOT NULL
         )",
         [],
     )?;
@@ -139,6 +152,34 @@ pub fn insert_crypt(crypt: &FileCrypt) -> Result<()> {
             &crypt.key.as_ref(),
             &crypt.nonce.as_ref(),
             &crypt.hash.as_ref(),
+        ],
+    )
+    .map_err(|e| anyhow!("Failed to insert crypt {} into keeper", e))?;
+
+    Ok(())
+}
+
+pub fn insert_key(user_token: &UserToken) -> Result<()> {
+    //Get the connection
+    let conn = get_keeper().map_err(|_| anyhow!("Failed to get keeper"))?;
+
+    //Create insert command and execute -- should handle uuid conflicts
+    conn.execute(
+        "INSERT INTO crypt (
+            provider,
+            key_seed,
+            nonce_seed,
+            time_stamp
+        ) VALUES (?1, ?2, ?3, ?4)
+        ON CONFLICT(provider) DO UPDATE SET
+            key_seed excluded.key_seed,
+            nonce_seed excluded.nonce_seed,
+            time_stamp ecluded.time_stamp",
+        params![
+            &user_token.service.to_string(),
+            &user_token.key_seed.as_ref(),
+            &user_token.nonce_seed.as_ref(),
+            &user_token.time_stamp,
         ],
     )
     .map_err(|e| anyhow!("Failed to insert crypt {} into keeper", e))?;

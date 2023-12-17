@@ -7,12 +7,13 @@ use crate::{
         config::Config,
         encryption::{decrypt_file, encrypt_file},
         path::{generate_directory, get_full_file_path, walk_directory, walk_paths, PathInfo},
+        config,
     },
 };
+use serde::{Serialize, Deserialize};
 use std::{ffi::OsStr, path::PathBuf, collections::HashMap};
 use tokio::runtime::Runtime;
 
-use super::config;
 
 
 ///Supported cloud platforms
@@ -23,10 +24,31 @@ use super::config;
 /// CloudPlatform::Google
 /// CloudPlatform::DropBox
 ///```
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize, Clone)] 
 pub enum CloudPlatform {
     Google,
     DropBox,
+}
+
+///For conversion to String from enum
+impl ToString for CloudPlatform {
+    fn to_string(&self) -> String {
+        match self {
+            Self::Google => "Google".to_string(),
+            Self::DropBox => "DropBox".to_string(),
+        }
+    }
+}
+
+///For conversion from &str to String
+impl From<&str> for CloudPlatform {
+    fn from(service: &str) -> Self {
+        match service {
+            "Google" => Self::Google,
+            "DropBox" => Self::DropBox,
+            _ => panic!("Invalid platform"),
+        }
+    }
 }
 
 ///Supported tasks for cloud platforms
