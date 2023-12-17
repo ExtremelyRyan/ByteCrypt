@@ -59,8 +59,8 @@ pub enum CloudTask {
 pub enum ConfigTask {
     DatabasePath,
     IgnoreItems(ItemsTask, String),
-    Backup(bool),
     Retain(bool),
+    Backup(bool),
     ZstdLevel(i32),
 }
 
@@ -154,7 +154,6 @@ impl Directive {
     ///TODO: rework output for in-place
     ///TODO: implement output to just change save_location
     pub fn decrypt(&self, _in_place: bool, output: Option<String>) {
-        let config = config::get_config();
         //Determine if file or directory
         match PathBuf::from(&self.path).is_dir() {
             //if directory
@@ -371,13 +370,9 @@ impl Directive {
                 }
             },
 
-            ConfigTask::Backup(value) => match config.set_backup(value) {
-                true => send_information(vec![
-                    format!("Backup changed to {}", value)
-                ]),
-                false => send_information(vec![
-                    format!("Error occured, please verify parameters")
-                ])
+            ConfigTask::IgnoreItems(add_remove, item)=> match add_remove {
+                ItemsTask::Add => config.append_ignore_items(&item),
+                ItemsTask::Remove => config.remove_item(&item),
             },
 
             ConfigTask::Retain(value) => match config.set_retain(value) {
@@ -389,9 +384,13 @@ impl Directive {
                 ])
             },
 
-            ConfigTask::IgnoreItems(add_remove, item)=> match add_remove {
-                ItemsTask::Add => config.append_ignore_items(&item),
-                ItemsTask::Remove => config.remove_item(&item),
+            ConfigTask::Backup(value) => match config.set_backup(value) {
+                true => send_information(vec![
+                    format!("Backup changed to {}", value)
+                ]),
+                false => send_information(vec![
+                    format!("Error occured, please verify parameters")
+                ])
             },
 
             ConfigTask::ZstdLevel(level) => match config.set_zstd_level(level) {

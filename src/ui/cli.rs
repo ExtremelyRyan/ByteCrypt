@@ -140,14 +140,6 @@ pub enum ConfigCommand {
         path: String,
     },
 
-    ///Update whether to retain original files after encryption or decryption
-    #[command(short_flag = 'r')]
-    Retain {
-        ///Configure retaining original file: kept if true
-        #[arg(required = false, default_value_t = String::from(""))]
-        value: String,
-    },
-
     ///View or change which directories and/or filetypes are to be ignored
     #[command(short_flag = 'i')]
     IgnoreItems {
@@ -158,6 +150,22 @@ pub enum ConfigCommand {
         /// value to update config
         #[arg(required = false, default_value_t = String::from(""))]
         item: String,
+    },
+
+    ///Update whether to retain original files after encryption or decryption
+    #[command(short_flag = 'r')]
+    Retain {
+        ///Configure retaining original file: kept if true
+        #[arg(required = false, default_value_t = String::from(""))]
+        choice: String,
+    },
+
+    ///Update whether to retain original files after encryption or decryption
+    #[command(short_flag = 'b')]
+    Backup {
+        ///Configure retaining original file: kept if true
+        #[arg(required = false, default_value_t = String::from(""))]
+        choice: String,
     },
 
     ///View or change the compression level (-7 to 22) -- higher is more compression
@@ -171,7 +179,6 @@ pub enum ConfigCommand {
 
 ///Runs the CLI and returns a directive to be processed
 pub fn load_cli() {
-    let config = config::get_config();
     //Run the cli and get responses
     let cli = CommandLineArgs::parse();
 
@@ -248,26 +255,18 @@ pub fn load_cli() {
                 (false, false) | (true, true) => (),
             }
         }
+
         //Config
         Some(Commands::Config { category }) => {
+            // let config = config::get_config();
             //Regardles, print the config
-            println!("{}", config);
+            // println!("{}", config);
             match category {
                 Some(ConfigCommand::DatabasePath { path }) => {
                     let directive = Directive::new(path.to_owned());
                     directive.config(ConfigTask::DatabasePath);
                 },
 
-                // Retain
-                Some(ConfigCommand::Retain { value }) => {
-                    let directive = Directive::new("".to_owned());
-                    let choice = match value.to_lowercase().as_str() {
-                        "true" | "t" => true,
-                        "false" | "f" => false,
-                        _ => panic!("Unable to parse passed value"),
-                    };
-                    directive.config(ConfigTask::Retain(choice));
-                },
                 Some(ConfigCommand::IgnoreItems { add_remove, item }) => {
                     let add_remove = match add_remove.to_lowercase().as_str() {
                         "add" | "a" => ItemsTask::Add,
@@ -278,14 +277,40 @@ pub fn load_cli() {
                     let directive = Directive::new("".to_owned());
                     directive.config(ConfigTask::IgnoreItems(add_remove, item.to_owned()));
                 },
+
+                //Retain
+                Some(ConfigCommand::Retain { choice }) => {
+                    let directive = Directive::new("".to_owned());
+                    let choice = match choice.to_lowercase().as_str() {
+                        "true" | "t" => true,
+                        "false" | "f" => false,
+                        _ => panic!("Unable to parse passed value"),
+                    };
+                    directive.config(ConfigTask::Retain(choice));
+                },
+
+                //Backup
+                Some(ConfigCommand::Backup { choice }) => {
+                    let directive = Directive::new("".to_owned());
+                    let choice = match choice.to_lowercase().as_str() {
+                        "true" | "t" => true,
+                        "false" | "f" => false,
+                        _ => panic!("Unable to parse passed value"),
+                    };
+                    directive.config(ConfigTask::Backup(choice));
+                },
+
                 Some(ConfigCommand::ZstdLevel { level }) => {
                     let directive = Directive::new("".to_owned());
                     let level: i32 = level.parse()
                         .expect("Could not interpret passed value");
                     directive.config(ConfigTask::ZstdLevel(level));
                 },
+
                 None => (),
             }
+            let config = config::get_config();
+            println!("{}", config);
         },
     }
 }

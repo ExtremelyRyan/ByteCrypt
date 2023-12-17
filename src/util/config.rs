@@ -11,6 +11,8 @@ use std::{
 };
 use toml::*;
 
+use crate::ui::cli;
+
 const CONFIG_PATH: &str = "config.toml";
 
 lazy_static! {
@@ -22,15 +24,15 @@ lazy_static! {
     });
 }
 
-pub fn get_config() -> std::sync::RwLockReadGuard<'static, Config> {
-    CONFIG.read().expect("Cannot read config, locked")
+pub fn get_config() -> Config {
+    CONFIG.read().expect("Cannot read config, locked").clone()
 }
 
 pub fn get_config_write() -> std::sync::RwLockWriteGuard<'static, Config> {
     CONFIG.write().expect("Cannot write to config, locked")
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 ///Holds the configuration for the program
 pub struct Config {
     /// collection of cloud services currently holding crypt files.
@@ -64,9 +66,9 @@ impl std::fmt::Display for Config {
         _ = writeln!(f, "Config:");
         // _ = writeln!(f, "cloud_services: {:?}", self.cloud_services);
         _ = writeln!(f, "  database_path: {}", self.database_path);
-        _ = writeln!(f, "  ignore_directories: {:?}", self.ignore_items);
-        _ = writeln!(f, "  backup: {}", self.backup);
+        _ = writeln!(f, "  ignore_item: {:?}", self.ignore_items);
         _ = writeln!(f, "  retain: {}", self.retain);
+        _ = writeln!(f, "  backup: {}", self.backup);
         _ = writeln!(f, "  zstd_level: {}", self.zstd_level);
         std::fmt::Result::Ok(())
     }
@@ -77,9 +79,9 @@ impl Default for Config {
         Config {
             database_path: "crypt_keeper.db".to_string(),
             // cloud_services: Vec::new(),
-            backup: true,
-            retain: true,
             ignore_items: vec![".".to_string()],
+            retain: true,
+            backup: true,
             zstd_level: 3,
         }
     }
@@ -89,17 +91,17 @@ impl Config {
     fn new(
         database_path: String,
         // cloud_services: Vec<String>,
-        backup: bool,
-        retain: bool,
         ignore_directories: Vec<String>,
+        retain: bool,
+        backup: bool,
         zstd_level: i32,
     ) -> Self {
         Self {
             database_path,
             // cloud_services,
-            backup,
-            retain,
             ignore_items: ignore_directories,
+            retain,
+            backup,
             zstd_level,
         }
     }
@@ -213,106 +215,21 @@ pub fn load_config() -> anyhow::Result<Config> {
         save_config(&config)?;
         return Ok(config);
     }
-
-
-    // config = match toml::from_str(CONFIG_PATH) {
-    //     core::result::Result::Ok(config) => config,
-    //     Err(e) => {
-    //Load the configuration file from stored json
-    let config_file =
-        fs::File::open(CONFIG_PATH).map_err(|e| anyhow!("Failed to read config file: {}", e))?;
-
-    //Parse the lines and correct any issues
-    parse_lines(&mut config, config_file);
-    //Save the config
-    save_config(&config)?;
-    //         config
-    //     },
-    // };
-
+    
+    let content = fs::read_to_string(CONFIG_PATH)?;
+    config = match toml::from_str(content.as_str()) {
+         core::result::Result::Ok(config) => config,
+         Err(e) => {
+            cli::print_information(vec![
+                format!("Error loading config: {}\nloading from default", e)
+            ]);
+            //Save the config
+            save_config(&config)?;
+            config
+        },
+    };
 
     Ok(config)
-}
-
-///Parse each line to repair any erroneous and import any changed
-fn parse_lines(config: &mut Config, file: fs::File) {
-    //Read in the file
-    let reader = BufReader::new(file);
-    //toml splits vec to multiple lines if multiple values
-    //Handle by tracking start and end values [ and ]
-    let mut ignore_dir: Vec<String> = Vec::new();
-    let mut read_dir = false;
-
-    for line in reader.lines() {
-        let line = match line {
-            std::result::Result::Ok(line) => line,
-            _ => continue,
-        };
-        let parts: Vec<&str> = line.split('=').map(|s| s.trim()).collect();
-
-        //Parsing the vector
-        if read_dir {
-            if line.contains(']') {
-                //End of the vec
-                read_dir = false;
-                ignore_dir.extend(
-                    line.trim_matches(|c| c == '[' || c == ']' || c == ' ' || c == '"')
-                        .split(',')
-                        .map(|s| s.trim().trim_matches('"').to_string()),
-                );
-            } else if line.contains(" = ") {
-                //If the line is erroneous
-                read_dir = false;
-            } else {
-                ignore_dir.extend(
-                    line.split(',')
-                        .map(|s| s.trim().trim_matches('"').to_string()),
-                );
-            }
-            //If the vec is erroneous and doesn't end
-            if !line.contains(" = ") {
-                continue;
-            }
-        }
-
-        //Parse each key/value pair if they exist and import them
-        if let [key, value] = parts.as_slice() {
-            match *key {
-                "database_path" => {
-                    config.database_path = value
-                        .trim_matches(|c| c == '"' || c == '\'' || c == '\\')
-                        .trim()
-                        .to_string();
-                }
-                "ignore_directories" => {
-                    if value.starts_with('[') && value.ends_with(']') {
-                        let value: Vec<String> = value
-                            .trim_matches(|c| c == '[' || c == ']' || c == ' ' || c == '"')
-                            .split(',')
-                            .map(|s| s.trim().trim_matches('"').to_string())
-                            .collect();
-                        ignore_dir = value.to_owned();
-                    } else if value.starts_with('[') || value.starts_with(']') {
-                        read_dir = true;
-                        let value: Vec<String> = value
-                            .trim_matches(|c| c == '[' || c == ']' || c == ' ' || c == '"')
-                            .split(',')
-                            .map(|s| s.trim().trim_matches('"').to_string())
-                            .collect();
-                        ignore_dir = value.to_owned();
-                    }
-                }
-                "backup" => config.backup = value.parse().unwrap_or(config.backup),
-                "retain" => config.retain = value.parse().unwrap_or(config.retain),
-                "zstd_level" => config.zstd_level = value.parse().unwrap_or(config.zstd_level),
-                _ => (),
-            }
-        }
-    }
-    //Add the ignore directory vec
-    if !ignore_dir.is_empty() {
-        config.ignore_items = ignore_dir.into_iter().filter(|s| !s.is_empty()).collect();
-    }
 }
 
 ///Saves the configuration file
