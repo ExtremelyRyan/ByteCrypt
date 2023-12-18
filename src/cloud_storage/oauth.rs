@@ -56,7 +56,7 @@ lazy_static! {
 ///```no_run
 /// # use crypt_lib::util::directive::CloudPlatform;
 /// CloudPlatform::Google
-/// CloudPlatform::DropBox
+/// CloudPlatform::Dropbox
 ///```
 #[derive(Debug, Serialize, Deserialize, Clone)] 
 pub enum CloudService {
@@ -69,7 +69,7 @@ impl ToString for CloudService {
     fn to_string(&self) -> String {
         match self {
             Self::Google => "Google".to_string(),
-            Self::Dropbox => "DropBox".to_string(),
+            Self::Dropbox => "Dropbox".to_string(),
         }
     }
 }
@@ -79,7 +79,7 @@ impl From<&str> for CloudService {
     fn from(service: &str) -> Self {
         match service {
             "Google" => Self::Google,
-            "DropBox" => Self::Dropbox,
+            "Dropbox" => Self::Dropbox,
             _ => panic!("Invalid platform"),
         }
     }
@@ -90,7 +90,7 @@ impl From<String> for CloudService {
     fn from(service: String) -> Self {
         match service.as_str() {
             "Google" => Self::Google,
-            "DropBox" => Self::Dropbox,
+            "Dropbox" => Self::Dropbox,
             _ => panic!("Invalid platform"),
         }
     }

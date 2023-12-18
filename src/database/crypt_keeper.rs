@@ -18,6 +18,7 @@ use std::{
 };
 
 //Connection pool maintains a single connection to db for life of program
+//TODO: increase pool size from 1 to allow for multithreading
 lazy_static! {
     static ref KEEPER: Pool<SqliteConnectionManager> = {
         info!("Initializing database");
@@ -113,12 +114,24 @@ pub fn import_keeper(path: &String) -> Result<()> {
 }
 
 ///Grabs the connection
+///
+/// # Example:
+///```no_run
+/// let conn = get_keeper()?;
+/// conn.execute("SELECT * FROM *");
+///```
 pub fn get_keeper() -> Result<r2d2::PooledConnection<r2d2_sqlite::SqliteConnectionManager>> {
     //Returns the static connection
     KEEPER.get().map_err(|e| e.into())
 }
 
 ///Insert a crypt into the database
+///
+/// # Example:
+///```no_run
+/// let fc = FileCrypt::new({...});
+/// let _ = insert_crypt(&fc);
+///```
 pub fn insert_crypt(crypt: &FileCrypt) -> Result<()> {
     //Get the connection
     let conn = get_keeper().map_err(|_| anyhow!("Failed to get keeper"))?;
@@ -159,6 +172,13 @@ pub fn insert_crypt(crypt: &FileCrypt) -> Result<()> {
     Ok(())
 }
 
+///Inserts a token into the database
+///
+/// # Example:
+///```no_run
+/// let ut = UserToken::new({...});
+/// let _ = insert_token(&ut);
+///```
 pub fn insert_token(user_token: &UserToken) -> Result<()> {
     //Get the connection
     let conn = get_keeper().map_err(|_| anyhow!("Failed to get keeper"))?;
@@ -188,6 +208,12 @@ pub fn insert_token(user_token: &UserToken) -> Result<()> {
 }
 
 ///Queries the database for the crypt
+///
+/// # Example:
+///```no_run
+/// let uuid = generate_uuid();
+/// let fc = query_crypt(uuid);
+///```
 pub fn query_crypt(uuid: String) -> Result<FileCrypt> {
     //Get the connection
     let conn = get_keeper()?;
@@ -221,6 +247,13 @@ pub fn query_crypt(uuid: String) -> Result<FileCrypt> {
     })
 }
 
+///Queries the database for the token
+///
+/// # Example:
+///```no_run
+/// let cs = CloudService::Google;
+/// let user_token = query_token(&cs);
+///```
 pub fn query_token(service: CloudService) -> anyhow::Result<UserToken> {
     //Get the connection
     let conn = get_keeper()?;
@@ -253,6 +286,12 @@ pub fn query_token(service: CloudService) -> anyhow::Result<UserToken> {
 }
 
 ///Queries the database if a file's metadata matches existing entry in crypt keeper
+///
+/// # Example:
+///```no_run
+/// let path = PathBuf::from("path/to/file.txt");
+/// let fc = insert_crypt(path);
+///```
 pub fn query_keeper_for_existing_file(full_path: PathBuf) -> Result<FileCrypt> {
     //Get the connection
     let conn = get_keeper()?;
@@ -287,6 +326,12 @@ pub fn query_keeper_for_existing_file(full_path: PathBuf) -> Result<FileCrypt> {
 }
 
 ///Queries the database for all crypts
+///
+/// # Example:
+///```no_run
+/// let fc = FileCrypt::new({...});
+/// let _ = insert_crypt(&fc);
+///```
 pub fn query_keeper_crypt() -> Result<Vec<FileCrypt>> {
     //Get the connection
     let conn = get_keeper().map_err(|_| anyhow!("Failed to get keeper"))?;
@@ -327,6 +372,12 @@ pub fn query_keeper_crypt() -> Result<Vec<FileCrypt>> {
 }
 
 ///Queries the database for all tokens
+// /
+// / # Example:
+// /```no_run
+// / let fc = FileCrypt::new({...});
+// / let _ = insert_crypt(&fc);
+// /```
 pub fn query_keeper_token() -> Result<Vec<UserToken>> {
     //Get the connection
     let conn = get_keeper().map_err(|_| anyhow!("Failed to get keeper"))?;
@@ -363,6 +414,8 @@ pub fn query_keeper_token() -> Result<Vec<UserToken>> {
 }
 
 ///Deletes the crypt
+///
+///
 pub fn delete_crypt(uuid: String) -> Result<()> {
     //Get the connection
     let conn = get_keeper().map_err(|_| anyhow!("Failed to get keeper"))?;
@@ -378,6 +431,12 @@ pub fn delete_crypt(uuid: String) -> Result<()> {
 }
 
 ///Delete the database
+// /
+// / # Example:
+// /```no_run
+// / let fc = FileCrypt::new({...});
+// / let _ = insert_crypt(&fc);
+// /```
 pub fn delete_keeper() -> Result<()> {
     // TODO remove hardcoded pathways for this
     if Path::new("src/database/crypt_keeper.db").exists() {
