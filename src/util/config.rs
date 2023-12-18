@@ -1,14 +1,14 @@
-use crate::util::{directive, common};
+use crate::util::{common, directive};
 use anyhow::anyhow;
-use log::{error, info, warn};
 use lazy_static::lazy_static;
+use log::{error, info, warn};
 use serde::{Deserialize, Serialize};
 use std::{
-    sync::RwLock,
     collections::HashMap,
     fs,
     io::{self, BufRead, BufReader, ErrorKind, Write},
     path::Path,
+    sync::RwLock,
 };
 use toml::*;
 
@@ -17,7 +17,7 @@ lazy_static! {
     pub static ref CONFIG_PATH: String = {
         let mut path = common::get_crypt_folder();
         path.push(".config");
-        
+
         if !path.exists() {
             _ = std::fs::create_dir(&path);
         }
@@ -71,14 +71,12 @@ pub struct Config {
 
 ///Enum for storing each item in the config struct
 ///
-/// # Options:
-///```no_run
-/// # use crypt_lib::util::directive::ConfigTask;
-/// ConfigTask::DatabasePath
-/// ConfigTask::IgnoreItems
-/// ConfigTask::Retain
-/// ConfigTask::Backup
-/// ConfigTask::ZstdLevel
+/// # Options: 
+/// * `ConfigTask::DatabasePath`
+/// * `ConfigTask::IgnoreItems`
+/// * `ConfigTask::Retain`
+/// * `ConfigTask::Backup`
+/// * `ConfigTask::ZstdLevel`
 ///```
 pub enum ConfigOptions {
     DatabasePath,
@@ -298,15 +296,19 @@ pub fn load_config() -> anyhow::Result<Config> {
     //TODO: handle more gracefully - ask user for desired change
     let content = fs::read_to_string(CONFIG_PATH.as_str())?;
     config = match toml::from_str(content.as_str()) {
-         core::result::Result::Ok(config) => config,
-         Err(e) => {
-            directive::send_information(vec![
-                format!("Error loading config: {}\nloading from default", e)
-            ]);
+        core::result::Result::Ok(config) => config,
+        Err(e) => {
+            directive::send_information(vec![format!(
+                "Error loading config: {}\nloading from default",
+                e
+            )]);
+
+            
+
             //Save the config
             save_config(&config)?;
             config
-        },
+        }
     };
 
     Ok(config)

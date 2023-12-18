@@ -1,13 +1,13 @@
 use crate::{
-    ui::tui,
-    util::{
-        config::{self, Config, ConfigTask, ItemsTask}, 
-        directive,
-    },
     cloud_storage::oauth,
     database,
+    ui::tui,
+    util::{
+        config::{self, Config, ConfigTask, ItemsTask},
+        directive,
+    },
 };
-use clap::{Parser, Subcommand};
+use clap::{value_parser, Command, CommandFactory, Parser, Subcommand}; 
 use std::path::PathBuf;
 
 ///CLI arguments
@@ -18,6 +18,10 @@ pub struct CommandLineArgs {
     ///Enable debug mode
     #[arg(short, long)]
     pub debug: bool, //TODO: Implement debug needed?
+
+    /// generate markdown document for commands
+    #[arg(long, hide = true)]
+    md: bool,
 
     ///TUI mode
     #[arg(short, long, default_value_t = false)]
@@ -60,7 +64,6 @@ enum Commands {
         #[arg(short = 'o', long, required = false)]
         output: Option<String>,
     },
-
 
     ///Upload, download, or view file or folder to cloud provider
     Cloud {
@@ -192,6 +195,11 @@ pub fn load_cli() {
     //Run the cli and get responses
     let cli = CommandLineArgs::parse();
 
+    // Invoked as: `crypt --md > commands.md`
+    if cli.md {
+        clap_markdown::print_help_markdown::<CommandLineArgs>();
+    }
+
     //If debug mode was passed
     if cli.debug {
         debug_mode();
@@ -208,39 +216,58 @@ pub fn load_cli() {
         None => (),
 
         //Encryption
-        Some(Commands::Encrypt { path, in_place, output }) => {
+        Some(Commands::Encrypt {
+            path,
+            in_place,
+            output,
+        }) => {
             let directive = directive::Directive::new(path.to_owned());
             directive.encrypt(in_place.to_owned(), output.to_owned());
         }
 
         //Decryption
-        Some(Commands::Decrypt { path, in_place, output }) => {
+        Some(Commands::Decrypt {
+            path,
+            in_place,
+            output,
+        }) => {
             let directive = directive::Directive::new(path.to_owned());
             directive.decrypt(in_place.to_owned(), output.to_owned());
-        } //Cloud
+        }
+
+        //Cloud
         Some(Commands::Cloud { category }) => match category {
             Some(CloudCommand::Google { task }) => {
                 let (tsk, pth) = match task {
-                    Some(DriveCommand::Upload { path }) => (oauth::CloudTask::Upload, path.to_owned()),
-                    Some(DriveCommand::Download { path }) => (oauth::CloudTask::Download, path.to_owned()),
+                    Some(DriveCommand::Upload { path }) => {
+                        (oauth::CloudTask::Upload, path.to_owned())
+                    }
+                    Some(DriveCommand::Download { path }) => {
+                        (oauth::CloudTask::Download, path.to_owned())
+                    }
                     Some(DriveCommand::View { path }) => (oauth::CloudTask::View, path.to_owned()),
                     None => (oauth::CloudTask::View, "".to_owned()),
                 };
                 let directive = directive::Directive::new(pth.to_owned());
                 directive.cloud(oauth::CloudService::Google, tsk);
             }
+
             Some(CloudCommand::Dropbox { task }) => {
                 let (tsk, pth) = match task {
-                    Some(DriveCommand::Upload { path }) => (oauth::CloudTask::Upload, path.to_owned()),
-                    Some(DriveCommand::Download { path }) => (oauth::CloudTask::Download, path.to_owned()),
+                    Some(DriveCommand::Upload { path }) => {
+                        (oauth::CloudTask::Upload, path.to_owned())
+                    }
+                    Some(DriveCommand::Download { path }) => {
+                        (oauth::CloudTask::Download, path.to_owned())
+                    }
                     Some(DriveCommand::View { path }) => (oauth::CloudTask::View, path.to_owned()),
                     None => (oauth::CloudTask::View, "".to_owned()),
                 };
-                let directive = directive::Directive::new(pth.to_owned());
+                let directive: directive::Directive = directive::Directive::new(pth.to_owned());
                 directive.cloud(oauth::CloudService::Dropbox, tsk);
             }
+
             None => {
-                //TODO: print out default info?
                 todo!();
             }
         },
@@ -275,7 +302,7 @@ pub fn load_cli() {
                 Some(ConfigCommand::DatabasePath { path }) => {
                     let directive = directive::Directive::new(path.to_owned());
                     directive.config(ConfigTask::DatabasePath);
-                },
+                }
 
                 Some(ConfigCommand::IgnoreItems { add_remove, item }) => {
                     let add_remove = match add_remove.to_lowercase().as_str() {
@@ -283,10 +310,10 @@ pub fn load_cli() {
                         "remove" | "r" => ItemsTask::Remove,
                         _ => panic!("invalid input"),
                     };
-    
+
                     let directive = directive::Directive::new("".to_owned());
                     directive.config(ConfigTask::IgnoreItems(add_remove, item.to_owned()));
-                },
+                }
 
                 //Retain
                 Some(ConfigCommand::Retain { choice }) => {
@@ -297,7 +324,7 @@ pub fn load_cli() {
                         _ => panic!("Unable to parse passed value"),
                     };
                     directive.config(ConfigTask::Retain(choice));
-                },
+                }
 
                 //Backup
                 Some(ConfigCommand::Backup { choice }) => {
@@ -308,14 +335,13 @@ pub fn load_cli() {
                         _ => panic!("Unable to parse passed value"),
                     };
                     directive.config(ConfigTask::Backup(choice));
-                },
+                }
 
                 Some(ConfigCommand::ZstdLevel { level }) => {
                     let directive = directive::Directive::new("".to_owned());
-                    let level: i32 = level.parse()
-                        .expect("Could not interpret passed value");
+                    let level: i32 = level.parse().expect("Could not interpret passed value");
                     directive.config(ConfigTask::ZstdLevel(level));
-                },
+                }
 
                 Some(ConfigCommand::LoadDefault) => {
                     let directive = directive::Directive::new("".to_string());
@@ -326,14 +352,14 @@ pub fn load_cli() {
             }
             let config = config::get_config();
             println!("{}", config);
-        },
+        }
     }
 }
-        // match backup.to_lowercase().as_str() {
-        //     "true" | "t" => self.backup = true,
-        //     "false" | "f" => self.backup = false,
-        //     _ => return false,
-        // }
+// match backup.to_lowercase().as_str() {
+//     "true" | "t" => self.backup = true,
+//     "false" | "f" => self.backup = false,
+//     _ => return false,
+// }
 
 ///Called to print any information passed
 pub fn print_information(info: Vec<String>) {

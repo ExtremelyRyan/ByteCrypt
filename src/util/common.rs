@@ -1,11 +1,10 @@
 use crate::util::path::get_full_file_path;
 use anyhow::{Ok, Result};
-use std::path::{PathBuf, Path};
+use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::{
     fs::{File, OpenOptions},
     io::{BufRead, BufReader, Write},
-
 };
 
 /// read file, and return values within a Vector of Strings.
@@ -46,7 +45,6 @@ pub fn prepend_uuid(uuid: &String, encrypted_contents: &mut Vec<u8>) -> Vec<u8> 
     uuid_bytes.append(encrypted_contents);
     uuid_bytes
 }
-
 
 pub fn get_crypt_folder() -> PathBuf {
     let output = if cfg!(target_os = "windows") {

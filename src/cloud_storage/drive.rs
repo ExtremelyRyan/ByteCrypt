@@ -10,7 +10,6 @@ pub const GOOGLE_CLIENT_ID: &str =
     "1006603075663-bi4o75nk6opljg7bicdiuden76s3v18f.apps.googleusercontent.com";
 const CHUNK_SIZE: usize = 1_048_576; //1MB
 
-
 ///Gets drive info from google drive
 pub async fn g_drive_info(creds: &UserToken) -> anyhow::Result<Vec<Value>> {
     //Token to query the drive
@@ -253,7 +252,8 @@ pub async fn g_view(name: &str, creds: UserToken) -> anyhow::Result<Vec<String>>
     if response.status().is_success() {
         let files = response.json::<Value>().await?;
         Ok(match files["files"].as_array() {
-            Some(array) => array.iter()
+            Some(array) => array
+                .iter()
                 .filter_map(|item| item["name"].as_str())
                 .map(String::from)
                 .collect(),
