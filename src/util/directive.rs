@@ -65,7 +65,9 @@ impl Directive {
                         .expect("could not find directory!");
                 // dbg!(&dir);
                 for path in dir {
-                    println!("Encrypting file: {}", path.display());
+                    send_information(vec![
+                        format!("Encrypting file: {}", path.display())
+                    ]);
                     encrypt_file(
                         path.display().to_string().as_str(),
                         in_place,
@@ -103,7 +105,9 @@ impl Directive {
                 // dbg!(&dir);
                 for path in dir {
                     if path.extension().unwrap() == "crypt" {
-                        println!("Decrypting file: {}", path.display());
+                        send_information(vec![
+                            format!("Decrypting file: {}", path.display())
+                        ]);
                         let _ = decrypt_file(
                             path.display().to_string().as_str(),
                             output.to_owned(),
@@ -129,16 +133,17 @@ impl Directive {
     /// let directive = Directive::new("relevant/file.path".to_string());
     /// directive.cloud(platform, task);
     ///```
-    pub fn cloud(&self, platform: oauth::CloudPlatform, task: oauth::CloudTask) {
+    pub fn cloud(&self, platform: oauth::CloudService, task: oauth::CloudTask) {
+        //For async functions
         let runtime = Runtime::new().unwrap();
 
+        //Actions depend on the platform
         match platform {
-            oauth::CloudPlatform::Google => {
+            //Google
+            oauth::CloudService::Google => {
                 //Grab user authentication token
                 let user_token = oauth::UserToken::new_google();
-                let _ = crypt_keeper::insert_token(&user_token);
 
-                println!("{:#?}", user_token);
                 //Access google drive and ensure a crypt folder exists
                 let crypt_folder = match runtime.block_on(drive::g_create_folder(
                     &user_token,
@@ -147,7 +152,9 @@ impl Directive {
                 )) {
                     Ok(folder_id) => folder_id,
                     Err(e) => {
-                        println!("{}", e);
+                        send_information(vec![
+                            format!("{}", e)
+                        ]);
                         "".to_string()
                     }
                 };
@@ -225,7 +232,9 @@ impl Directive {
                             walk_paths(self.path.as_str()).expect("Could not generate path(s)");
                         let paths: Vec<PathInfo> = 
                             paths.into_iter().filter(|p| p.name != path_info.name).collect();
-                        println!("{:#?}", paths);
+                        send_information(vec![
+                            format!("{:#?}", paths)
+                        ]);
                         todo!()
                     }
                     oauth::CloudTask::View => {
@@ -236,7 +245,7 @@ impl Directive {
                     }
                 }
             }
-            oauth::CloudPlatform::Dropbox => {
+            oauth::CloudService::Dropbox => {
                 match task {
                     oauth::CloudTask::Upload => {
                         let path = PathBuf::from(self.path.as_str());
@@ -312,9 +321,15 @@ impl Directive {
                 }
             },
 
-            ConfigTask::IgnoreItems(add_remove, item)=> match add_remove {
-                ItemsTask::Add => config.append_ignore_items(&item),
-                ItemsTask::Remove => config.remove_item(&item),
+            ConfigTask::IgnoreItems(option, item)=> {
+                match option {
+                    ItemsTask::Add => config.append_ignore_items(&item),
+                    ItemsTask::Remove => config.remove_ignore_item(&item),
+                    ItemsTask::Default => {
+                        let default = Config::default();
+                        config.set_ignore_items(default.ignore_items);
+                    },
+                }
             },
 
             ConfigTask::Retain(value) => match config.set_retain(value) {

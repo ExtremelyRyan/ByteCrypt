@@ -1,7 +1,13 @@
 use crate::{
-    util::encryption::{generate_seeds, KEY_SIZE, NONCE_SIZE},
+    util::{
+        directive::{self, send_information},
+        encryption::{generate_seeds, KEY_SIZE, NONCE_SIZE, encrypt_token, decrypt_token},
+        common::get_crypt_folder,
+    },
     cloud_storage::drive,
+    database::crypt_keeper,
 };
+use lazy_static::lazy_static;
 use oauth2::{
     basic::BasicClient, 
     AccessToken, AuthUrl, ClientId, CsrfToken, 
@@ -9,11 +15,40 @@ use oauth2::{
 };
 use serde::{Serialize,Deserialize};
 use std::{
+    collections::HashMap,
     env, 
-    time::{SystemTime, UNIX_EPOCH},
     io::{BufRead, BufReader, Read, Write},
     net::TcpListener,
+    path::Path,
+    time::{SystemTime, UNIX_EPOCH}, fs,
 };
+use url::form_urlencoded;
+
+lazy_static! {
+    ///Path for the google user token
+    pub static ref GOOGLE_TOKEN_PATH: String = {
+        let mut path = get_crypt_folder();
+        path.push(".config");
+        
+        if !path.exists() {
+            _ = std::fs::create_dir(&path);
+        }
+        path.push(".google");
+        format!("{}", path.display())
+    };
+
+    ///Path for the dropbox user token
+    pub static ref DROPBOX_TOKEN_PATH: String = {
+        let mut path = get_crypt_folder();
+        path.push(".config");
+        
+        if !path.exists() {
+            _ = std::fs::create_dir(&path);
+        }
+        path.push(".dropbox");
+        format!("{}", path.display())
+    };
+}
 
 ///Supported cloud platforms
 ///
@@ -24,13 +59,13 @@ use std::{
 /// CloudPlatform::DropBox
 ///```
 #[derive(Debug, Serialize, Deserialize, Clone)] 
-pub enum CloudPlatform {
+pub enum CloudService {
     Google,
     Dropbox,
 }
 
 ///For conversion to String from enum
-impl ToString for CloudPlatform {
+impl ToString for CloudService {
     fn to_string(&self) -> String {
         match self {
             Self::Google => "Google".to_string(),
@@ -39,10 +74,21 @@ impl ToString for CloudPlatform {
     }
 }
 
-///For conversion from &str to String
-impl From<&str> for CloudPlatform {
+///For conversion from &str to enum
+impl From<&str> for CloudService {
     fn from(service: &str) -> Self {
         match service {
+            "Google" => Self::Google,
+            "DropBox" => Self::Dropbox,
+            _ => panic!("Invalid platform"),
+        }
+    }
+}
+
+///For conversion from String to enum
+impl From<String> for CloudService {
+    fn from(service: String) -> Self {
+        match service.as_str() {
             "Google" => Self::Google,
             "DropBox" => Self::Dropbox,
             _ => panic!("Invalid platform"),
@@ -67,23 +113,45 @@ pub enum CloudTask {
 }
 
 ///Holds user authentication information
+///
+/// # Fields
+///```no_run
+/// service: CloudPlatform,
+/// key_seed: [u8; 32],
+/// nonce_seed: [u8; 12],
+/// expiration: u64,
+/// access_token: String,
+///```
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct UserToken {
     ///Platform the token is used for
-    pub service: CloudPlatform,
+    pub service: CloudService,
     ///Key for en/decrypting the user token
     pub key_seed: [u8; KEY_SIZE],
     ///Nonce for en/decrypting the user token
     pub nonce_seed: [u8; NONCE_SIZE],
     ///Time stamp for the user token
-    pub time_stamp: u64,
+    pub expiration: u64,
     ///Grants access to the user account
     pub access_token: String,
 }
 
 impl UserToken {
-    ///Generate a new user token for Google Drive
+    /// Generate a new user token to use with Google Drive.
+    /// - Prompts user with link to authenticate with google.
+    /// - Once the user successfully authenticates, a token will be created.
+    ///
+    /// # Options:
+    ///```no_run
+    /// let google_token = UserToken::new_google();
+    ///```
     pub fn new_google() -> Self {
+        //Check if user_token already exists in database
+        let user_token = get_access_token(CloudService::Google);
+        if user_token.is_some() {
+            return user_token.unwrap();
+        }
+        
         // Set up the config for the Google OAuth2 process.
         let client = BasicClient::new(
             ClientId::new(drive::GOOGLE_CLIENT_ID.to_string()),
@@ -107,11 +175,12 @@ impl UserToken {
             .set_response_type(&ResponseType::new("token".to_string()))
             .url();
 
-        println!(
-            "Open this URL to authorize this application:\n{}\n",
-            authorize_url
-        );
+        directive::send_information(vec![
+            format!("Open this URL to authorize this application:\n{}\n",
+            authorize_url)
+        ]);
         let mut token: Option<String> = None;
+        let mut expires_in: Option<u64> = None;
 
         //Redirect server that grabs the token
         let listener = TcpListener::bind("127.0.0.1:3000").unwrap();
@@ -175,35 +244,66 @@ impl UserToken {
                     let body = String::from_utf8(body_buffer).unwrap();
 
                     //Extract the token
-                    token = body
-                        .split('&')
-                        .find(|param| param.starts_with("access_token"))
-                        .and_then(|param| param.split('=').nth(1))
-                        .map(str::to_string);
+                    let body_parts: HashMap<_, _> = 
+                        form_urlencoded::parse(&body.as_bytes())
+                            .into_owned()
+                            .collect();
+                    token = body_parts.get("access_token")
+                        .cloned();
+                    expires_in = body_parts.get("expires_in")
+                        .and_then(|v| v.parse::<u64>().ok());
 
                     //Respond to close connection
                     let response = "HTTP/1.1 200 OK\r\n\r\n";
                     stream.write_all(response.as_bytes()).unwrap();
                     break; //shut down server
-                }
+                }    
             }
         }
-
+        let token = match token {
+            Some(token) => token,
+            None => {
+                send_information(vec![
+                    format!("Unable to get access token")
+                ]);
+                "".to_string()
+            }
+        };
+        let expires_in = match expires_in {
+            Some(expires_in) => expires_in,
+            None => {
+                send_information(vec![
+                    format!("Unable to get token expiration information")
+                ]);
+                0
+            }
+        };
         //Create the user_token
         let (key_seed, nonce_seed) = generate_seeds();
-        Self {
-            service: CloudPlatform::Google,
+        let user_token = Self {
+            service: CloudService::Google,
             key_seed,
             nonce_seed,
-            time_stamp: SystemTime::now()
+            expiration: SystemTime::now()
                 .duration_since(UNIX_EPOCH)
                 .expect("Somehow, time has gone backwards")
-                .as_secs(),
-            access_token: token.unwrap().to_string(),
-        }
+                .as_secs() + expires_in,
+            access_token: token.to_string(),
+        };
+
+        let _ = crypt_keeper::insert_token(&user_token);
+        let _ = save_access_token(&user_token);
+        return user_token;
     }
 
-    ///Generate a new user token for Dropbox
+    /// Generate a new user token to use with Dropbox.
+    /// - Prompts user with link to authenticate with Dropbox.
+    /// - Once the user successfully authenticates, a token will be created.
+    ///
+    /// # Options:
+    ///```no_run
+    /// let dropbox_token = UserToken::new_dropbox();
+    ///```
     pub fn new_dropbox() -> Self {
         let client_id = "im68gew9aehy2pn".to_string();
 
@@ -219,5 +319,52 @@ impl UserToken {
         let (_authorize_url, _csrf_state) = client.authorize_url(CsrfToken::new_random).url();
 
         todo!()
-    } 
+    }
+}
+
+///Attempts to get an access token from the database
+fn get_access_token(service: CloudService) -> Option<UserToken> {
+    //Get the path
+    let path = match service {
+        CloudService::Google => GOOGLE_TOKEN_PATH.as_str(),
+        CloudService::Dropbox => DROPBOX_TOKEN_PATH.as_str(),
+    };
+    //Test if the path exists
+    if !Path::new(path).exists() {
+        return None;
+    }
+    //Read the token from the location
+    let access_token = fs::read(path).unwrap();
+
+    //Ensure that it's not expired
+    match crypt_keeper::query_token(service) {
+        Ok(mut user_token) => {
+            let current_time = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .expect("Somehow, time has gone backwards")
+                .as_secs();
+
+            match user_token.expiration > current_time {
+                true => {
+                    user_token.access_token = decrypt_token(&user_token, access_token);
+                    return Some(user_token)
+                },
+                false => return None,
+            }
+        },
+        Err(_) => return None,
+    }
+}
+
+fn save_access_token(user_token: &UserToken) -> anyhow::Result<()> {
+    //Get the path
+    let path = match user_token.service {
+        CloudService::Google => GOOGLE_TOKEN_PATH.as_str(),
+        CloudService::Dropbox => DROPBOX_TOKEN_PATH.as_str(),
+    };
+    let token = encrypt_token(user_token)?;
+    
+    fs::write(path, token)?;
+
+    return Ok(());
 }
