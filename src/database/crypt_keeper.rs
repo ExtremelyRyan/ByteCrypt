@@ -1,5 +1,5 @@
 use crate::{
-    cloud_storage::oauth::UserToken,
+    cloud_storage::oauth::{UserToken, CloudService},
     util::{
         self, config,
         encryption::{FileCrypt, KEY_SIZE, NONCE_SIZE},
@@ -54,11 +54,11 @@ fn init_keeper(conn: &Connection) -> Result<()> {
     )?;
 
     conn.execute(
-        "CREATE TABLE IF NOT EXISTS token (
-            provider TEXT PRIMARY KEY,
+        "CREATE TABLE IF NOT EXISTS user_token (
+            service TEXT PRIMARY KEY,
             key_seed BLOB NOT NULL,
             nonce_seed BLOB NOT NULL,
-            time_stamp INTEGER NOT NULL
+            expiration INTEGER NOT NULL
         )",
         [],
     )?;
@@ -70,7 +70,7 @@ fn init_keeper(conn: &Connection) -> Result<()> {
 /// Exports `crypt_export.csv` to crypt folder
 pub fn export_keeper() -> Result<()> {
     // https://rust-lang-nursery.github.io/rust-cookbook/encoding/csv.html
-    let db_crypts = query_keeper().unwrap();
+    let db_crypts = query_keeper_crypt().unwrap();
     let mut wtr = WriterBuilder::new().has_headers(false).from_writer(vec![]);
     for crypt in db_crypts {
         wtr.serialize(crypt)?;
@@ -165,21 +165,21 @@ pub fn insert_token(user_token: &UserToken) -> Result<()> {
 
     //Create insert command and execute -- should handle uuid conflicts
     conn.execute(
-        "INSERT INTO crypt (
-            provider,
+        "INSERT INTO user_token (
+            service,
             key_seed,
             nonce_seed,
-            time_stamp
+            expiration
         ) VALUES (?1, ?2, ?3, ?4)
-        ON CONFLICT(provider) DO UPDATE SET
-            key_seed excluded.key_seed,
-            nonce_seed excluded.nonce_seed,
-            time_stamp ecluded.time_stamp",
+        ON CONFLICT(service) DO UPDATE SET
+            key_seed = excluded.key_seed,
+            nonce_seed = excluded.nonce_seed,
+            expiration = excluded.expiration",
         params![
             &user_token.service.to_string(),
             &user_token.key_seed.as_ref(),
             &user_token.nonce_seed.as_ref(),
-            &user_token.time_stamp,
+            &user_token.expiration,
         ],
     )
     .map_err(|e| anyhow!("Failed to insert crypt {} into keeper", e))?;
@@ -221,6 +221,37 @@ pub fn query_crypt(uuid: String) -> Result<FileCrypt> {
     })
 }
 
+pub fn query_token(service: CloudService) -> anyhow::Result<UserToken> {
+    //Get the connection
+    let conn = get_keeper()?;
+
+    //Get the results of the query
+    conn.query_row(
+        "SELECT *
+        FROM user_token
+        WHERE service = ?1",
+        params![service.to_string()],
+        |row| {
+            let service: String = row.get(0)?;
+            let expiration: u64 = row.get(3)?;
+            Ok(UserToken { 
+                service: CloudService::from(service),
+                key_seed: row.get(1)?,
+                nonce_seed: row.get(2)?,
+                expiration,
+                access_token: "".to_string(), 
+            })
+        },
+    )
+    .map_err(|e| match e {
+        //Handle the errors
+        rusqliteError::QueryReturnedNoRows => {
+            anyhow!("No token exists for that service")
+        }
+        _ => anyhow!("Keeper query failed {}", e),
+    })
+}
+
 ///Queries the database if a file's metadata matches existing entry in crypt keeper
 pub fn query_keeper_for_existing_file(full_path: PathBuf) -> Result<FileCrypt> {
     //Get the connection
@@ -256,7 +287,7 @@ pub fn query_keeper_for_existing_file(full_path: PathBuf) -> Result<FileCrypt> {
 }
 
 ///Queries the database for all crypts
-pub fn query_keeper() -> Result<Vec<FileCrypt>> {
+pub fn query_keeper_crypt() -> Result<Vec<FileCrypt>> {
     //Get the connection
     let conn = get_keeper().map_err(|_| anyhow!("Failed to get keeper"))?;
 
@@ -293,6 +324,42 @@ pub fn query_keeper() -> Result<Vec<FileCrypt>> {
     }
 
     Ok(crypts)
+}
+
+///Queries the database for all tokens
+pub fn query_keeper_token() -> Result<Vec<UserToken>> {
+    //Get the connection
+    let conn = get_keeper().map_err(|_| anyhow!("Failed to get keeper"))?;
+
+    //Create the query and execute
+    let mut query = conn.prepare(
+        "
+        SELECT *
+        FROM user_token",
+    )?;
+
+    //Get the results of the query
+    let query_result = query.query_map([], |row| {
+        let service: String = row.get(0)?;
+        let key: [u8; KEY_SIZE] = row.get(1)?;
+        let nonce: [u8; NONCE_SIZE] = row.get(2)?;
+
+        Ok(UserToken {
+            service: CloudService::from(service),
+            key_seed: key,
+            nonce_seed: nonce,
+            expiration: row.get(3)?,
+            access_token: "".to_string(),
+        })
+    })?;
+
+    //Convert the results into a vector
+    let mut tokens: Vec<UserToken> = Vec::new();
+    for token in query_result {
+        tokens.push(token.unwrap());
+    }
+
+    Ok(tokens)
 }
 
 ///Deletes the crypt

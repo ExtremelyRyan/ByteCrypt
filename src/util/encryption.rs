@@ -1,6 +1,7 @@
 use crate::{
     database::crypt_keeper,
     util::{self, common::write_contents_to_file, config::Config, *},
+    cloud_storage::oauth::UserToken,
 };
 use anyhow::Result;
 use blake2::Blake2s256;
@@ -227,6 +228,39 @@ pub fn encrypt(fc: &FileCrypt, contents: &[u8]) -> Result<Vec<u8>> {
         .expect("failed to encrypt contents");
     Ok(cipher)
 }
+
+pub fn encrypt_token(user_token: &UserToken) -> anyhow::Result<Vec<u8>> {
+    let conf = config::get_config();
+    let mut token = user_token.access_token.as_bytes();
+    let compressed_token = compress(token, conf.zstd_level);
+    token = compressed_token.as_slice();
+
+    let cipher = ChaCha20Poly1305::new(Key::from_slice(&user_token.key_seed))
+        .encrypt(Nonce::from_slice(&user_token.nonce_seed), token)
+        .expect("Failed to encrypt access_token");
+    Ok(cipher)
+}
+
+pub fn decrypt_token(user_token: &UserToken, access_token: Vec<u8>) -> String {
+    let token = access_token.as_slice();
+
+    let cipher = ChaCha20Poly1305::new(Key::from_slice(&user_token.key_seed))
+        .decrypt(Nonce::from_slice(&user_token.nonce_seed), token.as_ref())
+        .expect("Failed to decrypt access_token");
+
+    let decompressed_token = decompress(cipher.as_slice());
+
+    return String::from_utf8(decompressed_token).expect("Could not decrypt token");
+}
+// pub fn decrypt(fc: FileCrypt, contents: &Vec<u8>) -> Result<Vec<u8>> {
+//     info!("decrypting contents");
+//     let k = Key::from_slice(&fc.key);
+//     let n = Nonce::from_slice(&fc.nonce);
+//     let cipher = ChaCha20Poly1305::new(k)
+//         .decrypt(n, contents.as_ref())
+//         .expect("failed to decrypt cipher text");
+//     Ok(cipher)
+// }
 
 /// Encrypts the contents of a file and performs additional operations based on the provided configuration.
 ///

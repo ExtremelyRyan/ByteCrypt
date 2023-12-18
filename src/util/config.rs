@@ -24,9 +24,7 @@ lazy_static! {
         path.push("config.toml");
         format!("{}", path.display())
     };
-}
 
-lazy_static! {
     ///Loads and holds config for session
     static ref CONFIG: RwLock<Config> = RwLock::new({
         match load_config() {
@@ -71,6 +69,17 @@ pub struct Config {
     pub zstd_level: i32,
 }
 
+///Enum for storing each item in the config struct
+///
+/// # Options:
+///```no_run
+/// # use crypt_lib::util::directive::ConfigTask;
+/// ConfigTask::DatabasePath
+/// ConfigTask::IgnoreItems
+/// ConfigTask::Retain
+/// ConfigTask::Backup
+/// ConfigTask::ZstdLevel
+///```
 pub enum ConfigOptions {
     DatabasePath,
     IgnoreItems,
@@ -112,7 +121,7 @@ pub enum ConfigTask {
     LoadDefault,
 }
 
-///Ignore Items options
+///Ignore_items standard options
 ///
 /// # Options
 ///```no_run
@@ -123,6 +132,7 @@ pub enum ConfigTask {
 pub enum ItemsTask {
     Add,
     Remove,
+    Default,
 }
 
 ///Standard format for both CLI and TUI display
@@ -139,7 +149,6 @@ impl std::fmt::Display for Config {
         std::fmt::Result::Ok(())
     }
 }
-
 
 impl Default for Config {
     fn default() -> Self {
@@ -232,7 +241,7 @@ impl Config {
         true
     }
 
-    pub fn ignore_items(&self) -> &[String] {
+    pub fn get_ignore_items(&self) -> &[String] {
         self.ignore_items.as_ref()
     }
 
@@ -245,7 +254,7 @@ impl Config {
         _ = save_config(self);
     }
 
-    pub fn remove_item(&mut self, item: &String) {
+    pub fn remove_ignore_item(&mut self, item: &String) {
         if self.ignore_items.contains(item) {
             let index = &self.ignore_items.iter().position(|x| x == item);
             let num = index.unwrap();

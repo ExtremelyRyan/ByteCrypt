@@ -227,7 +227,7 @@ pub fn load_cli() {
                     None => (oauth::CloudTask::View, "".to_owned()),
                 };
                 let directive = directive::Directive::new(pth.to_owned());
-                directive.cloud(oauth::CloudPlatform::Google, tsk);
+                directive.cloud(oauth::CloudService::Google, tsk);
             }
             Some(CloudCommand::Dropbox { task }) => {
                 let (tsk, pth) = match task {
@@ -237,7 +237,7 @@ pub fn load_cli() {
                     None => (oauth::CloudTask::View, "".to_owned()),
                 };
                 let directive = directive::Directive::new(pth.to_owned());
-                directive.cloud(oauth::CloudPlatform::Dropbox, tsk);
+                directive.cloud(oauth::CloudService::Dropbox, tsk);
             }
             None => {
                 //TODO: print out default info?
@@ -338,7 +338,7 @@ pub fn load_cli() {
 ///Called to print any information passed
 pub fn print_information(info: Vec<String>) {
     for item in info {
-        println!("Item: {}", item);
+        println!("{}", item);
     }
 }
 
