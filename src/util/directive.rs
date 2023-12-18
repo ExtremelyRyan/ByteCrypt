@@ -1,20 +1,18 @@
 use crate::{
     cloud_storage::*,
     database::crypt_keeper,
-    ui::cli::{*, self},
+    ui::cli::{self, *},
     util::{
         common::write_contents_to_file,
+        config,
         config::{Config, ConfigTask, ItemsTask},
         encryption::{decrypt_file, encrypt_file},
         path::{generate_directory, get_full_file_path, walk_directory, walk_paths, PathInfo},
-        config,
     },
 };
-use serde::{Serialize, Deserialize};
-use std::{ffi::OsStr, path::PathBuf, collections::HashMap};
+use serde::{Deserialize, Serialize};
+use std::{collections::HashMap, ffi::OsStr, path::PathBuf};
 use tokio::runtime::Runtime;
-
-
 
 ///Base information required for all directive calls
 ///
@@ -25,7 +23,7 @@ use tokio::runtime::Runtime;
 ///```
 #[derive(Debug)]
 pub struct Directive {
-    path: String
+    path: String,
 }
 
 impl Directive {
@@ -37,11 +35,9 @@ impl Directive {
     /// let directive = Directive::new("relevant/file.path".to_string());
     ///```
     pub fn new(path: String) -> Self {
-        Self {
-            path,
-        }
+        Self { path }
     }
-    
+
     ///Process the encryption directive
     ///
     /// # Example
@@ -60,18 +56,11 @@ impl Directive {
             //if directory
             true => {
                 // get vec of dir
-                let dir =
-                    walk_directory(&self.path)
-                        .expect("could not find directory!");
+                let dir = walk_directory(&self.path).expect("could not find directory!");
                 // dbg!(&dir);
                 for path in dir {
-                    send_information(vec![
-                        format!("Encrypting file: {}", path.display())
-                    ]);
-                    encrypt_file(
-                        path.display().to_string().as_str(),
-                        in_place,
-                    )
+                    send_information(vec![format!("Encrypting file: {}", path.display())]);
+                    encrypt_file(path.display().to_string().as_str(), in_place)
                 }
             }
             //if file
@@ -100,18 +89,13 @@ impl Directive {
             //if directory
             true => {
                 // get vec of dir
-                let dir =
-                    walk_directory(&self.path).expect("could not find directory!");
+                let dir = walk_directory(&self.path).expect("could not find directory!");
                 // dbg!(&dir);
                 for path in dir {
                     if path.extension().unwrap() == "crypt" {
-                        send_information(vec![
-                            format!("Decrypting file: {}", path.display())
-                        ]);
-                        let _ = decrypt_file(
-                            path.display().to_string().as_str(),
-                            output.to_owned(),
-                        );
+                        send_information(vec![format!("Decrypting file: {}", path.display())]);
+                        let _ =
+                            decrypt_file(path.display().to_string().as_str(), output.to_owned());
                     }
                 }
             }
@@ -152,9 +136,7 @@ impl Directive {
                 )) {
                     Ok(folder_id) => folder_id,
                     Err(e) => {
-                        send_information(vec![
-                            format!("{}", e)
-                        ]);
+                        send_information(vec![format!("{}", e)]);
                         "".to_string()
                     }
                 };
@@ -167,62 +149,70 @@ impl Directive {
                         let path_info = PathInfo::new(&self.path);
                         let paths =
                             walk_paths(self.path.as_str()).expect("Could not generate path(s)");
-                        let paths: Vec<PathInfo> = 
-                            paths.into_iter().filter(|p| p.name != path_info.name).collect();
-                        
+                        let paths: Vec<PathInfo> = paths
+                            .into_iter()
+                            .filter(|p| p.name != path_info.name)
+                            .collect();
+
                         match path_info.is_dir {
                             true => {
                                 //Create the root directory
                                 folder_ids.insert(
                                     path_info.full_path.display().to_string(),
-                                    runtime.block_on(
-                                        drive::g_create_folder(
-                                        &user_token,
-                                        Some(&PathBuf::from(path_info.name.clone())),
-                                        crypt_folder,))
-                                    .expect("Could not create directory in google drive") 
+                                    runtime
+                                        .block_on(drive::g_create_folder(
+                                            &user_token,
+                                            Some(&PathBuf::from(path_info.name.clone())),
+                                            crypt_folder,
+                                        ))
+                                        .expect("Could not create directory in google drive"),
                                 );
                                 //Create all folders relative to the root directory
                                 for path in paths.clone() {
                                     let parent_path = path.parent.display().to_string();
-                                    let parent_id = folder_ids.get(&parent_path)
+                                    let parent_id = folder_ids
+                                        .get(&parent_path)
                                         .expect("Could not retrieve parent ID")
                                         .to_string();
 
                                     if path.is_dir {
                                         folder_ids.insert(
                                             path.full_path.display().to_string(),
-                                            runtime.block_on(
-                                                drive::g_create_folder(
-                                                &user_token,
-                                                Some(&PathBuf::from(path.name.clone())),
-                                                parent_id))
-                                            .expect("Could not create directory in google drive")
+                                            runtime
+                                                .block_on(drive::g_create_folder(
+                                                    &user_token,
+                                                    Some(&PathBuf::from(path.name.clone())),
+                                                    parent_id,
+                                                ))
+                                                .expect(
+                                                    "Could not create directory in google drive",
+                                                ),
                                         );
-                                    } 
+                                    }
                                 }
                                 //Upload every file to their respective parent directory
                                 for path in paths {
                                     let parent_path = path.parent.display().to_string();
-                                    let parent_id = folder_ids.get(&parent_path)
+                                    let parent_id = folder_ids
+                                        .get(&parent_path)
                                         .expect("Could not retrieve parent ID")
                                         .to_string();
 
                                     if !path.is_dir {
-                                        let _ = runtime.block_on(
-                                            drive::g_upload(
-                                                user_token.clone(), 
-                                                &path.full_path.display().to_string(), 
-                                                parent_id)
-                                        );
+                                        let _ = runtime.block_on(drive::g_upload(
+                                            user_token.clone(),
+                                            &path.full_path.display().to_string(),
+                                            parent_id,
+                                        ));
                                     }
                                 }
                             }
                             false => {
-                                let _ = runtime.block_on(
-                                    drive::g_upload(
-                                        user_token, &self.path, crypt_folder)
-                                );
+                                let _ = runtime.block_on(drive::g_upload(
+                                    user_token,
+                                    &self.path,
+                                    crypt_folder,
+                                ));
                             }
                         }
                     }
@@ -230,16 +220,17 @@ impl Directive {
                         let path_info = PathInfo::new(&self.path);
                         let paths =
                             walk_paths(self.path.as_str()).expect("Could not generate path(s)");
-                        let paths: Vec<PathInfo> = 
-                            paths.into_iter().filter(|p| p.name != path_info.name).collect();
-                        send_information(vec![
-                            format!("{:#?}", paths)
-                        ]);
+                        let paths: Vec<PathInfo> = paths
+                            .into_iter()
+                            .filter(|p| p.name != path_info.name)
+                            .collect();
+                        send_information(vec![format!("{:#?}", paths)]);
                         todo!()
                     }
                     oauth::CloudTask::View => {
-                        let items = runtime.block_on(drive::g_view(&self.path, user_token))
-                            .expect("Unable to retrieve drive information"); 
+                        let items = runtime
+                            .block_on(drive::g_view(&self.path, user_token))
+                            .expect("Unable to retrieve drive information");
                         //check if CLI or etc...
                         cli::print_information(items);
                     }
@@ -289,18 +280,17 @@ impl Directive {
                 "" => {
                     let path = get_full_file_path(&config.database_path)
                         .expect("Error fetching database path");
-                    send_information(vec![
-                        format!("Current Database Path:\n  {}", path.display())
-                    ]);
-                },
+                    send_information(vec![format!(
+                        "Current Database Path:\n  {}",
+                        path.display()
+                    )]);
+                }
                 _ => {
-                    send_information(vec![
-                        format!(
-                            "{} {}",
-                            "WARNING: changing your database will prevent you from decrypting existing",
-                            "files until you change the path back. ARE YOU SURE? (Y/N)"
-                        )
-                    ]);
+                    send_information(vec![format!(
+                        "{} {}",
+                        "WARNING: changing your database will prevent you from decrypting existing",
+                        "files until you change the path back. ARE YOU SURE? (Y/N)"
+                    )]);
 
                     //TODO: Modify to properly handle tui/gui interactions
                     let mut s = String::new();
@@ -321,56 +311,39 @@ impl Directive {
                 }
             },
 
-            ConfigTask::IgnoreItems(option, item)=> {
-                match option {
-                    ItemsTask::Add => config.append_ignore_items(&item),
-                    ItemsTask::Remove => config.remove_ignore_item(&item),
-                    ItemsTask::Default => {
-                        let default = Config::default();
-                        config.set_ignore_items(default.ignore_items);
-                    },
+            ConfigTask::IgnoreItems(option, item) => match option {
+                ItemsTask::Add => config.append_ignore_items(&item),
+                ItemsTask::Remove => config.remove_ignore_item(&item),
+                ItemsTask::Default => {
+                    let default = Config::default();
+                    config.set_ignore_items(default.ignore_items);
                 }
             },
 
             ConfigTask::Retain(value) => match config.set_retain(value) {
-                true => send_information(vec![
-                    format!("Retain changed to {}", value)
-                ]),
-                false => send_information(vec![
-                    format!("Error occured, please verify parameters")
-                ])
+                true => send_information(vec![format!("Retain changed to {}", value)]),
+                false => send_information(vec![format!("Error occured, please verify parameters")]),
             },
 
             ConfigTask::Backup(value) => match config.set_backup(value) {
-                true => send_information(vec![
-                    format!("Backup changed to {}", value)
-                ]),
-                false => send_information(vec![
-                    format!("Error occured, please verify parameters")
-                ])
+                true => send_information(vec![format!("Backup changed to {}", value)]),
+                false => send_information(vec![format!("Error occured, please verify parameters")]),
             },
 
             ConfigTask::ZstdLevel(level) => match config.set_zstd_level(level) {
-                true => send_information(vec![
-                    format!("Zstd Level value changed to: {}", level)
-                ]),
-                false => send_information(vec![
-                    format!("Error occured, please verify parameters")
-                ])
+                true => send_information(vec![format!("Zstd Level value changed to: {}", level)]),
+                false => send_information(vec![format!("Error occured, please verify parameters")]),
             },
 
             ConfigTask::LoadDefault => match config.restore_default() {
-                true => send_information(vec![
-                    format!("Default configuration has been restored")
-                ]),
-                false => send_information(vec![
-                    format!("An error has occured attmepting to load defaults")
-                ])
-            }
+                true => send_information(vec![format!("Default configuration has been restored")]),
+                false => send_information(vec![format!(
+                    "An error has occured attmepting to load defaults"
+                )]),
+            },
         };
     }
 }
-
 
 pub fn send_information(info: Vec<String>) {
     //TODO: Check which platform

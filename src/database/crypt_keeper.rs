@@ -1,5 +1,5 @@
 use crate::{
-    cloud_storage::oauth::{UserToken, CloudService},
+    cloud_storage::oauth::{CloudService, UserToken},
     util::{
         self, config,
         encryption::{FileCrypt, KEY_SIZE, NONCE_SIZE},
@@ -234,12 +234,12 @@ pub fn query_token(service: CloudService) -> anyhow::Result<UserToken> {
         |row| {
             let service: String = row.get(0)?;
             let expiration: u64 = row.get(3)?;
-            Ok(UserToken { 
+            Ok(UserToken {
                 service: CloudService::from(service),
                 key_seed: row.get(1)?,
                 nonce_seed: row.get(2)?,
                 expiration,
-                access_token: "".to_string(), 
+                access_token: "".to_string(),
             })
         },
     )

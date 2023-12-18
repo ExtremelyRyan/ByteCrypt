@@ -1,26 +1,24 @@
 use crate::{
-    util::{
-        directive::{self, send_information},
-        encryption::{generate_seeds, KEY_SIZE, NONCE_SIZE, encrypt_token, decrypt_token},
-        common::get_crypt_folder,
-    },
     cloud_storage::drive,
     database::crypt_keeper,
+    util::{
+        common::get_crypt_folder,
+        directive::{self, send_information},
+        encryption::{decrypt_token, encrypt_token, generate_seeds, KEY_SIZE, NONCE_SIZE},
+    },
 };
 use lazy_static::lazy_static;
 use oauth2::{
-    basic::BasicClient, 
-    AccessToken, AuthUrl, ClientId, CsrfToken, 
-    RedirectUrl, ResponseType, Scope
+    basic::BasicClient, AccessToken, AuthUrl, ClientId, CsrfToken, RedirectUrl, ResponseType, Scope,
 };
-use serde::{Serialize,Deserialize};
+use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
-    env, 
+    env, fs,
     io::{BufRead, BufReader, Read, Write},
     net::TcpListener,
     path::Path,
-    time::{SystemTime, UNIX_EPOCH}, fs,
+    time::{SystemTime, UNIX_EPOCH},
 };
 use url::form_urlencoded;
 
@@ -29,7 +27,7 @@ lazy_static! {
     pub static ref GOOGLE_TOKEN_PATH: String = {
         let mut path = get_crypt_folder();
         path.push(".config");
-        
+
         if !path.exists() {
             _ = std::fs::create_dir(&path);
         }
@@ -41,7 +39,7 @@ lazy_static! {
     pub static ref DROPBOX_TOKEN_PATH: String = {
         let mut path = get_crypt_folder();
         path.push(".config");
-        
+
         if !path.exists() {
             _ = std::fs::create_dir(&path);
         }
@@ -58,7 +56,7 @@ lazy_static! {
 /// CloudPlatform::Google
 /// CloudPlatform::DropBox
 ///```
-#[derive(Debug, Serialize, Deserialize, Clone)] 
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum CloudService {
     Google,
     Dropbox,
@@ -98,13 +96,12 @@ impl From<String> for CloudService {
 
 ///Supported tasks for cloud platforms
 ///
-/// # Options:
-///```no_run
-/// # use crypt_lib::util::directive::CloudTask;
-/// CloudTask::Upload
-/// CloudTask::Download
-/// CloudTask::View
-///```
+/// # Options:  
+/// ```
+/// * CloudTask::Upload
+/// * CloudTask::Download
+/// * CloudTask::View 
+/// ```
 #[derive(Debug)]
 pub enum CloudTask {
     Upload,
@@ -151,7 +148,7 @@ impl UserToken {
         if user_token.is_some() {
             return user_token.unwrap();
         }
-        
+
         // Set up the config for the Google OAuth2 process.
         let client = BasicClient::new(
             ClientId::new(drive::GOOGLE_CLIENT_ID.to_string()),
@@ -175,10 +172,10 @@ impl UserToken {
             .set_response_type(&ResponseType::new("token".to_string()))
             .url();
 
-        directive::send_information(vec![
-            format!("Open this URL to authorize this application:\n{}\n",
-            authorize_url)
-        ]);
+        directive::send_information(vec![format!(
+            "Open this URL to authorize this application:\n{}\n",
+            authorize_url
+        )]);
         let mut token: Option<String> = None;
         let mut expires_in: Option<u64> = None;
 
@@ -244,37 +241,32 @@ impl UserToken {
                     let body = String::from_utf8(body_buffer).unwrap();
 
                     //Extract the token
-                    let body_parts: HashMap<_, _> = 
-                        form_urlencoded::parse(&body.as_bytes())
-                            .into_owned()
-                            .collect();
-                    token = body_parts.get("access_token")
-                        .cloned();
-                    expires_in = body_parts.get("expires_in")
+                    let body_parts: HashMap<_, _> = form_urlencoded::parse(&body.as_bytes())
+                        .into_owned()
+                        .collect();
+                    token = body_parts.get("access_token").cloned();
+                    expires_in = body_parts
+                        .get("expires_in")
                         .and_then(|v| v.parse::<u64>().ok());
 
                     //Respond to close connection
                     let response = "HTTP/1.1 200 OK\r\n\r\n";
                     stream.write_all(response.as_bytes()).unwrap();
                     break; //shut down server
-                }    
+                }
             }
         }
         let token = match token {
             Some(token) => token,
             None => {
-                send_information(vec![
-                    format!("Unable to get access token")
-                ]);
+                send_information(vec![format!("Unable to get access token")]);
                 "".to_string()
             }
         };
         let expires_in = match expires_in {
             Some(expires_in) => expires_in,
             None => {
-                send_information(vec![
-                    format!("Unable to get token expiration information")
-                ]);
+                send_information(vec![format!("Unable to get token expiration information")]);
                 0
             }
         };
@@ -287,7 +279,8 @@ impl UserToken {
             expiration: SystemTime::now()
                 .duration_since(UNIX_EPOCH)
                 .expect("Somehow, time has gone backwards")
-                .as_secs() + expires_in,
+                .as_secs()
+                + expires_in,
             access_token: token.to_string(),
         };
 
@@ -347,11 +340,11 @@ fn get_access_token(service: CloudService) -> Option<UserToken> {
             match user_token.expiration > current_time {
                 true => {
                     user_token.access_token = decrypt_token(&user_token, access_token);
-                    return Some(user_token)
-                },
+                    return Some(user_token);
+                }
                 false => return None,
             }
-        },
+        }
         Err(_) => return None,
     }
 }
@@ -363,7 +356,7 @@ fn save_access_token(user_token: &UserToken) -> anyhow::Result<()> {
         CloudService::Dropbox => DROPBOX_TOKEN_PATH.as_str(),
     };
     let token = encrypt_token(user_token)?;
-    
+
     fs::write(path, token)?;
 
     return Ok(());

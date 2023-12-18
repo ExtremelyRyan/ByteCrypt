@@ -1,8 +1,7 @@
+use crate::util::config;
 use anyhow::{Ok, Result};
 use std::{fs, path::PathBuf};
 use walkdir::WalkDir;
-use crate::util::config;
-
 
 /// given a path, dissect and return a struct containing the full path, is_dir, parent path, and name.
 ///

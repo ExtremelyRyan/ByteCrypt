@@ -1,14 +1,14 @@
 use crate::{
+    cloud_storage::oauth::UserToken,
     database::crypt_keeper,
     util::{self, common::write_contents_to_file, config::Config, *},
-    cloud_storage::oauth::UserToken,
 };
 use anyhow::Result;
 use blake2::Blake2s256;
 use blake2::Digest;
 use chacha20poly1305::{
     aead::{Aead, AeadCore, KeyInit, OsRng},
-    ChaCha20Poly1305, Nonce, Key
+    ChaCha20Poly1305, Key, Nonce,
 };
 use log::*;
 use rand::RngCore;
@@ -42,7 +42,7 @@ impl FileCrypt {
         full_path: PathBuf,
         hash: [u8; 32],
     ) -> Self {
-        // generate key & nonce 
+        // generate key & nonce
         let (key, nonce) = generate_seeds();
 
         // generate file uuid
@@ -132,7 +132,7 @@ pub fn decompress(contents: &[u8]) -> Vec<u8> {
 pub fn generate_seeds() -> ([u8; KEY_SIZE], [u8; NONCE_SIZE]) {
     let key: [u8; KEY_SIZE] = ChaCha20Poly1305::generate_key(&mut OsRng).into();
     let nonce: [u8; NONCE_SIZE] = ChaCha20Poly1305::generate_nonce(&mut OsRng).into();
-    (key , nonce)
+    (key, nonce)
 }
 
 pub fn decrypt(fc: FileCrypt, contents: &Vec<u8>) -> Result<Vec<u8>> {
@@ -145,10 +145,7 @@ pub fn decrypt(fc: FileCrypt, contents: &Vec<u8>) -> Result<Vec<u8>> {
     Ok(cipher)
 }
 
-pub fn decrypt_file(
-    path: &str,
-    output: Option<String>,
-) -> Result<(), EncryptErrors> {
+pub fn decrypt_file(path: &str, output: Option<String>) -> Result<(), EncryptErrors> {
     let conf = config::get_config();
     // get path to encrypted file
     let fp = util::path::get_full_file_path(path).unwrap();
@@ -289,7 +286,13 @@ pub fn encrypt_file(path: &str, in_place: bool) {
     let binding = util::common::get_file_bytes(path);
     let mut contents = binding.as_slice();
 
-    let fc = FileCrypt::new(filename, extension, "".to_string(), fp, compute_hash(contents));
+    let fc = FileCrypt::new(
+        filename,
+        extension,
+        "".to_string(),
+        fp,
+        compute_hash(contents),
+    );
 
     // zip contents
     let binding = compress(contents, conf.zstd_level);
