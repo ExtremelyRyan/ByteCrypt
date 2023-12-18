@@ -6,10 +6,6 @@
  
 Encryption command line application on single file or entire directories.
 
-Currently Working:
-
- - [] upload and download encrypted files to popular cloud storage providers such as Google Drive, Dropbox, Box, etc..
-
 <h2 align="center"><FONT COLOR="RED">CAUTION </FONT></h2>
 <h3>this is very much a <b>work in progress</b>, and is undergoing rapid development that may break between commits.</h3>
 
@@ -20,7 +16,16 @@ ByteCrypt came about because I wanted the conveience of using all of the popular
 I also wanted a way for people who are not adept in encryption, computers, etc. to be able to get a simple program that they can use as a additional layer of security to protect their most senitive files, while maintaining ease of use.
 
 ### Encryption
- ByteCrypt uses [chacha20poly1305](https://en.wikipedia.org/wiki/ChaCha20-Poly1305) for it's encryption, ensuring fast yet secure encryption for your files.
+ByteCrypt uses [chacha20poly1305](https://en.wikipedia.org/wiki/ChaCha20-Poly1305) ([RFC 8439](https://datatracker.ietf.org/doc/html/rfc8439)) for it's encryption, using 256-bit keys and a unique 96-bit nonce for every file.
+
+### Compression
+file size can quickly get out of hand, especially when you are backing up to the cloud. That's why we use [Zstandard](https://en.wikipedia.org/wiki/Zstd) to compress files before encryption.
+
+You can configure your level of compression from the configuration file.
+
+### Storage
+by default, we store a backup `.crypt` when encrypting, so you can be sure to always have a local copy.
+
 
 ## Getting Started
 
@@ -82,6 +87,15 @@ email: <thebytecrypt@gmail.com>
 
 * 0.1 WIP
     * Initial Release
+
+## Current issues:
+
+1. Cloud Upload & Download
+    * Currently still in the testing phase, and will not be available to the public until cloud submission to google.    
+2. missing status messages when doing encryption / decryption. 
+
+
+
 
 ## License
 
