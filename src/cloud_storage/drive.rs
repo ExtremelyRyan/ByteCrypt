@@ -1,8 +1,19 @@
-use super::oauth::UserToken;
+use async_recursion::async_recursion;
+use crate::{
+    cloud_storage::oauth::UserToken,
+    util::{
+        directive::{DirInfo, FileInfo, FileSystemEntity},
+        path::get_full_file_path,
+    },
+};
 use http::Response;
 use reqwest::header::{CONTENT_LENGTH, CONTENT_RANGE, LOCATION};
 use serde_json::{from_reader, Value};
-use std::path::PathBuf;
+use std::{
+    future::Future,
+    path::PathBuf,
+    pin::Pin,
+};
 use tokio::io::AsyncReadExt;
 
 const GOOGLE_FOLDER: &str = "Crypt";
@@ -262,4 +273,92 @@ pub async fn g_view(name: &str, creds: UserToken) -> anyhow::Result<Vec<String>>
     } else {
         Err(anyhow::Error::msg("Could not query folder"))
     }
+}
+
+pub async fn g_walk(name: &str, creds: UserToken) -> anyhow::Result<DirInfo> {
+    let client = reqwest::Client::new();
+    //Get the folder id
+    let query = format!(
+        "name = '{}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false",
+        name
+    );
+    let url = format!("https://www.googleapis.com/drive/v3/files?q={}", query);
+    let response = client
+        .get(url)
+        .bearer_auth(&creds.access_token)
+        .send()
+        .await?;
+    //If drive query failed, break out and print error
+    if !response.status().is_success() {
+        return Err(anyhow::Error::msg(format!("{:?}", response.text().await?)));
+    }
+    //Search through response and return id
+    let folders = response.json::<Value>().await?;
+    for item in folders["files"].as_array().unwrap_or(&vec![]) {
+        if item["name"].as_str() == Some(name) {
+            if let Some(id) = item["id"].as_str() {
+                return walk_cloud(&client, id, &creds).await;
+            }
+        }
+    }
+
+    return Err(anyhow::Error::msg("Folder not found"));
+}
+
+
+#[async_recursion]
+async fn walk_cloud(
+    client: &reqwest::Client, folder_id: &str, creds: &UserToken 
+) ->  anyhow::Result<DirInfo> {
+    let mut contents = Vec::new();
+    let url = format!(
+        "https://www.googleapis.com/drive/v3/files?q='{}' in parents",
+        folder_id
+    );
+    let response = client
+        .get(&url)
+        .bearer_auth(&creds.access_token)
+        .send()
+        .await?;
+
+    if !response.status().is_success() {
+        return Err(anyhow::Error::msg("Could not view folder"));
+    }
+
+    let files = response.json::<Value>().await?;
+    if let Some(array) = files["files"].as_array() {
+        for item in array {
+            let name = item["name"].as_str().unwrap_or_default().to_string();
+            let id = item["id"].as_str().unwrap_or_default().to_string();
+
+            if item["mimeType"] == "application/vnd.google-apps.folder" {
+                let dir_info = walk_cloud(client, &id, creds).await?;
+                contents.push(FileSystemEntity::Directory(dir_info));
+            } else {
+                contents.push(FileSystemEntity::File(FileInfo {name, id}));
+            }
+        }
+    }
+
+    let url = format!(
+        "https://www.googleapis.com/drive/v3/files/{}", folder_id
+    );
+
+    let dir_name = client
+        .get(&url)
+        .bearer_auth(&creds.access_token)
+        .send()
+        .await?
+        .json::<Value>()
+        .await?["name"]
+        .as_str()
+        .unwrap_or_default()
+        .to_string();
+
+    Ok(DirInfo { 
+        name: dir_name,
+        id: folder_id.to_string(), 
+        expanded: true, 
+        contents,  
+    })
 }
