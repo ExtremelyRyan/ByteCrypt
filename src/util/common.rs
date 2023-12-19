@@ -29,6 +29,7 @@ pub fn get_file_bytes(path: &str) -> Vec<u8> {
     std::fs::read(path).expect("Can't open/read file!")
 }
 
+/// 
 pub fn write_contents_to_file(file: &str, contents: Vec<u8>) -> Result<()> {
     let mut f = OpenOptions::new()
         .write(true)
@@ -81,35 +82,6 @@ impl Convert for PathBuf {
     fn string(&self) -> String {
         self.display().to_string()
     }
-}
-
-pub enum Cloud {
-    Drive,
-    Dropbox,
-}
-
-/// depending on which cloud provider we are using, store the token in the user environment.
-pub fn get_token(cloud: Cloud) -> Option<String> {
-    let key = match cloud {
-        Cloud::Drive => "CRYPT_DRIVE_TOKEN",
-        Cloud::Dropbox => "CRYPT_DROPBOX_TOKEN",
-    };
-    match std::env::var(key) {
-        std::result::Result::Ok(val) => Some(val),
-        Err(e) => {
-            log::error!("issue getting token!: {e}");
-            None
-        }
-    }
-}
-
-/// depending on which cloud provider we are using, store the token in the user environment.
-pub fn store_token(token: &String, cloud: Cloud) {
-    let key = match cloud {
-        Cloud::Drive => "CRYPT_DRIVE_TOKEN",
-        Cloud::Dropbox => "CRYPT_DROPBOX_TOKEN",
-    };
-    std::env::set_var(key, token);
 }
 
 #[cfg(test)]
