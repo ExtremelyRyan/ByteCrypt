@@ -55,7 +55,9 @@ pub fn build_tree(dir_info: &DirInfo, depth: usize, last: bool) -> Vec<String> {
     let not_last = format!("{}   ", char_set.v_line);
     
     let mut tree: Vec<String> = Vec::new();
+
     if depth > 0 {
+        indent += if last {"    "} else {not_last.as_str()};
         indent =  "    ".repeat(depth - 1);
         if last {
             indent.push_str("    ");
@@ -315,7 +317,7 @@ impl Directive {
                     oauth::CloudTask::View => {
                         let items2 = runtime
                             .block_on(drive::g_walk(&self.path, user_token))
-                            .expect("huururrrurururu");
+                            .expect("Could not view directory information");
                         send_information(build_tree(&items2, 0, false));
                     }
                 }

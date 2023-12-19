@@ -312,7 +312,7 @@ async fn walk_cloud(
 ) ->  anyhow::Result<DirInfo> {
     let mut contents = Vec::new();
     let url = format!(
-        "https://www.googleapis.com/drive/v3/files?q='{}' in parents",
+        "https://www.googleapis.com/drive/v3/files?q='{}' in parents and trashed = false",
         folder_id
     );
     let response = client
