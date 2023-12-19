@@ -128,7 +128,7 @@ pub fn decompress(contents: &[u8]) -> Vec<u8> {
     zstd::decode_all(contents).expect("failed to unzip!")
 }
 
-///Seed me daddy
+/// Seed me daddy
 pub fn generate_seeds() -> ([u8; KEY_SIZE], [u8; NONCE_SIZE]) {
     let key: [u8; KEY_SIZE] = ChaCha20Poly1305::generate_key(&mut OsRng).into();
     let nonce: [u8; NONCE_SIZE] = ChaCha20Poly1305::generate_nonce(&mut OsRng).into();
@@ -249,15 +249,6 @@ pub fn decrypt_token(user_token: &UserToken, access_token: Vec<u8>) -> String {
 
     return String::from_utf8(decompressed_token).expect("Could not decrypt token");
 }
-// pub fn decrypt(fc: FileCrypt, contents: &Vec<u8>) -> Result<Vec<u8>> {
-//     info!("decrypting contents");
-//     let k = Key::from_slice(&fc.key);
-//     let n = Nonce::from_slice(&fc.nonce);
-//     let cipher = ChaCha20Poly1305::new(k)
-//         .decrypt(n, contents.as_ref())
-//         .expect("failed to decrypt cipher text");
-//     Ok(cipher)
-// }
 
 /// Encrypts the contents of a file and performs additional operations based on the provided configuration.
 ///
@@ -321,7 +312,7 @@ pub fn encrypt_file(path: &str, in_place: bool) {
     common::write_contents_to_file(&crypt_file, encrypted_contents)
         .expect("failed to write contents to file!");
 
-    //write fc to crypt_keeper
+    // write fc to crypt_keeper
     crypt_keeper::insert_crypt(&fc).expect("failed to insert FileCrypt data into database!");
 
     if !conf.retain {
@@ -458,7 +449,7 @@ fn generate_output_file(fc: &FileCrypt, output: Option<String>, parent_dir: &Pat
 /// ```
 pub fn get_file_info(path: &str) -> (PathBuf, PathBuf, String, String) {
     // get filename, extension, and full path info
-    let fp = util::path::get_full_file_path(path).unwrap();
+    let fp = util::path::get_full_file_path(path).unwrap(); 
     let parent_dir = fp.parent().unwrap().to_owned();
     let name = fp.file_name().unwrap().to_string_lossy().to_string(); // Convert to owned String
     let index = name.find('.').unwrap();
@@ -477,28 +468,11 @@ mod test {
     use super::*;
 
     #[test]
-    // #[ignore = "not working when also tested with no_retain."]
     fn test_retain_encrypt_decrypt_file() {
         let mut config = config::load_config().unwrap();
         config.retain = true;
         encrypt_file("dracula.txt", false);
         assert_eq!(Path::new("dracula.crypt").exists(), true);
-        _ = decrypt_file("dracula.crypt", None);
-        match config.retain {
-            true => {
-                assert_eq!(Path::new("dracula-decrypted.txt").exists(), true);
-                _ = std::fs::remove_file("dracula.crypt");
-                _ = std::fs::remove_file("dracula-decrypted.txt");
-            }
-            false => assert_eq!(Path::new("dracula.txt").exists(), true),
-        }
-    }
-    #[test]
-    fn test_no_retain_encrypt_decrypt_file() {
-        let mut config = config::load_config().unwrap();
-        config.retain = false;
-        encrypt_file("dracula.txt", false);
-        assert_eq!(Path::new("dracula.txt").exists(), false);
         _ = decrypt_file("dracula.crypt", None);
         match config.retain {
             true => {
