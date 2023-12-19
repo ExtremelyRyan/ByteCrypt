@@ -46,6 +46,12 @@ impl DirInfo {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct FileInfo {
+    pub name: String,
+    pub id: String,
+}
+
 ///Builds a file tree with given DirInfo struct
 pub fn build_tree(dir_info: &DirInfo, depth: usize, last: bool) -> Vec<String> {
     let char_set = CharacterSet::U8_SLINE_CURVE;
@@ -56,19 +62,20 @@ pub fn build_tree(dir_info: &DirInfo, depth: usize, last: bool) -> Vec<String> {
     
     let mut tree: Vec<String> = Vec::new();
 
-    if depth > 0 {
-        indent += if last {"    "} else {not_last.as_str()};
-        indent =  "    ".repeat(depth - 1);
-        if last {
-            indent.push_str("    ");
+    if depth != 0 {
+        indent = if last {
+            "    ".repeat(depth)
         } else {
-            indent.push_str(not_last.as_str());
-        }
+            if depth > 1 {
+                not_last.clone() + "    ".repeat(depth - 2).as_str() + not_last.as_str()
+            } else {
+                not_last + "    ".repeat(depth - 1).as_str()  
+            }
+        };
+    } else {
+        tree.push(format!("{}", dir_color.paint(&dir_info.name).to_string()));
     }
 
-    if depth == 0 {
-        tree.push(format!("{}", dir_color.paint(&dir_info.name).to_string()));
-    } 
 
     for (index, item) in dir_info.contents.iter().enumerate() {
         let is_last = index == dir_info.contents.len() - 1;
@@ -83,7 +90,6 @@ pub fn build_tree(dir_info: &DirInfo, depth: usize, last: bool) -> Vec<String> {
                     "{}{}{} {}", indent, prefix, hline, 
                     dir_color.paint(&subdir.name).to_string()
                 ));
-
                 let mut subtree = build_tree(subdir, depth + 1, is_last);
                 tree.append(&mut subtree);
             },
@@ -94,11 +100,43 @@ pub fn build_tree(dir_info: &DirInfo, depth: usize, last: bool) -> Vec<String> {
 }
 
 
-#[derive(Debug, Clone)]
-pub struct FileInfo {
-    pub name: String,
-    pub id: String,
+pub fn build_tree_again(dir_info: &DirInfo, depth: usize, is_root: bool) -> Vec<String> {
+    let char_set = CharacterSet::U8_SLINE_CURVE;
+    let dir_color = Color::Blue.bold();
+    let joint = format!("{}{}{} ", char_set.joint, char_set.h_line, char_set.h_line);
+    let node = format!("{}{}{} ", char_set.node, char_set.h_line, char_set.h_line);
+    let vline = format!("{}   ", char_set.v_line);
+    
+    let mut tree: Vec<String> = Vec::new();
+
+    if is_root {
+        tree.push(dir_color.paint(&dir_info.name).to_string());
+    }
+
+    for (index, entity) in dir_info.contents.iter().enumerate() {
+        let is_last = index == dir_info.contents.len() - 1;
+        let prefix = if is_last { &node } else { &joint };
+
+        let mut indent = String::new();
+        if depth > 0 {
+            indent = vline.repeat(depth - 1) + if is_last {"    "} else { vline.as_str() };
+        }
+
+        match entity {
+            FileSystemEntity::File(file) => {
+                tree.push(indent.clone() + prefix + &file.name);
+            },
+            FileSystemEntity::Directory(subdir) => {
+                tree.push(indent.clone() + prefix + dir_color.paint(&subdir.name).to_string().as_str());
+                tree.extend(build_tree_again(subdir, depth + 1, false));
+            },
+        }
+        
+    }
+
+    return tree;
 }
+
 
 
 ///Base information required for all directive calls
@@ -318,7 +356,7 @@ impl Directive {
                         let items2 = runtime
                             .block_on(drive::g_walk(&self.path, user_token))
                             .expect("Could not view directory information");
-                        send_information(build_tree(&items2, 0, false));
+                        send_information(build_tree_again(&items2, 0, true));
                     }
                 }
             }
