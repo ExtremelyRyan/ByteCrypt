@@ -1,0 +1,12 @@
+[workspace]
+
+workspace.resolver = "2"
+
+default-run = "crypt"
+
+members = [
+    "crypt",
+    "crypt-core",
+    "crypt-ui",
+    "crypt-cloud",
+]
