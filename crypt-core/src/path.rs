@@ -1,62 +1,10 @@
 use anyhow::{Ok, Result};
-use std::{fs, path::PathBuf};
+use std::{fs::{self, File}, path::PathBuf};
 use walkdir::WalkDir;
 
-use crate::config;
+use crate::{config, common::{PathInfo, FileSystemEntity, FileInfo, DirInfo}};
 
-/// given a path, dissect and return a struct containing the full path, is_dir, parent path, and name.
-///
-/// # Example
-/// <b>assuming current working directory is `C:/test/folder1/`</b>
-/// ```no_run
-/// # use crypt_lib::util::encryption::get_file_info;
-/// # use std::path::PathBuf;
-/// let path = "file.txt";
-/// let info = PathInfo::new(path);
-/// assert_eq!(info.full_path, PathBuf::from("C:\\test\\folder1\\file.txt"));
-/// assert_eq!(info.is_dir, PathBuff::from("C\\test\\folder1\\file.txt").is_dir());
-/// assert_eq!(info.parent, PathBuf::from("C:\\test\\folder1"));
-/// assert_eq!(info.name, "file.txt");
-/// ```
-#[derive(Debug, Clone)]
-pub struct PathInfo {
-    pub full_path: PathBuf,
-    pub is_dir: bool,
-    pub parent: PathBuf,
-    pub name: String,
-}
 
-impl PathInfo {
-    pub fn new(path: &str) -> Self {
-        let full_path = match path.is_empty() {
-            true => std::env::current_dir().unwrap(),
-            false => get_full_file_path(path).unwrap(),
-        };
-
-        Self {
-            is_dir: full_path.is_dir(),
-            parent: full_path.parent().unwrap().to_owned(),
-            name: full_path.file_name().unwrap().to_string_lossy().to_string(),
-            full_path,
-        }
-    }
-}
-
-///Directory struct
-#[derive(Debug)]
-pub struct DirInfo {
-    // pub path: PathBuf,
-    pub path: PathInfo,
-    pub expanded: bool,
-    pub contents: Vec<FileSystemEntity>,
-}
-
-///FileSystemEntity enum
-#[derive(Debug)]
-pub enum FileSystemEntity {
-    File(PathInfo),
-    Directory(DirInfo),
-}
 
 ///Generates a directory to convert into strings
 pub fn generate_directory(path: &PathBuf) -> anyhow::Result<DirInfo> {
@@ -84,7 +32,7 @@ pub fn generate_directory(path: &PathBuf) -> anyhow::Result<DirInfo> {
                 }));
             } else {
                 root.contents
-                    .push(FileSystemEntity::File(PathInfo::new(p.as_str())));
+                    .push(FileSystemEntity::File(FileInfo::new(p.as_str())));
             }
         }
     }

@@ -1,9 +1,10 @@
-use crypt_core::token::UserToken;
+use crypt_core::{token::UserToken, path::DirInfo, path::PathInfo, common::{FileInfo, FileSystemEntity}};
 
 use reqwest::header::{CONTENT_LENGTH, CONTENT_RANGE, LOCATION};
 use serde_json::Value;
 use std::path::PathBuf;
 use tokio::io::AsyncReadExt;
+use async_recursion::async_recursion;
 
 const GOOGLE_FOLDER: &str = "Crypt";
 pub const GOOGLE_CLIENT_ID: &str =
@@ -131,14 +132,18 @@ pub async fn g_create_folder(
         }
     }
     // println!("Error creating folder: {:?}", response.text().await?);
-    Err(anyhow::Error::msg("Could not create folder".to_string()))
+    return Err(anyhow::Error::msg("Could not create folder".to_string()));
 }
 
 ///Uploads a file to google drive
 pub async fn g_upload(creds: UserToken, path: &str, parent: String) -> anyhow::Result<()> {
     //Get file content
     let mut file = tokio::fs::File::open(path).await?;
-    let file_name = std::path::Path::new(path).file_name().unwrap();
+    let file_name = std::path::Path::new(path)
+        .file_name()
+        .unwrap()
+        .to_str()
+        .unwrap();
     let file_size = std::fs::metadata(path)?.len();
 
     let client = reqwest::Client::new();
@@ -258,4 +263,91 @@ pub async fn g_view(name: &str, creds: UserToken) -> anyhow::Result<Vec<String>>
     } else {
         Err(anyhow::Error::msg("Could not query folder"))
     }
+}
+
+pub async fn g_walk(name: &str, creds: UserToken) -> anyhow::Result<DirInfo> {
+    let client = reqwest::Client::new();
+    //Get the folder id
+    let query = format!(
+        "name = '{}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false",
+        name
+    );
+    let url = format!("https://www.googleapis.com/drive/v3/files?q={}", query);
+    let response = client
+        .get(url)
+        .bearer_auth(&creds.access_token)
+        .send()
+        .await?;
+    //If drive query failed, break out and print error
+    if !response.status().is_success() {
+        return Err(anyhow::Error::msg(format!("{:?}", response.text().await?)));
+    }
+    //Search through response and return id
+    let folders = response.json::<Value>().await?;
+    for item in folders["files"].as_array().unwrap_or(&vec![]) {
+        if item["name"].as_str() == Some(name) {
+            if let Some(id) = item["id"].as_str() {
+                return walk_cloud(&client, id, &creds).await;
+            }
+        }
+    }
+
+    return Err(anyhow::Error::msg("Folder not found"));
+}
+
+
+#[async_recursion]
+async fn walk_cloud(
+    client: &reqwest::Client, folder_id: &str, creds: &UserToken 
+) ->  anyhow::Result<DirInfo> {
+    let mut contents = Vec::new();
+    let url = format!(
+        "https://www.googleapis.com/drive/v3/files?q='{}' in parents and trashed = false",
+        folder_id
+    );
+    let response = client
+        .get(&url)
+        .bearer_auth(&creds.access_token)
+        .send()
+        .await?;
+
+    if !response.status().is_success() {
+        return Err(anyhow::Error::msg("Could not view folder"));
+    }
+
+    let files = response.json::<Value>().await?;
+    if let Some(array) = files["files"].as_array() {
+        for item in array {
+            let name = item["name"].as_str().unwrap_or_default().to_string();
+            let id = item["id"].as_str().unwrap_or_default().to_string();
+
+            if item["mimeType"] == "application/vnd.google-apps.folder" {
+                let dir_info = walk_cloud(client, &id, creds).await?;
+                contents.push(FileSystemEntity::Directory(dir_info));
+            } else {
+                contents.push(FileSystemEntity::File(FileInfo {name, id}));
+            }
+        }
+    }
+
+    let url = format!(
+        "https://www.googleapis.com/drive/v3/files/{}", folder_id
+    );
+
+    let dir_name = client
+        .get(&url)
+        .bearer_auth(&creds.access_token)
+        .send()
+        .await?
+        .json::<Value>()
+        .await?["name"]
+        .as_str()
+        .unwrap_or_default()
+        .to_string();
+
+    Ok(DirInfo { 
+        path: PathInfo::new(dir_name.as_str()),
+        expanded: true, 
+        contents,
+    })
 }

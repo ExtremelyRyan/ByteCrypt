@@ -1,6 +1,7 @@
+use ansi_term::Color;
 use crypt_cloud::drive;
 use crypt_core::{
-    common::{print_information, send_information},
+    common::send_information,
     config::{self, Config, ConfigTask, ItemsTask},
     filecrypt::{decrypt_file, encrypt_file},
     path::{get_full_file_path, walk_directory, walk_paths, PathInfo},
@@ -10,6 +11,10 @@ use crypt_core::{
 use std::{collections::HashMap, path::PathBuf};
 use tokio::runtime::Runtime;
 
+use crate::tui::CharacterSet;
+
+
+
 ///Base information required for all directive calls
 ///
 /// # Example
@@ -17,10 +22,16 @@ use tokio::runtime::Runtime;
 /// # use crypt_lib::util::directive::Directive;
 /// let directive = Directive::new("relevant/file.path".to_string());
 ///```
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct Directive {
     path: String,
 }
+
+impl Default for Directive {
+    fn default() -> Self {
+        Self{ path: String::new() }
+    }
+} 
 
 impl Directive {
     ///Creates a directive with the requisite path
@@ -224,11 +235,10 @@ impl Directive {
                         todo!()
                     }
                     CloudTask::View => {
-                        let items = runtime
-                            .block_on(drive::g_view(&self.path, user_token))
-                            .expect("Unable to retrieve drive information");
-                        //check if CLI or etc...
-                        print_information(items);
+                        let items2 = runtime
+                            .block_on(drive::g_walk(&self.path, user_token))
+                            .expect("Could not view directory information");
+                        send_information(build_tree_again(&items2, 0, true));
                     }
                 }
             }
@@ -333,7 +343,9 @@ impl Directive {
 
             ConfigTask::LoadDefault => match config.restore_default() {
                 true => send_information(vec![format!("Default configuration has been restored")]),
-                false => send_information(vec![format!("Error loading defaults")]),
+                false => send_information(vec![format!(
+                    "An error has occured attmepting to load defaults"
+                )]),
             },
         };
     }
