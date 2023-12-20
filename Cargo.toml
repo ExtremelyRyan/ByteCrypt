@@ -35,6 +35,8 @@ rand = "0.8"
 #General 
 anyhow = "1.0.75"
 
+google-drive = "0.7"
+
 #OAuth2
 oauth2 = "4.4.0" #latest 4.4.2
 reqwest = { version = "0.11", features = ["json"] } # HTTP client

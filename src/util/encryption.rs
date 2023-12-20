@@ -449,7 +449,7 @@ fn generate_output_file(fc: &FileCrypt, output: Option<String>, parent_dir: &Pat
 /// ```
 pub fn get_file_info(path: &str) -> (PathBuf, PathBuf, String, String) {
     // get filename, extension, and full path info
-    let fp = util::path::get_full_file_path(path).unwrap(); 
+    let fp = util::path::get_full_file_path(path).unwrap();
     let parent_dir = fp.parent().unwrap().to_owned();
     let name = fp.file_name().unwrap().to_string_lossy().to_string(); // Convert to owned String
     let index = name.find('.').unwrap();

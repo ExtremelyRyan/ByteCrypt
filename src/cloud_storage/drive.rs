@@ -1,4 +1,3 @@
-use async_recursion::async_recursion;
 use crate::{
     cloud_storage::oauth::UserToken,
     util::{
@@ -6,14 +5,11 @@ use crate::{
         path::get_full_file_path,
     },
 };
+use async_recursion::async_recursion;
 use http::Response;
 use reqwest::header::{CONTENT_LENGTH, CONTENT_RANGE, LOCATION};
 use serde_json::{from_reader, Value};
-use std::{
-    future::Future,
-    path::PathBuf,
-    pin::Pin,
-};
+use std::{future::Future, path::PathBuf, pin::Pin};
 use tokio::io::AsyncReadExt;
 
 const GOOGLE_FOLDER: &str = "Crypt";
@@ -305,11 +301,12 @@ pub async fn g_walk(name: &str, creds: UserToken) -> anyhow::Result<DirInfo> {
     return Err(anyhow::Error::msg("Folder not found"));
 }
 
-
 #[async_recursion]
 async fn walk_cloud(
-    client: &reqwest::Client, folder_id: &str, creds: &UserToken 
-) ->  anyhow::Result<DirInfo> {
+    client: &reqwest::Client,
+    folder_id: &str,
+    creds: &UserToken,
+) -> anyhow::Result<DirInfo> {
     let mut contents = Vec::new();
     let url = format!(
         "https://www.googleapis.com/drive/v3/files?q='{}' in parents and trashed = false",
@@ -335,14 +332,12 @@ async fn walk_cloud(
                 let dir_info = walk_cloud(client, &id, creds).await?;
                 contents.push(FileSystemEntity::Directory(dir_info));
             } else {
-                contents.push(FileSystemEntity::File(FileInfo {name, id}));
+                contents.push(FileSystemEntity::File(FileInfo { name, id }));
             }
         }
     }
 
-    let url = format!(
-        "https://www.googleapis.com/drive/v3/files/{}", folder_id
-    );
+    let url = format!("https://www.googleapis.com/drive/v3/files/{}", folder_id);
 
     let dir_name = client
         .get(&url)
@@ -355,10 +350,10 @@ async fn walk_cloud(
         .unwrap_or_default()
         .to_string();
 
-    Ok(DirInfo { 
+    Ok(DirInfo {
         name: dir_name,
-        id: folder_id.to_string(), 
-        expanded: true, 
-        contents,  
+        id: folder_id.to_string(),
+        expanded: true,
+        contents,
     })
 }

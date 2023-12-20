@@ -13,6 +13,7 @@ use oauth2::{
 };
 use serde::{Deserialize, Serialize};
 use std::{
+    alloc::System,
     collections::HashMap,
     env, fs,
     io::{BufRead, BufReader, Read, Write},
@@ -100,7 +101,7 @@ impl From<String> for CloudService {
 /// ```
 /// * CloudTask::Upload
 /// * CloudTask::Download
-/// * CloudTask::View 
+/// * CloudTask::View
 /// ```
 #[derive(Debug)]
 pub enum CloudTask {
@@ -110,15 +111,6 @@ pub enum CloudTask {
 }
 
 ///Holds user authentication information
-///
-/// # Fields
-///```no_run
-/// service: CloudPlatform,
-/// key_seed: [u8; 32],
-/// nonce_seed: [u8; 12],
-/// expiration: u64,
-/// access_token: String,
-///```
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct UserToken {
     ///Platform the token is used for
@@ -134,6 +126,21 @@ pub struct UserToken {
 }
 
 impl UserToken {
+    pub fn new(
+        service: CloudService, 
+        expiration: u64,
+        access_token: String,
+    ) -> Self {
+        let (key_seed, nonce_seed) = generate_seeds();
+        Self {
+            service,
+            key_seed,
+            nonce_seed,
+            expiration,
+            access_token,
+        }
+    }
+
     /// Generate a new user token to use with Google Drive.
     /// - Prompts user with link to authenticate with google.
     /// - Once the user successfully authenticates, a token will be created.
@@ -271,18 +278,15 @@ impl UserToken {
             }
         };
         //Create the user_token
-        let (key_seed, nonce_seed) = generate_seeds();
-        let user_token = Self {
-            service: CloudService::Google,
-            key_seed,
-            nonce_seed,
-            expiration: SystemTime::now()
+        let user_token = UserToken::new(
+            CloudService::Google,
+            SystemTime::now()
                 .duration_since(UNIX_EPOCH)
                 .expect("Somehow, time has gone backwards")
                 .as_secs()
                 + expires_in,
-            access_token: token.to_string(),
-        };
+            token, 
+        );
 
         let _ = crypt_keeper::insert_token(&user_token);
         let _ = save_access_token(&user_token);

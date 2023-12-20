@@ -18,7 +18,6 @@ use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, ffi::OsStr, path::PathBuf};
 use tokio::runtime::Runtime;
 
-
 ///FileSystemEntity enum
 #[derive(Debug)]
 pub enum FileSystemEntity {
@@ -59,7 +58,7 @@ pub fn build_tree(dir_info: &DirInfo, depth: usize, last: bool) -> Vec<String> {
     let mut indent = String::new();
     let hline = char_set.h_line.to_string().repeat(2);
     let not_last = format!("{}   ", char_set.v_line);
-    
+
     let mut tree: Vec<String> = Vec::new();
 
     if depth != 0 {
@@ -69,36 +68,41 @@ pub fn build_tree(dir_info: &DirInfo, depth: usize, last: bool) -> Vec<String> {
             if depth > 1 {
                 not_last.clone() + "    ".repeat(depth - 2).as_str() + not_last.as_str()
             } else {
-                not_last + "    ".repeat(depth - 1).as_str()  
+                not_last + "    ".repeat(depth - 1).as_str()
             }
         };
     } else {
         tree.push(format!("{}", dir_color.paint(&dir_info.name).to_string()));
     }
 
-
     for (index, item) in dir_info.contents.iter().enumerate() {
         let is_last = index == dir_info.contents.len() - 1;
-        let prefix = if is_last {char_set.node} else {char_set.joint};
+        let prefix = if is_last {
+            char_set.node
+        } else {
+            char_set.joint
+        };
 
         match item {
             FileSystemEntity::File(file) => {
                 tree.push(format!("{}{}{} {}", indent, prefix, hline, file.name));
-            },
+            }
             FileSystemEntity::Directory(subdir) => {
                 tree.push(format!(
-                    "{}{}{} {}", indent, prefix, hline, 
+                    "{}{}{} {}",
+                    indent,
+                    prefix,
+                    hline,
                     dir_color.paint(&subdir.name).to_string()
                 ));
                 let mut subtree = build_tree(subdir, depth + 1, is_last);
                 tree.append(&mut subtree);
-            },
+            }
         }
     }
 
     return tree;
 }
-
 
 pub fn build_tree_again(dir_info: &DirInfo, depth: usize, is_root: bool) -> Vec<String> {
     let char_set = CharacterSet::U8_SLINE_CURVE;
@@ -106,7 +110,7 @@ pub fn build_tree_again(dir_info: &DirInfo, depth: usize, is_root: bool) -> Vec<
     let joint = format!("{}{}{} ", char_set.joint, char_set.h_line, char_set.h_line);
     let node = format!("{}{}{} ", char_set.node, char_set.h_line, char_set.h_line);
     let vline = format!("{}   ", char_set.v_line);
-    
+
     let mut tree: Vec<String> = Vec::new();
 
     if is_root {
@@ -119,25 +123,24 @@ pub fn build_tree_again(dir_info: &DirInfo, depth: usize, is_root: bool) -> Vec<
 
         let mut indent = String::new();
         if depth > 0 {
-            indent = vline.repeat(depth - 1) + if is_last {"    "} else { vline.as_str() };
+            indent = vline.repeat(depth - 1) + if is_last { "    " } else { vline.as_str() };
         }
 
         match entity {
             FileSystemEntity::File(file) => {
                 tree.push(indent.clone() + prefix + &file.name);
-            },
+            }
             FileSystemEntity::Directory(subdir) => {
-                tree.push(indent.clone() + prefix + dir_color.paint(&subdir.name).to_string().as_str());
+                tree.push(
+                    indent.clone() + prefix + dir_color.paint(&subdir.name).to_string().as_str(),
+                );
                 tree.extend(build_tree_again(subdir, depth + 1, false));
-            },
+            }
         }
-        
     }
 
     return tree;
 }
-
-
 
 ///Base information required for all directive calls
 ///
@@ -149,6 +152,12 @@ pub fn build_tree_again(dir_info: &DirInfo, depth: usize, is_root: bool) -> Vec<
 #[derive(Debug)]
 pub struct Directive {
     path: String,
+}
+
+impl Default for Directive {
+    fn default() -> Self { 
+        Self{ path: String::new() } 
+    }
 }
 
 impl Directive {
@@ -353,7 +362,7 @@ impl Directive {
                         todo!()
                     }
                     oauth::CloudTask::View => {
-                        let items2 = runtime
+                        let items2: DirInfo = runtime
                             .block_on(drive::g_walk(&self.path, user_token))
                             .expect("Could not view directory information");
                         send_information(build_tree_again(&items2, 0, true));
@@ -469,6 +478,8 @@ impl Directive {
     }
 }
 
+
+
 pub fn send_information(info: Vec<String>) {
     //TODO: Check which platform
     //CLI
@@ -476,5 +487,3 @@ pub fn send_information(info: Vec<String>) {
     //TODO: TUI
     //TODO: GUI
 }
-
-

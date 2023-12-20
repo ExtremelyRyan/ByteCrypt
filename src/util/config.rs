@@ -71,7 +71,7 @@ pub struct Config {
 
 ///Enum for storing each item in the config struct
 ///
-/// # Options: 
+/// # Options:
 /// * `ConfigTask::DatabasePath`
 /// * `ConfigTask::IgnoreItems`
 /// * `ConfigTask::Retain`
@@ -302,8 +302,6 @@ pub fn load_config() -> anyhow::Result<Config> {
                 "Error loading config: {}\nloading from default",
                 e
             )]);
-
-            
 
             //Save the config
             save_config(&config)?;

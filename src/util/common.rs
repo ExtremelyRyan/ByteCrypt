@@ -29,7 +29,7 @@ pub fn get_file_bytes(path: &str) -> Vec<u8> {
     std::fs::read(path).expect("Can't open/read file!")
 }
 
-/// 
+///
 pub fn write_contents_to_file(file: &str, contents: Vec<u8>) -> Result<()> {
     let mut f = OpenOptions::new()
         .write(true)
