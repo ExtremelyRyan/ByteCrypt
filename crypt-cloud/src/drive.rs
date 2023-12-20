@@ -138,9 +138,7 @@ pub async fn g_create_folder(
 pub async fn g_upload(creds: UserToken, path: &str, parent: String) -> anyhow::Result<()> {
     //Get file content
     let mut file = tokio::fs::File::open(path).await?;
-    let file_name = std::path::Path::new(path)
-        .file_name()
-        .unwrap();
+    let file_name = std::path::Path::new(path).file_name().unwrap();
     let file_size = std::fs::metadata(path)?.len();
 
     let client = reqwest::Client::new();

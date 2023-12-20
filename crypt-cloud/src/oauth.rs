@@ -1,12 +1,5 @@
-
-use crypt_core::{
-    common::{get_crypt_folder},
-};
+use crypt_core::common::get_crypt_folder;
 use lazy_static::lazy_static;
-
-
-
-
 
 lazy_static! {
     ///Path for the google user token
@@ -33,4 +26,3 @@ lazy_static! {
         format!("{}", path.display())
     };
 }
- 

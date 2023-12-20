@@ -2,7 +2,7 @@ use crate::{
     common::{get_crypt_folder, get_file_bytes, write_contents_to_file},
     config::get_config,
     db::{insert_crypt, query_crypt},
-    encryption::{decrypt},
+    encryption::decrypt,
     path::get_full_file_path,
 };
 use anyhow::Result;

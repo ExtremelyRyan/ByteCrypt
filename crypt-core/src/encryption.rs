@@ -1,6 +1,5 @@
 use anyhow::Result;
-use blake2::Blake2s256;
-use blake2::Digest;
+use blake2::{Blake2s256, Digest};
 use chacha20poly1305::{
     aead::{Aead, AeadCore, KeyInit, OsRng},
     ChaCha20Poly1305, Key, Nonce,
@@ -116,7 +115,7 @@ pub fn decrypt(fc: FileCrypt, contents: &Vec<u8>) -> Result<Vec<u8>> {
 ///
 /// The function panics if encryption using ChaCha20-Poly1305 fails.
 pub fn encrypt(fc: &FileCrypt, contents: &[u8]) -> Result<Vec<u8>> {
-    info!("encrypting contents");
+    info!("encrypting file contents");
     let k = Key::from_slice(&fc.key);
     let n = Nonce::from_slice(&fc.nonce);
     let cipher = ChaCha20Poly1305::new(k)

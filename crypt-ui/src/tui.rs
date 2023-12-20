@@ -1,15 +1,12 @@
-
-
-use anyhow::{Ok};
+use anyhow::Ok;
 use crossterm::{
     event::{self, KeyCode},
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
     ExecutableCommand,
 };
-use crypt_core::path::{FileSystemEntity, DirInfo, generate_directory};
+use crypt_core::path::{generate_directory, DirInfo, FileSystemEntity};
 use ratatui::{prelude::*, widgets::*};
-use std::io::{stdout};
-
+use std::io::stdout;
 
 ///Tracks cursor state
 pub struct Cursor {
@@ -90,12 +87,7 @@ fn draw_ui(frame: &mut Frame, cursor: &Cursor) {
         .split(menu_layout[1]);
 
     //Create and implement the buttons
-    let button_text = [
-        "Menu Option 1",
-        "Menu Option 2",
-        "Menu Option 3",
-        "Menu Option 4",
-    ];
+    let button_text = ["Option 1", "Option 2", "Option 3", "Option 4"];
     let sub_menu = [
         sub_menu_left[0],
         sub_menu_left[1],
@@ -320,7 +312,6 @@ pub fn format_directory<'a>(directory: &DirInfo, depth: usize, cursor: &Cursor) 
     Text::from(lines)
 }
 
- 
 #[derive(Clone, Copy)]
 pub struct CharacterSet {
     pub h_line: char,

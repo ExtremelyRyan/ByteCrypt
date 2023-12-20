@@ -1,7 +1,10 @@
 use clap::{Parser, Subcommand};
 
-use crypt_core::{config::{self, ConfigTask, ItemsTask}, token::{CloudTask, CloudService}, db::{import_keeper, export_keeper}};
-
+use crypt_core::{
+    config::{self, ConfigTask, ItemsTask},
+    db::{export_keeper, import_keeper},
+    token::{CloudService, CloudTask},
+};
 
 use crate::{directive::Directive, tui::load_tui};
 

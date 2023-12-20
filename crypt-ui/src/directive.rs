@@ -1,15 +1,14 @@
 use crypt_cloud::drive;
 use crypt_core::{
-    common::{send_information, print_information},
+    common::{print_information, send_information},
     config::{self, Config, ConfigTask, ItemsTask},
-    path::{get_full_file_path, PathInfo, walk_paths, walk_directory},
+    filecrypt::{decrypt_file, encrypt_file},
+    path::{get_full_file_path, walk_directory, walk_paths, PathInfo},
     token::CloudTask,
-    token::{UserToken, CloudService}, filecrypt::{decrypt_file, encrypt_file},
+    token::{CloudService, UserToken},
 };
 use std::{collections::HashMap, path::PathBuf};
 use tokio::runtime::Runtime;
-
-
 
 ///Base information required for all directive calls
 ///
@@ -18,8 +17,7 @@ use tokio::runtime::Runtime;
 /// # use crypt_lib::util::directive::Directive;
 /// let directive = Directive::new("relevant/file.path".to_string());
 ///```
-#[derive(Debug)]
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub struct Directive {
     path: String,
 }
@@ -335,9 +333,7 @@ impl Directive {
 
             ConfigTask::LoadDefault => match config.restore_default() {
                 true => send_information(vec![format!("Default configuration has been restored")]),
-                false => send_information(vec![format!(
-                    "Error loading defaults"
-                )]),
+                false => send_information(vec![format!("Error loading defaults")]),
             },
         };
     }

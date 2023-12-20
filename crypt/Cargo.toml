@@ -1,9 +1,27 @@
 [package]
 name = "crypt"
 version = "0.1.0"
+authors = ["Ryan M", "Joshua B"]
 edition = "2021"
+description = "file encryption application"
+documentation = "https://github.com/ExtremelyRyan/ByteCrypt"
+homepage = "https://github.com/ExtremelyRyan/ByteCrypt"
+repository = "https://github.com/ExtremelyRyan/ByteCrypt"
+readme = "README.md"
+keywords = ["encryption", "files"]
+categories = ["command-line-utilities", "file-encryption"]
+license = "MIT"
+rust-version = "1.70"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dev-dependencies]
+criterion = "0.5.1"
+rand = "0.8"
+
+[[bench]]
+name = "encryption_benchmark"
+harness = false
 
 [dependencies]
 
