@@ -66,11 +66,11 @@ pub fn build_tree(dir_info: &DirInfo) -> Vec<String> {
     let mut tree: Vec<String> = Vec::new();
     
     tree.push(format!("{}", dir_color.paint(&dir_info.name).to_string().as_str()));
-    tree.extend(tree_recursion(&dir_info, String::new(), String::new()));
+    tree.extend(tree_recursion(&dir_info, String::new()));
     return tree;
 }
 
-fn tree_recursion(dir_info: &DirInfo, path: String, prefix: String) -> Vec<String> {
+fn tree_recursion(dir_info: &DirInfo, path: String) -> Vec<String> {
     let mut tree: Vec<String> = Vec::new();
     let char_set = CharacterSet::U8_SLINE_CURVE;
     let dir_color = Color::Blue.bold();
@@ -115,7 +115,7 @@ fn tree_recursion(dir_info: &DirInfo, path: String, prefix: String) -> Vec<Strin
                 ));
                 let sub_path = if is_last {path.clone() + "    "} else {path.clone() + &vline};
                 if subdir.expanded {
-                    tree.extend(tree_recursion(subdir, sub_path, prefix.clone()));
+                    tree.extend(tree_recursion(subdir, sub_path));
                 }
             },
         }
