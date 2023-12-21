@@ -1,4 +1,6 @@
 use anyhow::{Ok, Result};
+use std::any::TypeId;
+use std::fs::File;
 use std::path::PathBuf;
 use std::process::Command;
 use std::{
@@ -49,6 +51,23 @@ pub enum FsNode {
     Directory(DirInfo),
 }
 
+impl FsNode {
+    pub fn get_kind(&self) -> (Option<FileInfo>,Option<DirInfo>) {
+        match self {
+            FsNode::File(f) => return (Some(f), None),
+            FsNode::Directory(d) => return (None, Some(d)),
+        }
+    }
+    /// Returns FsNode name and path
+    pub fn get_contents(&mut self) -> (String, String) {
+        match self {
+            FsNode::File(f) => return (self.name, self.path),
+            _ => (),
+        }
+        
+    }
+}
+
 ///Stores information about a file
 ///
 ///```ignore
@@ -70,6 +89,7 @@ impl FileInfo {
             path,
         }
     }
+
 }
 
 ///Stores information about a directory

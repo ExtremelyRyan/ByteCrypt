@@ -1,16 +1,16 @@
-use crypt_cloud::drive;
+use crypt_cloud::drive::{self, g_walk};
 use crypt_core::{
     config::{self, Config, ConfigTask, ItemsTask},
     filecrypt::{decrypt_file, encrypt_file},
     common::{
         get_full_file_path, walk_directory, 
         walk_paths,send_information, PathInfo,
-        build_tree,
+        build_tree, DirInfo, FileInfo,
     },
     token::CloudTask,
     token::{CloudService, UserToken}, db::{import_keeper, export_keeper},
 };
-use std::{collections::HashMap, path::PathBuf};
+use std::{collections::HashMap, path::PathBuf, any::Any};
 use tokio::runtime::Runtime;
 
 ///Base information required for all directive calls
@@ -222,15 +222,21 @@ impl Directive {
                         }
                     }
                     CloudTask::Download => {
-                        let path_info = PathInfo::new(&self.path);
-                        let paths =
-                            walk_paths(self.path.as_str());
-                        let paths: Vec<PathInfo> = paths
-                            .into_iter()
-                            .filter(|p| p.name != path_info.name)
-                            .collect();
-                        send_information(vec![format!("{:#?}", paths)]);
-                        todo!()
+                        runtime.block_on(drive::google_query_file("1MVo5in4JCOLJ9YzbVTkj9jAY9cHoH8C8",user_token));
+                        
+                        let res: DirInfo = runtime.block_on(g_walk("Crypt", user_token)).unwrap();
+                        // println!("{res:#?}");
+
+
+                        // testing: get all files from vec 
+                        for f in res.contents { 
+                            if f.get_kind().0.is_some() {
+                                println!("{}, {}", f.get_contents().0);
+                            }
+                            // let (name, path) = f.get_contents();
+                            // println!("name: {}, \t path: {}", name, path);
+                        }
+                        
                     }
                     CloudTask::View => {
                         let items2 = runtime

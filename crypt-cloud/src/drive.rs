@@ -1,3 +1,4 @@
+use anyhow::Ok;
 use crypt_core::{token::UserToken, common::DirInfo, common::{FileInfo, FsNode}};
 
 use reqwest::header::{CONTENT_LENGTH, CONTENT_RANGE, LOCATION};
@@ -273,6 +274,7 @@ pub async fn g_walk(name: &str, creds: UserToken) -> anyhow::Result<DirInfo> {
         name
     );
     let url = format!("https://www.googleapis.com/drive/v3/files?q={}", query);
+    
     let response = client
         .get(url)
         .bearer_auth(&creds.access_token)
@@ -293,6 +295,32 @@ pub async fn g_walk(name: &str, creds: UserToken) -> anyhow::Result<DirInfo> {
     }
 
     return Err(anyhow::Error::msg("Folder not found"));
+}
+
+
+/// Query google using file_id and download contents
+/// 
+/// TEMP: downloading 
+pub async fn google_query_file(file_id: &str, creds: UserToken) -> anyhow::Result<()> {
+    let client = reqwest::Client::new();
+    let url = format!("https://www.googleapis.com/drive/v3/files/{}?alt=media&source=downloadUrl", file_id);
+    
+    let response = client
+        .get(url)
+        .bearer_auth(&creds.access_token)
+        .send()
+        .await?;
+    //If drive query failed, break out and print error
+    if !response.status().is_success() {
+        return Err(anyhow::Error::msg(format!("{:?}", response.text().await?)));
+    }
+
+    let text = &response.bytes().await?;
+    std::fs::write("downloaded.crypt", text.to_vec());
+    // let text = response.json::<Value>().await?;
+    println!("HELLO?");
+    println!("text: {:?}", text);
+    Ok(()) 
 }
 
 
