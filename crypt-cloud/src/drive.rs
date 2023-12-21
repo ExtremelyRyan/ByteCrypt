@@ -1,4 +1,4 @@
-use crypt_core::{token::UserToken, common::DirInfo, common::PathInfo, common::{FileInfo, FileSystemEntity}};
+use crypt_core::{token::UserToken, common::DirInfo, common::{FileInfo, FileSystemEntity}};
 
 use reqwest::header::{CONTENT_LENGTH, CONTENT_RANGE, LOCATION};
 use serde_json::Value;

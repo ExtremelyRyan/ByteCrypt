@@ -1,4 +1,3 @@
-use ansi_term::Color;
 use crypt_cloud::drive;
 use crypt_core::{
     config::{self, Config, ConfigTask, ItemsTask},
@@ -9,10 +8,6 @@ use crypt_core::{
 };
 use std::{collections::HashMap, path::PathBuf};
 use tokio::runtime::Runtime;
-
-use crypt_core::ui_repo::CharacterSet;
-
-
 
 ///Base information required for all directive calls
 ///

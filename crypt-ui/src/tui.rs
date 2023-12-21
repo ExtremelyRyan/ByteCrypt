@@ -4,7 +4,7 @@ use crossterm::{
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
     ExecutableCommand,
 };
-use crypt_core::common::{DirInfo, FileSystemEntity};
+use crypt_core::common::DirInfo;
 use ratatui::{prelude::*, widgets::*};
 use std::io::stdout;
 
@@ -151,8 +151,8 @@ fn draw_ui(frame: &mut Frame, cursor: &Cursor) {
         .split(main_layout[2]);
 
     //Left Directory
-    let current_directory = std::env::current_dir().expect("Failed to get current directory");
-    let directory_tree =  DirInfo::default(); //generate_directory(&current_directory).unwrap(); // TODO: FIX
+    let _current_directory = std::env::current_dir().expect("Failed to get current directory");
+    let _directory_tree =  DirInfo::default(); //generate_directory(&current_directory).unwrap(); // TODO: FIX
     let formatted_tree = Text::default(); // format_directory(&directory_tree, 0, cursor); // TODO: FIX 
     //let left_directory = Paragraph::new(formatted_tree);
 
