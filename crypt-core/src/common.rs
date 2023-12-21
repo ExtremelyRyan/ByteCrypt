@@ -36,20 +36,43 @@ impl PathInfo {
     }
 }
 
-///FileSystemEntity enum
+///Represents a file system entity
+///
+/// # Options:
+///```no_run
+/// File(FileInfo),
+/// Directory(DirInfo),
+///```
 #[derive(Debug)]
 pub enum FileSystemEntity {
     File(FileInfo),
     Directory(DirInfo),
 }
 
+///Stores information about a file
+///
+///```no_run
+/// FileInfo {
+///     name: String, //Name of the file
+///     path: String, //Path or ID of the file
+/// }
+///```
 #[derive(Debug, Clone)]
 pub struct FileInfo {
     pub name: String,
-    pub id: String,
+    pub path: String,
 }
 
-///Directory struct
+///Stores information about a directory
+///
+///```no_run
+/// DirInfo {
+///     name: String, //Name of the directory
+///     path: String, //Path or ID of the directory
+///     expanded: bool, //Whether the directory's contents are to be read
+///     contents: Vec<FileSystemEntity>, //Contents within the directory
+/// }
+/// ```
 #[derive(Debug, Default)]
 pub struct DirInfo {
     pub name: String,
@@ -61,6 +84,20 @@ pub struct DirInfo {
 
 
 ///Builds a file tree with given DirInfo struct
+///
+/// # Arguments
+/// * `dir_info`: a reference to the DirInfo struct representing the directory
+/// # Returns:
+/// A `Vec<String>` where each entry is a representation of an entity within the directory
+/// # Example:
+///```no_run
+/// let cloud_directory = g_walk("Crypt", UserToken::new_google());
+///
+/// let dir_tree = build_tree(cloud_directory);
+/// for entity in dir_tree {
+///     println!("{}", entity);    
+/// }
+///```
 pub fn build_tree(dir_info: &DirInfo) -> Vec<String> {
     let dir_color = Color::Blue.bold();
     let mut tree: Vec<String> = Vec::new();
@@ -70,14 +107,27 @@ pub fn build_tree(dir_info: &DirInfo) -> Vec<String> {
     return tree;
 }
 
+///Recursively appends and walks the DirInfo contents to build a file tree
 fn tree_recursion(dir_info: &DirInfo, path: String) -> Vec<String> {
+    //The returned value
+    //TODO: Find a way to just pass a single vec and modify that than to create a new one every iteration
     let mut tree: Vec<String> = Vec::new();
+
+    //The character set
+    //TODO: make it so the character set is a config static variable that can be chosen by the user
     let char_set = CharacterSet::U8_SLINE_CURVE;
+
+    //The color of the directory
+    //TODO: make this a config static variable that can be chosen by the user
+    //TODO: implement properly for both CLI and TUI
     let dir_color = Color::Blue.bold();
+
+    //Set up the formatted values
     let joint = format!("{}{}{} ", char_set.joint, char_set.h_line, char_set.h_line);
     let node = format!("{}{}{} ", char_set.node, char_set.h_line, char_set.h_line);
     let vline = format!("{}   ", char_set.v_line);
 
+    //Count the files and folders within dir_info
     let mut files: usize = 0;
     let mut folders: usize = 0;
     for entity in dir_info.contents.iter() {
@@ -86,7 +136,9 @@ fn tree_recursion(dir_info: &DirInfo, path: String) -> Vec<String> {
             FileSystemEntity::Directory(_) => folders += 1,
         }
     }
-    //Force files to go before folders
+
+    //Process and list files first
+    //TODO: find a way to do this all in one pass
     for entity in dir_info.contents.iter() {
         let is_last = folders < 1 && files == 1;
         let prefix = if is_last { &node } else { &joint };
@@ -101,7 +153,9 @@ fn tree_recursion(dir_info: &DirInfo, path: String) -> Vec<String> {
             files -= 1;
         }
     }
-    //folders come last
+
+    //Process and list folders last
+    //TODO: find a way to do this all in one pass
     for entity in dir_info.contents.iter() {
         let is_last = folders <= 1;
         let prefix = if is_last { &node } else { &joint };
@@ -114,6 +168,7 @@ fn tree_recursion(dir_info: &DirInfo, path: String) -> Vec<String> {
                     dir_color.paint(&subdir.name).to_string().as_str()
                 ));
                 let sub_path = if is_last {path.clone() + "    "} else {path.clone() + &vline};
+                //Recursively process expanded directories
                 if subdir.expanded {
                     tree.extend(tree_recursion(subdir, sub_path));
                 }

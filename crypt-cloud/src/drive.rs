@@ -325,7 +325,7 @@ async fn walk_cloud(
                 let dir_info = walk_cloud(client, &id, creds).await?;
                 contents.push(FileSystemEntity::Directory(dir_info));
             } else {
-                contents.push(FileSystemEntity::File(FileInfo {name, id}));
+                contents.push(FileSystemEntity::File(FileInfo {name, path: id}));
             }
         }
     }
