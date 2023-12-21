@@ -2,7 +2,11 @@ use crypt_cloud::drive;
 use crypt_core::{
     config::{self, Config, ConfigTask, ItemsTask},
     filecrypt::{decrypt_file, encrypt_file},
-    common::{get_full_file_path, walk_directory, walk_paths,send_information, PathInfo, build_tree_again},
+    common::{
+        get_full_file_path, walk_directory, 
+        walk_paths,send_information, PathInfo,
+        build_tree,
+    },
     token::CloudTask,
     token::{CloudService, UserToken},
 };
@@ -232,7 +236,7 @@ impl Directive {
                         let items2 = runtime
                             .block_on(drive::g_walk(&self.path, user_token))
                             .expect("Could not view directory information");
-                        send_information(build_tree_again(&items2, 0, true));
+                        send_information(build_tree(&items2));
                     }
                 }
             }
