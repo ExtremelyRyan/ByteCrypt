@@ -70,8 +70,7 @@ pub fn decrypt_file(path: &str, output: Option<String>) -> Result<(), EncryptErr
 
     // rip out uuid from contents
     let contents = std::fs::read(path).expect("failed to read decryption file!");
-    let (uuid, content) = contents.split_at(36);
-    let uuid_str = String::from_utf8(uuid.to_vec()).unwrap();
+    let uuid = get_uuid(&contents);
 
     // query db with uuid
     let fc = query_crypt(uuid_str).unwrap();
