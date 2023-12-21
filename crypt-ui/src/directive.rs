@@ -4,7 +4,7 @@ use crypt_core::{
     filecrypt::{decrypt_file, encrypt_file},
     common::{get_full_file_path, walk_directory, walk_paths,send_information, PathInfo, build_tree_again},
     token::CloudTask,
-    token::{CloudService, UserToken},
+    token::{CloudService, UserToken}, db::{import_keeper, export_keeper},
 };
 use std::{collections::HashMap, path::PathBuf};
 use tokio::runtime::Runtime;
@@ -342,5 +342,22 @@ impl Directive {
                 )]),
             },
         };
+    }
+
+    pub fn keeper(import: &bool, export: &bool, csv_path: &String) {
+        match (import, export) {
+            (true, false) => {
+                // UNTESTED
+                if csv_path.is_empty() {
+                    println!("please add a path to the csv");
+                    return;
+                }
+                let _ = import_keeper(csv_path);
+            }
+            (false, true) => {
+                let _ = export_keeper();
+            }
+            (false, false) | (true, true) => (),
+        }
     }
 }
