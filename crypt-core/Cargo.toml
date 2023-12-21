@@ -11,8 +11,6 @@ edition = "2021"
 anyhow = "1.0.75"
 lazy_static = "1.4"
 
-oauth2 = "4.4.0" #latest 4.4.2
-url = { version = "2.1", features = ["serde"] } 
 
 # Encryption
 uuid = { version = "1.6.1", features = ["v4", "fast-rng"] }
@@ -42,5 +40,7 @@ zstd = "0.13"
 rusqlite = { version = "0.30.0", features = ["bundled"] }
 r2d2 = "0.8.10"
 r2d2_sqlite = "0.23.0"
+oauth2 = "4.4.0" #latest 4.4.2
+url = { version = "2.1", features = ["serde"] } 
 
 ansi_term = "0.12.1"

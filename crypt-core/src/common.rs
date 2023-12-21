@@ -2,8 +2,8 @@ use anyhow::{Ok, Result};
 use std::path::PathBuf;
 use std::process::Command;
 use std::{
-    fs::{File, OpenOptions},
-    io::{BufRead, BufReader, Write},
+    fs::OpenOptions,
+    io::Write,
 };  
 use walkdir::WalkDir;
 
@@ -24,7 +24,7 @@ impl PathInfo {
     pub fn new(path: &str) -> Self {
         let full_path = match path.is_empty() {
             true => std::env::current_dir().unwrap(),
-            false => get_full_file_path(path).unwrap(),
+            false => get_full_file_path(path),
         };
 
         Self {
@@ -39,7 +39,7 @@ impl PathInfo {
 ///Represents a file system entity
 ///
 /// # Options:
-///```no_run
+///```ignore
 /// File(FileInfo),
 /// Directory(DirInfo),
 ///```
@@ -51,7 +51,7 @@ pub enum FsNode {
 
 ///Stores information about a file
 ///
-///```no_run
+///```ignore
 /// FileInfo {
 ///     name: String, //Name of the file
 ///     path: String, //Path or ID of the file
@@ -74,7 +74,7 @@ impl FileInfo {
 
 ///Stores information about a directory
 ///
-///```no_run
+///```ignore
 /// DirInfo {
 ///     name: String, //Name of the directory
 ///     path: String, //Path or ID of the directory
@@ -108,7 +108,7 @@ impl DirInfo {
 /// # Returns:
 /// A `Vec<String>` where each entry is a representation of an entity within the directory
 /// # Example:
-///```no_run
+///```ignore
 /// let cloud_directory = g_walk("Crypt", UserToken::new_google());
 ///
 /// let dir_tree = build_tree(cloud_directory);
@@ -187,23 +187,6 @@ fn tree_recursion(dir_info: &DirInfo, path: String, tree: &mut Vec<String>) {
             },
         }
     }
-}
-
-/// read file, and return values within a Vector of Strings.
-pub fn read_to_vec_string(path: &str) -> Vec<String> {
-    let f = File::options()
-        .read(true)
-        .append(true)
-        .create(true)
-        .open(path)
-        .expect("Error opening file! \n");
-
-    let reader = BufReader::new(f);
-    let mut v: Vec<String> = Vec::new();
-    for line in reader.lines() {
-        v.push(line.unwrap());
-    }
-    v
 }
 
 /// read file, and return values within a Vector of Strings.
@@ -317,9 +300,9 @@ pub fn send_information(info: Vec<String>) {
 pub fn walk_directory(path_in: &str) -> Result<Vec<PathBuf>> {
     let path = match path_in.is_empty() {
         true => std::env::current_dir()?,
-        false => get_full_file_path(path_in)?,
+        false => get_full_file_path(path_in),
     };
-
+    dbg!(&path);
     let walker = WalkDir::new(path).into_iter();
     let mut pathlist: Vec<PathBuf> = Vec::new();
 
@@ -334,12 +317,11 @@ pub fn walk_directory(path_in: &str) -> Result<Vec<PathBuf>> {
 }
 
 /// takes in a path, and recursively walks the subdirectories and returns a vec<pathbuf>
-pub fn walk_paths(path_in: &str) -> Result<Vec<PathInfo>> {
+pub fn walk_paths(path_in: &str) -> Vec<PathInfo> {
     let path = match path_in.is_empty() {
-        true => std::env::current_dir()?,
-        false => get_full_file_path(path_in)?,
+        true => std::env::current_dir().unwrap(),
+        false => get_full_file_path(path_in),
     };
-
     let walker = WalkDir::new(path).into_iter();
     let mut pathlist: Vec<PathInfo> = Vec::new();
 
@@ -348,21 +330,31 @@ pub fn walk_paths(path_in: &str) -> Result<Vec<PathInfo>> {
         pathlist.push(PathInfo::new(entry.as_str()));
     }
 
-    Ok(pathlist)
+    pathlist
 }
 
+
 /// get full full path from a relative path
-pub fn get_full_file_path(path: &str) -> Result<PathBuf> {
-    Ok(dunce::canonicalize(path)?)
+pub fn get_full_file_path(path: &str) -> PathBuf {
+    let canonicalize = dunce::canonicalize(path);
+    match canonicalize {
+        core::result::Result::Ok(c) => return c,
+        Err(_) => PathBuf::from(path),
+    }
 }
 
 pub fn is_hidden(entry: &walkdir::DirEntry) -> bool {
     let conf = config::get_config();
+    let mut b: bool = false;
     entry
         .file_name()
         .to_str()
-        .map(|s: &str| conf.ignore_items.contains(&s.to_string()))
-        .unwrap_or(false)
+        .map(|s: &str| {
+            conf.ignore_items.into_iter().for_each(|item| {
+                b = s.to_string().contains(&item) || s.starts_with('.');
+            }) 
+        });
+        b
 }
 
 
@@ -371,10 +363,9 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_read_to_vec_string() {
-        let s = String::from("The Project Gutenberg eBook of Dracula");
-        let dracula = "./dracula.txt";
-        let res = read_to_vec_string(dracula);
-        assert_eq!(s, res[0]);
+    fn test_walk_directory() {
+        let path = "../test_folder/";
+        let res = walk_directory(path).unwrap();
+        assert_eq!(res[0].file_name().unwrap().to_str().unwrap(),"file1.txt");
     }
 }

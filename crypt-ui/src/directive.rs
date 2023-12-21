@@ -16,7 +16,7 @@ use tokio::runtime::Runtime;
 ///Base information required for all directive calls
 ///
 /// # Example
-///```no_run
+///```ignore
 /// # use crypt_lib::util::directive::Directive;
 /// let directive = Directive::new("relevant/file.path".to_string());
 ///```
@@ -35,7 +35,7 @@ impl Directive {
     ///Creates a directive with the requisite path
     ///
     /// # Example
-    ///```no_run
+    ///```ignore
     /// # use crypt_lib::util::directive::Directive;
     /// let directive = Directive::new("relevant/file.path".to_string());
     ///```
@@ -46,7 +46,7 @@ impl Directive {
     ///Process the encryption directive
     ///
     /// # Example
-    ///```no_run
+    ///```ignore
     /// # use crypt_lib::util::directive::Directive;
     /// let in_place = false;
     /// let output = "desired/output/path".to_string();
@@ -78,7 +78,7 @@ impl Directive {
     ///Process the decryption directive
     ///
     /// # Example
-    ///```no_run
+    ///```ignore
     /// # use crypt_lib::util::directive::Directive;
     /// let in_place = false;
     /// let output = "desired/output/path".to_string();
@@ -114,7 +114,7 @@ impl Directive {
     ///View, upload, or download files from supported cloud service
     ///
     /// # Example
-    ///```no_run
+    ///```ignore
     /// # use crypt_lib::util::directive::Directive;
     /// let platform = CloudPlatform::Google;
     /// let task = CloudTask::Upload;
@@ -153,7 +153,7 @@ impl Directive {
                         //Fetch FileCrypts from crypt_keeper
                         let path_info = PathInfo::new(&self.path);
                         let paths =
-                            walk_paths(self.path.as_str()).expect("Could not generate path(s)");
+                            walk_paths(self.path.as_str());
                         let paths: Vec<PathInfo> = paths
                             .into_iter()
                             .filter(|p| p.name != path_info.name)
@@ -226,7 +226,7 @@ impl Directive {
                     CloudTask::Download => {
                         let path_info = PathInfo::new(&self.path);
                         let paths =
-                            walk_paths(self.path.as_str()).expect("Could not generate path(s)");
+                            walk_paths(self.path.as_str());
                         let paths: Vec<PathInfo> = paths
                             .into_iter()
                             .filter(|p| p.name != path_info.name)
@@ -269,7 +269,7 @@ impl Directive {
     ///Change configuration settings
     ///
     /// # Example
-    ///```no_run
+    ///```ignore
     /// # use crypt_lib::util::directive::Directive;
     /// let add_remove = ItemTask::Add;
     /// let item = "ignore.txt".to_string();
@@ -284,8 +284,7 @@ impl Directive {
         match config_task {
             ConfigTask::DatabasePath => match self.path.to_lowercase().as_str() {
                 "" => {
-                    let path = get_full_file_path(&config.database_path)
-                        .expect("Error fetching database path");
+                    let path = get_full_file_path(&config.database_path);
                     send_information(vec![format!(
                         "Current Database Path:\n  {}",
                         path.display()

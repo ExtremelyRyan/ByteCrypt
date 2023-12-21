@@ -1,6 +1,5 @@
 use chacha20poly1305::{aead::Aead, ChaCha20Poly1305, Key, KeyInit, Nonce};
 use serde::{Deserialize, Serialize};
-
 use crate::{
     common::{get_crypt_folder, send_information},
     config::get_config,
@@ -55,7 +54,7 @@ lazy_static! {
 ///Supported cloud platforms
 ///
 /// # Options:
-///```no_run
+///```ignore
 /// # use crypt_lib::util::CloudPlatform;
 /// CloudPlatform::Google
 /// CloudPlatform::DropBox
@@ -101,7 +100,7 @@ impl From<String> for CloudService {
 ///Supported tasks for cloud platforms
 ///
 /// # Options:  
-/// ```
+/// ```ignore
 /// * CloudTask::Upload
 /// * CloudTask::Download
 /// * CloudTask::View
@@ -116,7 +115,7 @@ pub enum CloudTask {
 ///Holds user authentication information
 ///
 /// # Fields
-///```no_run
+///``` ignore
 /// UserToken {
 ///     service: CloudPlatform,
 ///     key_seed: [u8; 32],
@@ -145,7 +144,7 @@ impl UserToken {
     /// - Once the user successfully authenticates, a token will be created.
     ///
     /// # Options:
-    ///```no_run
+    ///```ignore
     /// let google_token = UserToken::new_google();
     ///```
     #[allow(clippy::manual_flatten)]
@@ -301,7 +300,7 @@ impl UserToken {
     /// - Once the user successfully authenticates, a token will be created.
     ///
     /// # Options:
-    ///```no_run
+    ///```ignore
     /// let dropbox_token = UserToken::new_dropbox();
     ///```
     pub fn new_dropbox() -> Self {

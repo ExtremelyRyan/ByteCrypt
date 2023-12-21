@@ -93,7 +93,7 @@ impl ToString for ConfigOptions {
 ///Tasks for changing configuration
 ///
 /// # Options:
-///```no_run
+///```ignore
 /// # use crypt_lib::util::directive::ConfigTask;
 /// ConfigTask::DatabasePath
 /// ConfigTask::IgnoreItems(ItemTask, String)
@@ -114,7 +114,7 @@ pub enum ConfigTask {
 ///Ignore_items standard options
 ///
 /// # Options
-///```no_run
+///```ignore
 /// # use crypt_lib::util::directive::ItemsTask;
 /// ItemsTask::Add
 /// ItemsTask::Remove

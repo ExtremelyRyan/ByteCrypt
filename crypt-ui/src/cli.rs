@@ -128,8 +128,10 @@ pub enum DriveCommand {
 
     ///View a file or folder
     #[command(short_flag = 'v')]
+    #[clap(alias = "list")]
     View {
-        #[arg(required = false, default_value_t = String::from(""))]
+        // Default to Crypt folder if nothing passed in.
+        #[arg(required = false, default_value_t = String::from("Crypt"))]  
         path: String,
     },
 }
