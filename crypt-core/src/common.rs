@@ -128,6 +128,12 @@ pub fn build_tree(dir_info: &DirInfo) -> Vec<String> {
 ///Recursively appends and walks the DirInfo contents to build a file tree
 ///Single pass - efficient but displays nodes in order they're passed
 fn tree_recursion(dir_info: &DirInfo, path: String, tree: &mut Vec<String>) {
+    //Force files first
+    let (mut contents, folders): (Vec<&FsNode>, Vec<&FsNode>) = dir_info.contents.iter()
+        .partition(|n| matches!(n, FsNode::File(_)));
+    contents.extend(folders);
+    
+
     //Character set and color
     //TODO: make a part of config and implement properly with UI
     let char_set = CharacterSet::U8_SLINE_CURVE;
@@ -139,8 +145,8 @@ fn tree_recursion(dir_info: &DirInfo, path: String, tree: &mut Vec<String>) {
     let vline = format!("{}   ", char_set.v_line);
 
     //Iterate through contents and add them to the tree
-    let contents_len = dir_info.contents.len();
-    for (index, entity) in dir_info.contents.iter().enumerate() {
+    let contents_len = contents.len();
+    for (index, entity) in contents.iter().enumerate() {
         //Determine if the current entity is last
         let is_last = index == contents_len - 1;
         //Create the prefix
@@ -166,77 +172,6 @@ fn tree_recursion(dir_info: &DirInfo, path: String, tree: &mut Vec<String>) {
                     tree_recursion(subdir, sub_path, tree);
                 }
             },
-        }
-    }
-}
-
-///Recursively appends and walks the DirInfo contents to build a file tree
-///3 pass - inefficient, but forces files to show first
-///Using _ in name to mitigate warning
-fn _tree_recursion(dir_info: &DirInfo, path: String, tree: &mut Vec<String>) {
-    //The character set
-    //TODO: make it so the character set is a config static variable that can be chosen by the user
-    let char_set = CharacterSet::U8_SLINE_CURVE;
-
-    //The color of the directory
-    //TODO: make this a config static variable that can be chosen by the user
-    //TODO: implement properly for both CLI and TUI
-    let dir_color = Color::Blue.bold();
-
-    //Set up the formatted values
-    let joint = format!("{}{}{} ", char_set.joint, char_set.h_line, char_set.h_line);
-    let node = format!("{}{}{} ", char_set.node, char_set.h_line, char_set.h_line);
-    let vline = format!("{}   ", char_set.v_line);
-
-    //Count the files and folders within dir_info
-    let mut files: usize = 0;
-    let mut folders: usize = 0;
-    for entity in dir_info.contents.iter() {
-        match entity {
-            FsNode::File(_) => files += 1,
-            FsNode::Directory(_) => folders += 1,
-        }
-    }
-
-    //Process and list files first
-    //TODO: find a way to do this all in one pass
-    for entity in dir_info.contents.iter() {
-        let is_last = folders < 1 && files == 1;
-        let prefix = if is_last { &node } else { &joint };
-
-        match entity {
-            FsNode::File(file) => {
-                tree.push(path.clone() + prefix + &file.name);
-            },
-            FsNode::Directory(_) => (),
-        }
-        if files > 0 {
-            files -= 1;
-        }
-    }
-
-    //Process and list folders last
-    //TODO: find a way to do this all in one pass
-    for entity in dir_info.contents.iter() {
-        let is_last = folders <= 1;
-        let prefix = if is_last { &node } else { &joint };
-
-        match entity {
-            FsNode::File(_) => (),
-            FsNode::Directory(subdir) => {
-                tree.push(format!("{}{}", 
-                    path.clone() + prefix.as_str(), 
-                    dir_color.paint(&subdir.name).to_string().as_str()
-                ));
-                let sub_path = if is_last {path.clone() + "    "} else {path.clone() + &vline};
-                //Recursively process expanded directories
-                if subdir.expanded {
-                    _tree_recursion(subdir, sub_path, tree);
-                }
-            },
-        }
-        if folders > 0 {
-            folders -= 1;
         }
     }
 }
