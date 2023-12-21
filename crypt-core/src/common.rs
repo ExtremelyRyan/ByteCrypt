@@ -121,16 +121,12 @@ pub fn build_tree(dir_info: &DirInfo) -> Vec<String> {
     let mut tree: Vec<String> = Vec::new();
     
     tree.push(format!("{}", dir_color.paint(&dir_info.name).to_string().as_str()));
-    tree.extend(tree_recursion(&dir_info, String::new()));
+    tree_recursion(&dir_info, String::new(), &mut tree);
     return tree;
 }
 
 ///Recursively appends and walks the DirInfo contents to build a file tree
-fn tree_recursion(dir_info: &DirInfo, path: String) -> Vec<String> {
-    //The returned value
-    //TODO: Find a way to just pass a single vec and modify that than to create a new one every iteration
-    let mut tree: Vec<String> = Vec::new();
-
+fn tree_recursion(dir_info: &DirInfo, path: String, tree: &mut Vec<String>) {
     //The character set
     //TODO: make it so the character set is a config static variable that can be chosen by the user
     let char_set = CharacterSet::U8_SLINE_CURVE;
@@ -188,7 +184,7 @@ fn tree_recursion(dir_info: &DirInfo, path: String) -> Vec<String> {
                 let sub_path = if is_last {path.clone() + "    "} else {path.clone() + &vline};
                 //Recursively process expanded directories
                 if subdir.expanded {
-                    tree.extend(tree_recursion(subdir, sub_path));
+                    tree_recursion(subdir, sub_path, tree);
                 }
             },
         }
@@ -196,7 +192,6 @@ fn tree_recursion(dir_info: &DirInfo, path: String) -> Vec<String> {
             folders -= 1;
         }
     }
-    return tree;
 }
 
 
