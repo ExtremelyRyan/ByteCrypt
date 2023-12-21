@@ -117,11 +117,13 @@ pub enum CloudTask {
 ///
 /// # Fields
 ///```no_run
-/// service: CloudPlatform,
-/// key_seed: [u8; 32],
-/// nonce_seed: [u8; 12],
-/// expiration: u64,
-/// access_token: String,
+/// UserToken {
+///     service: CloudPlatform,
+///     key_seed: [u8; 32],
+///     nonce_seed: [u8; 12],
+///     expiration: u64,
+///     access_token: String,
+/// }
 ///```
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct UserToken {

@@ -36,86 +36,155 @@ impl PathInfo {
     }
 }
 
-///FileSystemEntity enum
+///Represents a file system entity
+///
+/// # Options:
+///```no_run
+/// File(FileInfo),
+/// Directory(DirInfo),
+///```
 #[derive(Debug)]
-pub enum FileSystemEntity {
+pub enum FsNode {
     File(FileInfo),
     Directory(DirInfo),
 }
 
+///Stores information about a file
+///
+///```no_run
+/// FileInfo {
+///     name: String, //Name of the file
+///     path: String, //Path or ID of the file
+/// }
+///```
 #[derive(Debug, Clone)]
 pub struct FileInfo {
     pub name: String,
-    pub id: String,
+    pub path: String,
 }
 
-///Directory struct
+impl FileInfo {
+    pub fn new(name: String, path: String) -> Self {
+        Self {
+            name,
+            path,
+        }
+    }
+}
+
+///Stores information about a directory
+///
+///```no_run
+/// DirInfo {
+///     name: String, //Name of the directory
+///     path: String, //Path or ID of the directory
+///     expanded: bool, //Whether the directory's contents are to be read
+///     contents: Vec<FsNode>, //Contents within the directory
+/// }
+/// ```
 #[derive(Debug, Default)]
 pub struct DirInfo {
     pub name: String,
     pub path: String,
     pub expanded: bool,
-    pub contents: Vec<FileSystemEntity>,
+    pub contents: Vec<FsNode>,
 }
 
-
+impl DirInfo {
+    pub fn new(name: String, path: String, expanded: bool, contents: Vec<FsNode>) -> Self {
+        Self {
+            name,
+            path,
+            expanded,
+            contents,
+        }
+    }
+}
 
 ///Builds a file tree with given DirInfo struct
+///
+/// # Arguments
+/// * `dir_info`: a reference to the DirInfo struct representing the directory
+/// # Returns:
+/// A `Vec<String>` where each entry is a representation of an entity within the directory
+/// # Example:
+///```no_run
+/// let cloud_directory = g_walk("Crypt", UserToken::new_google());
+///
+/// let dir_tree = build_tree(cloud_directory);
+/// for entity in dir_tree {
+///     println!("{}", entity);    
+/// }
+///```
 pub fn build_tree(dir_info: &DirInfo) -> Vec<String> {
     let dir_color = Color::Blue.bold();
     let mut tree: Vec<String> = Vec::new();
     
     tree.push(format!("{}", dir_color.paint(&dir_info.name).to_string().as_str()));
-    tree.extend(tree_recursion(&dir_info, String::new()));
+    tree_recursion(&dir_info, String::new(), &mut tree);
     return tree;
 }
 
-fn tree_recursion(dir_info: &DirInfo, path: String) -> Vec<String> {
-    let mut tree: Vec<String> = Vec::new();
+///Recursively appends and walks the DirInfo contents to build a file tree
+fn tree_recursion(dir_info: &DirInfo, path: String, tree: &mut Vec<String>) {
+    //The character set
+    //TODO: make it so the character set is a config static variable that can be chosen by the user
     let char_set = CharacterSet::U8_SLINE_CURVE;
+
+    //The color of the directory
+    //TODO: make this a config static variable that can be chosen by the user
+    //TODO: implement properly for both CLI and TUI
     let dir_color = Color::Blue.bold();
+
+    //Set up the formatted values
     let joint = format!("{}{}{} ", char_set.joint, char_set.h_line, char_set.h_line);
     let node = format!("{}{}{} ", char_set.node, char_set.h_line, char_set.h_line);
     let vline = format!("{}   ", char_set.v_line);
 
+    //Count the files and folders within dir_info
     let mut files: usize = 0;
     let mut folders: usize = 0;
     for entity in dir_info.contents.iter() {
         match entity {
-            FileSystemEntity::File(_) => files += 1,
-            FileSystemEntity::Directory(_) => folders += 1,
+            FsNode::File(_) => files += 1,
+            FsNode::Directory(_) => folders += 1,
         }
     }
-    //Force files to go before folders
+
+    //Process and list files first
+    //TODO: find a way to do this all in one pass
     for entity in dir_info.contents.iter() {
         let is_last = folders < 1 && files == 1;
         let prefix = if is_last { &node } else { &joint };
 
         match entity {
-            FileSystemEntity::File(file) => {
+            FsNode::File(file) => {
                 tree.push(path.clone() + prefix + &file.name);
             },
-            FileSystemEntity::Directory(_) => (),
+            FsNode::Directory(_) => (),
         }
         if files > 0 {
             files -= 1;
         }
     }
-    //folders come last
+
+    //Process and list folders last
+    //TODO: find a way to do this all in one pass
     for entity in dir_info.contents.iter() {
         let is_last = folders <= 1;
         let prefix = if is_last { &node } else { &joint };
 
         match entity {
-            FileSystemEntity::File(_) => (),
-            FileSystemEntity::Directory(subdir) => {
+            FsNode::File(_) => (),
+            FsNode::Directory(subdir) => {
                 tree.push(format!("{}{}", 
                     path.clone() + prefix.as_str(), 
                     dir_color.paint(&subdir.name).to_string().as_str()
                 ));
                 let sub_path = if is_last {path.clone() + "    "} else {path.clone() + &vline};
+                //Recursively process expanded directories
                 if subdir.expanded {
-                    tree.extend(tree_recursion(subdir, sub_path));
+                    tree_recursion(subdir, sub_path, tree);
                 }
             },
         }
@@ -123,7 +192,6 @@ fn tree_recursion(dir_info: &DirInfo, path: String) -> Vec<String> {
             folders -= 1;
         }
     }
-    return tree;
 }
 
 

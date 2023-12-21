@@ -1,6 +1,4 @@
 use clap::{Parser, Subcommand};
-
-use crypt_cloud::crypt_core;
 use crypt_core::{
     config::{self, ConfigTask, ItemsTask},
     token::{CloudService, CloudTask},

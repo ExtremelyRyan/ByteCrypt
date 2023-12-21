@@ -1,4 +1,4 @@
-use crypt_core::{token::UserToken, common::DirInfo, common::{FileInfo, FileSystemEntity}};
+use crypt_core::{token::UserToken, common::DirInfo, common::{FileInfo, FsNode}};
 
 use reqwest::header::{CONTENT_LENGTH, CONTENT_RANGE, LOCATION};
 use serde_json::Value;
@@ -323,9 +323,9 @@ async fn walk_cloud(
 
             if item["mimeType"] == "application/vnd.google-apps.folder" {
                 let dir_info = walk_cloud(client, &id, creds).await?;
-                contents.push(FileSystemEntity::Directory(dir_info));
+                contents.push(FsNode::Directory(dir_info));
             } else {
-                contents.push(FileSystemEntity::File(FileInfo {name, id}));
+                contents.push(FsNode::File(FileInfo::new(name, id)));
             }
         }
     }
@@ -345,10 +345,10 @@ async fn walk_cloud(
         .unwrap_or_default()
         .to_string();
 
-        Ok(DirInfo { 
-            name: dir_name,
-            path: folder_id.to_string(), 
-            expanded: true, 
-            contents,  
-        })
+    Ok(DirInfo::new(
+        dir_name,
+        folder_id.to_string(), 
+        true, 
+        contents
+    ))
 }
