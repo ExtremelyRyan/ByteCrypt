@@ -75,7 +75,7 @@ enum Commands {
         import: bool,
 
         ///Export Keeper to CSV file
-        #[arg(short = 'e', required = false, default_value_t = false)]
+        #[arg(short = 'e', long, required = false, default_value_t = false)]
         export: bool,
 
         //Path to CSV file for import

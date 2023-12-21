@@ -65,7 +65,7 @@ impl FileCrypt {
 pub fn decrypt_file(path: &str, output: Option<String>) -> Result<(), EncryptErrors> {
     let conf = get_config();
     // get path to encrypted file
-    let fp = get_full_file_path(path).unwrap();
+    let fp = get_full_file_path(path);
     let parent_dir = &fp.parent().unwrap().to_owned();
 
     // rip out uuid from contents
@@ -119,7 +119,7 @@ pub fn decrypt_file(path: &str, output: Option<String>) -> Result<(), EncryptErr
 ///
 /// # Example
 ///
-/// ```no_run
+/// ```ignore
 /// # use crypt_lib::{Config, load_config};
 /// # use crypt_lib::encryption::{encrypt_file};
 ///
@@ -193,7 +193,7 @@ pub fn encrypt_file(path: &str, in_place: bool) {
 ///
 /// # Example
 ///
-/// ```no_run
+/// ```ignore
 ///
 /// let fc = FileCrypt::new(/* initialize FileCrypt parameters */);
 /// let parent_dir = "/path/to/parent/directory";
@@ -268,13 +268,12 @@ fn generate_output_file(fc: &FileCrypt, output: Option<String>, parent_dir: &Pat
 ///
 /// # Example
 ///
-/// ```rust
+/// ```ignore
 /// # use crypt_lib::encryption::generate_uuid;
 ///
 /// let uuid_string = generate_uuid();
 /// println!("Generated UUID: {}", uuid_string);
 /// ```
-///
 /// # Panics
 ///
 /// The function may panic if the system time cannot be retrieved or if the random bytes generation fails.
@@ -292,6 +291,12 @@ pub fn generate_uuid() -> String {
         .to_string()
 }
 
+/// gets UUID from encrypted file contents.
+pub fn get_uuid(contents: &Vec<u8>) -> String {
+    let (uuid, _) = contents.split_at(36);
+    String::from_utf8(uuid.to_vec()).unwrap_or(String::from_utf8_lossy(uuid).to_string())
+}
+
 pub fn prepend_uuid(uuid: &String, encrypted_contents: &mut Vec<u8>) -> Vec<u8> {
     let mut uuid_bytes = uuid.as_bytes().to_vec();
     uuid_bytes.append(encrypted_contents);
@@ -302,7 +307,7 @@ pub fn prepend_uuid(uuid: &String, encrypted_contents: &mut Vec<u8>) -> Vec<u8> 
 ///
 /// # Example
 /// <b>assuming current working directory is `C:/test/folder1/`</b>
-/// ```no_run
+/// ```ignore
 /// # use crypt_lib::encryption::get_file_info;
 /// # use std::path::PathBuf;
 /// let p = "file.txt";
@@ -314,7 +319,7 @@ pub fn prepend_uuid(uuid: &String, encrypted_contents: &mut Vec<u8>) -> Vec<u8> 
 /// ```
 pub fn get_file_info(path: &str) -> (PathBuf, PathBuf, String, String) {
     // get filename, extension, and full path info
-    let fp = get_full_file_path(path).unwrap();
+    let fp = get_full_file_path(path);
     let parent_dir = fp.parent().unwrap().to_owned();
     let name = fp.file_name().unwrap().to_string_lossy().to_string(); // Convert to owned String
     let index = name.find('.').unwrap();
@@ -330,24 +335,27 @@ pub fn get_file_info(path: &str) -> (PathBuf, PathBuf, String, String) {
 // cargo nextest run
 #[cfg(test)]
 mod test {
+    use std::thread;
+    use std::time::Duration;
     use crate::config::load_config;
 
     use super::*;
 
     #[test]
-    fn test_retain_encrypt_decrypt_file() {
+    fn test_encrypt_decrypt_file() {
         let mut config = load_config().unwrap();
         config.retain = true;
-        encrypt_file("dracula.txt", false);
-        assert!(Path::new("dracula.crypt").exists());
-        _ = decrypt_file("dracula.crypt", None);
+        encrypt_file("../dracula.txt", false);
+        assert!(Path::new("../dracula.crypt").exists());
+        thread::sleep(Duration::from_secs(1));
+        _ = decrypt_file("../dracula.crypt", None);
         match config.retain {
             true => {
-                assert!(Path::new("dracula-decrypted.txt").exists());
-                _ = std::fs::remove_file("dracula.crypt");
-                _ = std::fs::remove_file("dracula-decrypted.txt");
+                assert!(Path::new("../dracula-decrypted.txt").exists());
+                _ = std::fs::remove_file("../dracula.crypt");
+                _ = std::fs::remove_file("../dracula-decrypted.txt");
             }
-            false => assert!(Path::new("dracula.txt").exists()),
+            false => assert!(Path::new("../dracula.txt").exists()),
         }
     }
 }

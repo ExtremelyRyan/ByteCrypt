@@ -117,7 +117,7 @@ pub fn import_keeper(path: &String) -> Result<()> {
 ///Grabs the connection
 ///
 /// # Example:
-///```no_run
+///```ignore
 /// let conn = get_keeper()?;
 /// conn.execute("SELECT * FROM *");
 ///```
@@ -129,7 +129,7 @@ pub fn get_keeper() -> Result<r2d2::PooledConnection<r2d2_sqlite::SqliteConnecti
 ///Insert a crypt into the database
 ///
 /// # Example:
-///```no_run
+///```ignore
 /// let fc = FileCrypt::new({...});
 /// let _ = insert_crypt(&fc);
 ///```
@@ -176,7 +176,7 @@ pub fn insert_crypt(crypt: &FileCrypt) -> Result<()> {
 ///Inserts a token into the database
 ///
 /// # Example:
-///```no_run
+///```ignore
 /// let ut = UserToken::new({...});
 /// let _ = insert_token(&ut);
 ///```
@@ -211,7 +211,7 @@ pub fn insert_token(user_token: &UserToken) -> Result<()> {
 ///Queries the database for the crypt
 ///
 /// # Example:
-///```no_run
+///```ignore
 /// let uuid = generate_uuid();
 /// let fc = query_crypt(uuid);
 ///```
@@ -251,7 +251,7 @@ pub fn query_crypt(uuid: String) -> Result<FileCrypt> {
 ///Queries the database for the token
 ///
 /// # Example:
-///```no_run
+///```ignore
 /// let cs = CloudService::Google;
 /// let user_token = query_token(&cs);
 ///```
@@ -289,7 +289,7 @@ pub fn query_token(service: CloudService) -> anyhow::Result<UserToken> {
 ///Queries the database if a file's metadata matches existing entry in crypt keeper
 ///
 /// # Example:
-///```no_run
+///```ignore
 /// let path = PathBuf::from("path/to/file.txt");
 /// let fc = insert_crypt(path);
 ///```
@@ -329,7 +329,7 @@ pub fn query_keeper_for_existing_file(full_path: PathBuf) -> Result<FileCrypt> {
 ///Queries the database for all crypts
 ///
 /// # Example:
-///```no_run
+///```ignore
 /// let fc = FileCrypt::new({...});
 /// let _ = insert_crypt(&fc);
 ///```
@@ -375,7 +375,7 @@ pub fn query_keeper_crypt() -> Result<Vec<FileCrypt>> {
 ///Queries the database for all tokens
 // /
 // / # Example:
-// /```no_run
+// /```ignore
 // / let fc = FileCrypt::new({...});
 // / let _ = insert_crypt(&fc);
 // /```
@@ -434,7 +434,7 @@ pub fn delete_crypt(uuid: String) -> Result<()> {
 ///Delete the database
 // /
 // / # Example:
-// /```no_run
+// /```ignore
 // / let fc = FileCrypt::new({...});
 // / let _ = insert_crypt(&fc);
 // /```

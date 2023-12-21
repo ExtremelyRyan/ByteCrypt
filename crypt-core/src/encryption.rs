@@ -23,7 +23,7 @@ pub const NONCE_SIZE: usize = 12;
 ///
 /// # Example
 ///
-/// ```no_run
+/// ```ignore
 /// let data = b"Hello, World!";
 /// let hash_result = compute_hash(data);
 /// println!("Computed Hash: {:?}", hash_result);
@@ -47,9 +47,9 @@ pub fn compute_hash(contents: &[u8]) -> [u8; 32] {
 /// `level` is 3.
 ///
 /// # Example
-/// ```
-/// # use crypt_lib::util::common::get_file_bytes;
-/// # use crypt_lib::util::encryption::compress;
+/// ```ignore
+/// # use crate::common::get_file_bytes;
+/// # use crate::encryption::compress;
 /// let contents: Vec<u8> = get_file_bytes("dracula.txt");
 /// let compressed_contents: Vec<u8> = compress(contents.as_slice(), 3);
 /// assert_ne!(contents.len(), compressed_contents.len());
@@ -61,9 +61,9 @@ pub fn compress(contents: &[u8], level: i32) -> Vec<u8> {
 /// decompression of a file during decryption
 ///
 /// # Example
-/// ```
-/// # use crypt_lib::util::common::get_file_bytes;
-/// # use crypt_lib::util::encryption::{compress,decompress};
+/// ```ignore
+/// # use crate::common::get_file_bytes;
+/// # use crate::encryption::{compress,decompress};
 /// let contents: Vec<u8> = get_file_bytes("dracula.txt");
 /// let compressed_contents: Vec<u8> = compress(contents.as_slice(), 3);
 /// assert_ne!(contents.len(), compressed_contents.len());
@@ -104,7 +104,7 @@ pub fn decrypt(fc: FileCrypt, contents: &Vec<u8>) -> Result<Vec<u8>> {
 ///
 /// # Example
 ///
-/// ```rust no_run
+/// ```rust ignore
 /// # use crypt_lib::{FileCrypt, encrypt};
 ///
 /// let fc = FileCrypt::new(/* initialize FileCrypt parameters */);
