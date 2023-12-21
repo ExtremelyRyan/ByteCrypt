@@ -126,14 +126,13 @@ pub fn build_tree(dir_info: &DirInfo) -> Vec<String> {
 }
 
 ///Recursively appends and walks the DirInfo contents to build a file tree
-///Single pass - efficient but displays nodes in order they're passed
 fn tree_recursion(dir_info: &DirInfo, path: String, tree: &mut Vec<String>) {
     //Force files first
-    let (mut contents, folders): (Vec<&FsNode>, Vec<&FsNode>) = dir_info.contents.iter()
+    //TODO: make a config choice if folders or files first
+    let (mut contents, other_content): (Vec<_>, Vec<_>) = dir_info.contents.iter()
         .partition(|n| matches!(n, FsNode::File(_)));
-    contents.extend(folders);
+    contents.extend(other_content);
     
-
     //Character set and color
     //TODO: make a part of config and implement properly with UI
     let char_set = CharacterSet::U8_SLINE_CURVE;
