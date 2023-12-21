@@ -358,4 +358,11 @@ mod test {
             false => assert!(Path::new("../dracula.txt").exists()),
         }
     }
+
+    #[test]
+    fn test_get_uuid() {
+        let contents: Vec<u8> = vec![1,2,3,4,5,1,2,3,4,5,1,2,3,4,5,1,2,3,4,5,1,2,3,4,5,1,2,3,4,5,1,2,3,4,5,1,2,3,4,5];
+        let res_uuid: String = String::from_utf8(vec![1,2,3,4,5,1,2,3,4,5,1,2,3,4,5,1,2,3,4,5,1,2,3,4,5,1,2,3,4,5,1,2,3,4,5,1]).unwrap();
+        assert_eq!(get_uuid(&contents), res_uuid);
+    }
 }
