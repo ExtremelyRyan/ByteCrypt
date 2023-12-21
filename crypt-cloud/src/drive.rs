@@ -136,7 +136,7 @@ pub async fn g_create_folder(
 }
 
 ///Uploads a file to google drive
-pub async fn g_upload(creds: UserToken, path: &str, parent: String) -> anyhow::Result<()> {
+pub async fn g_upload(creds: UserToken, path: &str, parent: String) -> anyhow::Result<String> {
     //Get file content
     let mut file = tokio::fs::File::open(path).await?;
     let file_name = std::path::Path::new(path)
@@ -197,8 +197,12 @@ pub async fn g_upload(creds: UserToken, path: &str, parent: String) -> anyhow::R
                 //if log, place log here
             }
             200 | 201 => {
-                println!("we did it bois");
-                break;
+                let body = inner_response.json::<Value>().await?;
+                if let Some(id) = body["id"].as_str() {
+                    return Ok(id.to_string());
+                } else {
+                    return Err(anyhow::Error::msg(format!("Failed retrieve file ID")));
+                }
             }
             status => {
                 return Err(anyhow::Error::msg(format!("Failed to upload: {}", status)));
@@ -208,7 +212,7 @@ pub async fn g_upload(creds: UserToken, path: &str, parent: String) -> anyhow::R
         start += bytes_read as u64;
     }
 
-    Ok(())
+    return Err(anyhow::Error::msg(format!("File upload not successful")));
 }
 
 ///Query google drive and return a Vec<String> of each item within the relevant folder

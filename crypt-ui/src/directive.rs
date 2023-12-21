@@ -204,20 +204,22 @@ impl Directive {
                                         .to_string();
 
                                     if !path.is_dir {
-                                        let _ = runtime.block_on(drive::g_upload(
+                                        let file_id = runtime.block_on(drive::g_upload(
                                             user_token.clone(),
                                             &path.full_path.display().to_string(),
                                             parent_id,
                                         ));
+                                        println!("{:?}", file_id);
                                     }
                                 }
                             }
                             false => {
-                                let _ = runtime.block_on(drive::g_upload(
+                                let file_id = runtime.block_on(drive::g_upload(
                                     user_token,
                                     &self.path,
                                     crypt_folder,
                                 ));
+                                println!("{:?}", file_id);
                             }
                         }
                     }
