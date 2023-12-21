@@ -3,7 +3,7 @@ use crossterm::{
     event::{self, KeyCode},
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
     ExecutableCommand,
-};
+}; 
 use crypt_core::common::DirInfo;
 use ratatui::{prelude::*, widgets::*};
 use std::io::stdout;

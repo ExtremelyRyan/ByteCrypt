@@ -24,9 +24,6 @@ name = "encryption_benchmark"
 harness = false
 
 [dependencies]
-
-crypt-cloud = { path = "../crypt-cloud" }
-crypt-core = { path = "../crypt-core" }
 crypt-ui = { path = "../crypt-ui" }
 
 anyhow = "1.0.75"

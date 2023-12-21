@@ -1,12 +1,12 @@
 use clap::{Parser, Subcommand};
 
+use crypt_cloud::crypt_core;
 use crypt_core::{
     config::{self, ConfigTask, ItemsTask},
-    db::{export_keeper, import_keeper},
     token::{CloudService, CloudTask},
 };
 
-use crate::{directive::Directive, tui::load_tui};
+use crate::{directive::{Directive, self}, tui::load_tui};
 
 ///CLI arguments
 #[derive(Parser, Debug)]
@@ -262,25 +262,8 @@ pub fn load_cli() {
             }
         },
         // Keeper
-        Some(Commands::Keeper {
-            import,
-            export,
-            csv_path,
-        }) => {
-            match (import, export) {
-                (true, false) => {
-                    // UNTESTED
-                    if csv_path.is_empty() {
-                        println!("please add a path to the csv");
-                        return;
-                    }
-                    let _ = import_keeper(csv_path);
-                }
-                (false, true) => {
-                    let _ = export_keeper();
-                }
-                (false, false) | (true, true) => (),
-            }
+        Some(Commands::Keeper { import, export, csv_path, }) => {
+            directive::Directive::keeper(import, export, csv_path);
         }
 
         //Config
@@ -342,11 +325,6 @@ pub fn load_cli() {
         }
     }
 }
-// match backup.to_lowercase().as_str() {
-//     "true" | "t" => self.backup = true,
-//     "false" | "f" => self.backup = false,
-//     _ => return false,
-// }
 
 fn debug_mode() {
     println!("Why would you do this ._.");
