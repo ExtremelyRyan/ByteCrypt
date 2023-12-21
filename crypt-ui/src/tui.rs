@@ -4,7 +4,7 @@ use crossterm::{
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
     ExecutableCommand,
 };
-use crypt_core::path::{generate_directory, DirInfo, FileSystemEntity};
+use crypt_core::common::{DirInfo, FileSystemEntity};
 use ratatui::{prelude::*, widgets::*};
 use std::io::stdout;
 
@@ -152,8 +152,8 @@ fn draw_ui(frame: &mut Frame, cursor: &Cursor) {
 
     //Left Directory
     let current_directory = std::env::current_dir().expect("Failed to get current directory");
-    let directory_tree = generate_directory(&current_directory).unwrap();
-    let formatted_tree = format_directory(&directory_tree, 0, cursor);
+    let directory_tree =  DirInfo::default(); //generate_directory(&current_directory).unwrap(); // TODO: FIX
+    let formatted_tree = Text::default(); // format_directory(&directory_tree, 0, cursor); // TODO: FIX 
     //let left_directory = Paragraph::new(formatted_tree);
 
     let left_directory = Paragraph::new(formatted_tree)
@@ -240,75 +240,77 @@ fn event_handler(cursor: &mut Cursor) -> anyhow::Result<bool> {
     Ok(false)
 }
 
-///Takes in the current directory and formats it into a string
-pub fn format_directory<'a>(directory: &DirInfo, depth: usize, cursor: &Cursor) -> Text<'a> {
-    let char_set = CharacterSet::U8_SLINE;
-    let mut lines: Vec<Line> = Vec::new();
-    let mut line_span: Vec<Span> = Vec::new();
+// TODO: Fix, BROKEN
 
-    let mut result = String::new();
-    //Root directory
-    if depth == 0 {
-        result.push_str(&format! {"{}\n",
-            directory.path.full_path.file_name().unwrap().to_str().unwrap()
-        });
-    }
-    line_span.push(Span::raw(result));
-    lines.push(Line::from(line_span));
+//Takes in the current directory and formats it into a string
+// pub fn format_directory<'a>(directory: &DirInfo, depth: usize, cursor: &Cursor) -> Text<'a> {
+//     let char_set = CharacterSet::U8_SLINE;
+//     let mut lines: Vec<Line> = Vec::new();
+//     let mut line_span: Vec<Span> = Vec::new();
 
-    //Traverse through the directory and build the string to display
-    for (index, entity) in directory.contents.iter().enumerate() {
-        let is_selected = index == cursor.selected[1];
-        let mut line_spans: Vec<Span> = Vec::new();
+//     let mut result = String::new();
+//     //Root directory
+//     if depth == 0 {
+//         result.push_str(&format! {"{}\n",
+//             directory.path.full_path.file_name().unwrap().to_str().unwrap()
+//         });
+//     }
+//     line_span.push(Span::raw(result));
+//     lines.push(Line::from(line_span));
 
-        //set up for last entity
-        let last_entity = index == directory.contents.len() - 1;
-        let connector = if last_entity {
-            char_set.node
-        } else {
-            char_set.joint
-        };
+//     //Traverse through the directory and build the string to display
+//     for (index, entity) in directory.contents.iter().enumerate() {
+//         let is_selected = index == cursor.selected[1];
+//         let mut line_spans: Vec<Span> = Vec::new();
 
-        let mut prefix = String::new();
-        if depth == 0 {
-            //for item that immediately follows root contents
-            prefix.push_str(&format!("{}", connector));
-        }
-        if depth > 0 {
-            //Non-root
-            prefix.push_str(&" ".repeat(depth * 4));
-            prefix.push_str(&format! {"{}", connector});
-        }
+//         //set up for last entity
+//         let last_entity = index == directory.contents.len() - 1;
+//         let connector = if last_entity {
+//             char_set.node
+//         } else {
+//             char_set.joint
+//         };
 
-        let text = match entity {
-            FileSystemEntity::File(path) => path
-                .full_path
-                .file_name()
-                .unwrap()
-                .to_str()
-                .unwrap()
-                .to_string(),
-            FileSystemEntity::Directory(dir) => dir
-                .path
-                .parent
-                .file_name()
-                .unwrap()
-                .to_str()
-                .unwrap()
-                .to_string(),
-        };
+//         let mut prefix = String::new();
+//         if depth == 0 {
+//             //for item that immediately follows root contents
+//             prefix.push_str(&format!("{}", connector));
+//         }
+//         if depth > 0 {
+//             //Non-root
+//             prefix.push_str(&" ".repeat(depth * 4));
+//             prefix.push_str(&format! {"{}", connector});
+//         }
 
-        //Styles for selected items
-        let selected_text = if is_selected {
-            Span::styled(text, Style::new().bg(Color::Magenta).fg(Color::White))
-        } else {
-            Span::raw(text)
-        };
+//         let text = match entity {
+//             FileSystemEntity::File(path) => path
+//                 .full_path
+//                 .file_name()
+//                 .unwrap()
+//                 .to_str()
+//                 .unwrap()
+//                 .to_string(),
+//             FileSystemEntity::Directory(dir) => dir
+//                 .path
+//                 .parent
+//                 .file_name()
+//                 .unwrap()
+//                 .to_str()
+//                 .unwrap()
+//                 .to_string(),
+//         };
 
-        line_spans.push(Span::raw(prefix));
-        line_spans.push(selected_text);
-        lines.push(Line::from(line_spans));
-    }
-    Text::from(lines)
-}
+//         //Styles for selected items
+//         let selected_text = if is_selected {
+//             Span::styled(text, Style::new().bg(Color::Magenta).fg(Color::White))
+//         } else {
+//             Span::raw(text)
+//         };
+
+//         line_spans.push(Span::raw(prefix));
+//         line_spans.push(selected_text);
+//         lines.push(Line::from(line_spans));
+//     }
+//     Text::from(lines)
+// }
 

@@ -4,10 +4,12 @@ use std::process::Command;
 use std::{
     fs::{File, OpenOptions},
     io::{BufRead, BufReader, Write},
-};
+};  
+use walkdir::WalkDir;
 
-use crate::path::get_full_file_path;
-use crate::ui_repo::{CharacterSet, Color};
+use crate::config;
+use ansi_term::Color;
+use crate::ui_repo::CharacterSet;
 
 /// given a path, dissect and return a struct containing the full path, is_dir, parent path, and name.
 #[derive(Debug, Clone)]
@@ -41,19 +43,22 @@ pub enum FileSystemEntity {
     Directory(DirInfo),
 }
 
-///Directory struct
-#[derive(Debug)]
-pub struct DirInfo {
-    pub path: PathInfo,
-    pub expanded: bool,
-    pub contents: Vec<FileSystemEntity>,
-}
-
 #[derive(Debug, Clone)]
 pub struct FileInfo {
     pub name: String,
     pub id: String,
 }
+
+///Directory struct
+#[derive(Debug, Default)]
+pub struct DirInfo {
+    pub name: String,
+    pub path: String,
+    pub expanded: bool,
+    pub contents: Vec<FileSystemEntity>,
+}
+
+
 
 ///Builds a file tree with given DirInfo struct
 pub fn build_tree(dir_info: &DirInfo, depth: usize, last: bool) -> Vec<String> {
@@ -76,7 +81,7 @@ pub fn build_tree(dir_info: &DirInfo, depth: usize, last: bool) -> Vec<String> {
             }
         };
     } else {
-        tree.push(format!("{}", /*dir_color.paint*/(&dir_info.name).to_string()));
+        tree.push(format!("{}", dir_color.paint(&dir_info.name).to_string()));
     }
 
 
@@ -105,7 +110,7 @@ pub fn build_tree(dir_info: &DirInfo, depth: usize, last: bool) -> Vec<String> {
 
 pub fn build_tree_again(dir_info: &DirInfo, depth: usize, is_root: bool) -> Vec<String> {
     let char_set = CharacterSet::U8_SLINE_CURVE;
-    let dir_color = Color::Blue;
+    let dir_color = Color::Blue.bold();
     let joint = format!("{}{}{} ", char_set.joint, char_set.h_line, char_set.h_line);
     let node = format!("{}{}{} ", char_set.node, char_set.h_line, char_set.h_line);
     let vline = format!("{}   ", char_set.v_line);
@@ -113,7 +118,7 @@ pub fn build_tree_again(dir_info: &DirInfo, depth: usize, is_root: bool) -> Vec<
     let mut tree: Vec<String> = Vec::new();
 
     if is_root {
-        tree.push(/*dir_color.paint*/(&dir_info.name).to_string());
+        tree.push(dir_color.paint(&dir_info.name).to_string());
     }
 
     for (index, entity) in dir_info.contents.iter().enumerate() {
@@ -130,7 +135,7 @@ pub fn build_tree_again(dir_info: &DirInfo, depth: usize, is_root: bool) -> Vec<
                 tree.push(indent.clone() + prefix + &file.name);
             },
             FileSystemEntity::Directory(subdir) => {
-                tree.push(indent.clone() + prefix + /*dir_color.paint*/(&subdir.name).to_string().as_str());
+                tree.push(indent.clone() + prefix + dir_color.paint(&subdir.name).to_string().as_str());
                 tree.extend(build_tree_again(subdir, depth + 1, false));
             },
         }
@@ -226,6 +231,97 @@ pub fn send_information(info: Vec<String>) {
     //TODO: TUI
     //TODO: GUI
 }
+
+
+
+
+// ///Generates a directory to convert into strings
+// pub fn generate_directory(path: &PathBuf) -> anyhow::Result<DirInfo> {
+//     let p = path.display().to_string();
+//     //Create root
+//     let mut root = DirInfo {
+//         path: PathInfo::new(p.as_str()),
+//         id: p,
+//         expanded: true, //root is always expanded
+//         contents: Vec::new(),
+//     };
+
+//     //Read contents of current directory
+//     for entry in fs::read_dir(path)? {
+//         let entry = entry?;
+//         let p = entry.path().display().to_string();
+//         let file_name = entry.file_name();
+//         let file_name_str = file_name.to_string_lossy();
+
+//         if !file_name_str.starts_with('.') && !file_name_str.starts_with("target") {
+//             if path.is_dir() {
+//                 root.contents.push(FileSystemEntity::Directory(DirInfo {
+//                     PathInfo::new(p.as_str()),
+//                     p,
+//                     expanded: true, //TODO: This still shows true regardless
+//                     contents: Vec::new(),
+//                 }));
+//             } else {
+//                 root.contents
+//                     .push(FileSystemEntity::File(FileInfo::new(p.as_str(), p)));
+//             }
+//         }
+//     }
+//     Ok(root)
+// }
+
+/// takes in a path, and recursively walks the subdirectories and returns a vec<pathbuf>
+pub fn walk_directory(path_in: &str) -> Result<Vec<PathBuf>> {
+    let path = match path_in.is_empty() {
+        true => std::env::current_dir()?,
+        false => get_full_file_path(path_in)?,
+    };
+
+    let walker = WalkDir::new(path).into_iter();
+    let mut pathlist: Vec<PathBuf> = Vec::new();
+
+    for entry in walker.filter_entry(|e| !is_hidden(e)) {
+        let entry = entry.unwrap();
+        // we only want to save paths that are towards a file.
+        if entry.path().display().to_string().find('.').is_some() {
+            pathlist.push(PathBuf::from(entry.path().display().to_string()));
+        }
+    }
+    Ok(pathlist)
+}
+
+/// takes in a path, and recursively walks the subdirectories and returns a vec<pathbuf>
+pub fn walk_paths(path_in: &str) -> Result<Vec<PathInfo>> {
+    let path = match path_in.is_empty() {
+        true => std::env::current_dir()?,
+        false => get_full_file_path(path_in)?,
+    };
+
+    let walker = WalkDir::new(path).into_iter();
+    let mut pathlist: Vec<PathInfo> = Vec::new();
+
+    for entry in walker.filter_entry(|e| !is_hidden(e)) {
+        let entry = entry.unwrap().path().display().to_string();
+        pathlist.push(PathInfo::new(entry.as_str()));
+    }
+
+    Ok(pathlist)
+}
+
+/// get full full path from a relative path
+pub fn get_full_file_path(path: &str) -> Result<PathBuf> {
+    Ok(dunce::canonicalize(path)?)
+}
+
+pub fn is_hidden(entry: &walkdir::DirEntry) -> bool {
+    let conf = config::get_config();
+    entry
+        .file_name()
+        .to_str()
+        .map(|s: &str| conf.ignore_items.contains(&s.to_string()))
+        .unwrap_or(false)
+}
+
 
 #[cfg(test)]
 mod tests {

@@ -42,3 +42,5 @@ zstd = "0.13"
 rusqlite = { version = "0.30.0", features = ["bundled"] }
 r2d2 = "0.8.10"
 r2d2_sqlite = "0.23.0"
+
+ansi_term = "0.12.1"

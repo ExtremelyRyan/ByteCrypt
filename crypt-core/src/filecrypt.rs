@@ -3,7 +3,7 @@ use crate::{
     config::get_config,
     db::{insert_crypt, query_crypt},
     encryption::decrypt,
-    path::get_full_file_path,
+    common::get_full_file_path,
 };
 use anyhow::Result;
 use log::*;

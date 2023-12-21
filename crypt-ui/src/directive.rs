@@ -1,17 +1,16 @@
 use ansi_term::Color;
 use crypt_cloud::drive;
 use crypt_core::{
-    common::send_information,
     config::{self, Config, ConfigTask, ItemsTask},
     filecrypt::{decrypt_file, encrypt_file},
-    path::{get_full_file_path, walk_directory, walk_paths, PathInfo},
+    common::{get_full_file_path, walk_directory, walk_paths,send_information, PathInfo, build_tree_again},
     token::CloudTask,
     token::{CloudService, UserToken},
 };
 use std::{collections::HashMap, path::PathBuf};
 use tokio::runtime::Runtime;
 
-use crate::tui::CharacterSet;
+use crypt_core::ui_repo::CharacterSet;
 
 
 

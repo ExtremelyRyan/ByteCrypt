@@ -1,4 +1,4 @@
-use crypt_core::{token::UserToken, path::DirInfo, path::PathInfo, common::{FileInfo, FileSystemEntity}};
+use crypt_core::{token::UserToken, common::DirInfo, common::PathInfo, common::{FileInfo, FileSystemEntity}};
 
 use reqwest::header::{CONTENT_LENGTH, CONTENT_RANGE, LOCATION};
 use serde_json::Value;
@@ -345,9 +345,10 @@ async fn walk_cloud(
         .unwrap_or_default()
         .to_string();
 
-    Ok(DirInfo { 
-        path: PathInfo::new(dir_name.as_str()),
-        expanded: true, 
-        contents,
-    })
+        Ok(DirInfo { 
+            name: dir_name,
+            path: folder_id.to_string(), 
+            expanded: true, 
+            contents,  
+        })
 }
