@@ -345,10 +345,10 @@ async fn walk_cloud(
         .unwrap_or_default()
         .to_string();
 
-        Ok(DirInfo::new(
-            dir_name,
-            folder_id.to_string(), 
-            true, 
-            contents
-        ))
+    Ok(DirInfo::new(
+        dir_name,
+        folder_id.to_string(), 
+        true, 
+        contents
+    ))
 }
