@@ -120,9 +120,12 @@ pub fn build_tree(dir_info: &DirInfo) -> Vec<String> {
     let dir_color = Color::Blue.bold();
     let mut tree: Vec<String> = Vec::new();
     let expanded_color = Color::Green.bold();
-    
-    tree.push(format!("{} {}", 
+    let bracket_color = Color::White.bold();
+
+    tree.push(format!("{}{}{}{}", 
+        bracket_color.paint("[").to_string().as_str(),
         expanded_color.paint(if dir_info.expanded {"˅"} else {"˃"}),
+        bracket_color.paint("]").to_string().as_str(),
         dir_color.paint(&dir_info.name).to_string().as_str()
     ));
     tree_recursion(&dir_info, String::new(), &mut tree);
@@ -142,11 +145,12 @@ fn tree_recursion(dir_info: &DirInfo, path: String, tree: &mut Vec<String>) {
     let char_set = CharacterSet::U8_SLINE_CURVE;
     let dir_color = Color::Blue.bold();
     let expanded_color = Color::Green.bold();
+    let bracket_color = Color::White.bold();
 
     //Set up the formatted values
-    let joint = format!("{}{}{}", char_set.joint, char_set.h_line, char_set.h_line);
-    let node = format!("{}{}{}", char_set.node, char_set.h_line, char_set.h_line);
-    let vline = format!("{}   ", char_set.v_line);
+    let joint = format!(" {}{}{}", char_set.joint, char_set.h_line, char_set.h_line);
+    let node = format!(" {}{}{}", char_set.node, char_set.h_line, char_set.h_line);
+    let vline = format!(" {}  ", char_set.v_line);
 
     //Iterate through contents and add them to the tree
     let contents_len = contents.len();
@@ -161,11 +165,13 @@ fn tree_recursion(dir_info: &DirInfo, path: String, tree: &mut Vec<String>) {
         match entity {
             FsNode::File(file) => tree.push(prefix.clone() + " " + &file.name),
             FsNode::Directory(subdir) => {
-                tree.push(format!("{}{} {}", 
-                    prefix.clone() + " ", 
+                tree.push(format!("{}{}{}{}{}", 
+                    prefix.clone(), 
+                    bracket_color.paint("[").to_string().as_str(),
                     expanded_color
                         .paint(if subdir.expanded {"˅"} else {"˃"})
                         .to_string().as_str(),
+                    bracket_color.paint("]").to_string().as_str(),
                     dir_color.paint(&subdir.name).to_string().as_str(),
                 ));
 
