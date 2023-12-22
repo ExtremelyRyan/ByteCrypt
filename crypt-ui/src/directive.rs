@@ -1,7 +1,8 @@
 use crypt_cloud::drive::{self, g_walk};
 use crypt_core::{
+    db::{self, query_crypt},
     config::{self, Config, ConfigTask, ItemsTask},
-    filecrypt::{decrypt_file, encrypt_file},
+    filecrypt::{decrypt_file, encrypt_file, get_uuid, FileCrypt},
     common::{
         get_full_file_path, walk_directory, 
         walk_paths,send_information, PathInfo,
@@ -133,15 +134,15 @@ impl Directive {
                 //Grab user authentication token
                 let user_token = UserToken::new_google();
 
-                //Access google drive and ensure a crypt folder exists
+                //Access google drive and ensure a crypt folder exists, create if doesn't
                 let crypt_folder = match runtime.block_on(drive::g_create_folder(
                     &user_token,
                     None,
                     "".to_string(),
                 )) {
                     Ok(folder_id) => folder_id,
-                    Err(e) => {
-                        send_information(vec![format!("{}", e)]);
+                    Err(error) => {
+                        send_information(vec![format!("{}", error)]);
                         "".to_string()
                     }
                 };
@@ -150,16 +151,30 @@ impl Directive {
                     CloudTask::Upload => {
                         //Track all folder ids
                         let mut folder_ids: HashMap<String, String> = HashMap::new();
-                        //Fetch FileCrypts from crypt_keeper
+                        //Get walk path given and build a list of PathInfos
                         let path_info = PathInfo::new(&self.path);
                         let paths =
                             walk_paths(self.path.as_str());
+                        //Create a hashmap relating PathInfo to FileCrypt for relevant .crypt files
+                        let mut crypts: HashMap<PathInfo, FileCrypt> = HashMap::new();
+                        for file in paths.clone().iter() {
+                            if !file.is_dir && file.name.contains(".crypt") {
+                                let fc = query_crypt(get_uuid(
+                                    &std::fs::read(file.full_path.display().to_string().as_str())
+                                        .expect("Could not get uuid")))
+                                    .expect("Could not query keeper");
+                                crypts.insert(file.to_owned(), fc);
+                            }
+                        }
+                        //Remove the root directory
                         let paths: Vec<PathInfo> = paths
                             .into_iter()
                             .filter(|p| p.name != path_info.name)
                             .collect();
 
-                        match path_info.is_dir {
+                        //Match if directory or file
+                        match path_info.is_dir { 
+                            //Full directory upload
                             true => {
                                 //Create the root directory
                                 folder_ids.insert(
@@ -202,24 +217,61 @@ impl Directive {
                                         .get(&parent_path)
                                         .expect("Could not retrieve parent ID")
                                         .to_string();
+                                    if path.name.contains(".crypt") {
+                                        let drive_id = crypts.get(&path).unwrap().drive_id.as_str();
+                                        if drive_id != "" {
+                                            let exists = runtime.block_on(drive::g_id_exists(
+                                                drive_id,
+                                                user_token.clone()));
+
+                                            println!("{:?}", exists);
+                                        }
+                                    }
 
                                     if !path.is_dir {
-                                        let _ = runtime.block_on(drive::g_upload(
+                                        let file_id = runtime.block_on(drive::g_upload(
                                             user_token.clone(),
                                             &path.full_path.display().to_string(),
                                             parent_id,
                                         ));
+                                        //Update the FileCrypt's drive_id
+                                        if path.name.contains(".crypt") {
+                                            crypts
+                                                .entry(path)
+                                                .and_modify(|fc| fc.drive_id = file_id.unwrap()); 
+                                        }
                                     }
                                 }
                             }
+                            //Individual file(s)
                             false => {
-                                let _ = runtime.block_on(drive::g_upload(
-                                    user_token,
-                                    &self.path,
+                                let file_id = runtime.block_on(drive::g_upload(
+                                    user_token.clone(),
+                                    &path_info.full_path.display().to_string(),
                                     crypt_folder,
                                 ));
+                                //Update the FileCrypt's drive_id
+                                if path_info.name.contains(".crypt") {
+                                    crypts
+                                        .entry(path_info)
+                                        .and_modify(|fc| fc.drive_id = file_id.unwrap()); 
+                                }
                             }
                         }
+                        //Update the keeper with any changes to FileCrypts
+                        for (_, value) in crypts {
+                            let _ = db::insert_crypt(&value);
+                        }
+                        //TESTING PORPISES
+                        let after_upload_keeper = db::query_keeper_crypt().unwrap();
+                        for item in after_upload_keeper {
+                            println!("{:?}", item);
+                        }
+                        //Print the directory
+                        let cloud_directory = runtime
+                            .block_on(drive::g_walk("Crypt", user_token))
+                            .expect("Could not view directory information");
+                        send_information(build_tree(&cloud_directory));
                     }
                     CloudTask::Download => {
                         runtime.block_on(drive::google_query_file("1MVo5in4JCOLJ9YzbVTkj9jAY9cHoH8C8",user_token));
@@ -239,10 +291,10 @@ impl Directive {
                         
                     }
                     CloudTask::View => {
-                        let items2 = runtime
+                        let cloud_directory = runtime
                             .block_on(drive::g_walk(&self.path, user_token))
                             .expect("Could not view directory information");
-                        send_information(build_tree(&items2));
+                        send_information(build_tree(&cloud_directory));
                     }
                 }
             }

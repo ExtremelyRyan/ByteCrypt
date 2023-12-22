@@ -1,4 +1,5 @@
 use anyhow::{Ok, Result};
+use std::path::{Path, PathBuf};
 use std::any::TypeId;
 use std::fs::File;
 use std::path::PathBuf;
@@ -14,7 +15,7 @@ use ansi_term::Color;
 use crate::ui_repo::CharacterSet;
 
 /// given a path, dissect and return a struct containing the full path, is_dir, parent path, and name.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct PathInfo {
     pub full_path: PathBuf,
     pub is_dir: bool,
@@ -45,26 +46,62 @@ impl PathInfo {
 /// File(FileInfo),
 /// Directory(DirInfo),
 ///```
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum FsNode {
     File(FileInfo),
     Directory(DirInfo),
 }
 
 impl FsNode {
-    pub fn get_kind(&self) -> (Option<FileInfo>,Option<DirInfo>) {
+    pub fn is_dir(&self) -> bool {
         match self {
-            FsNode::File(f) => return (Some(f), None),
-            FsNode::Directory(d) => return (None, Some(d)),
+            FsNode::File(_) => false,
+            FsNode::Directory(_) => true,
         }
     }
-    /// Returns FsNode name and path
-    pub fn get_contents(&mut self) -> (String, String) {
+
+    pub fn get_name(&self) -> &str {
         match self {
-            FsNode::File(f) => return (self.name, self.path),
-            _ => (),
+            FsNode::File(f) => f.name.as_str(),
+            FsNode::Directory(d) => d.name.as_str(),
         }
-        
+    }
+
+    pub fn get_path_str(&self) -> &str {
+        match self {
+            FsNode::File(f) => f.path.as_str(),
+            FsNode::Directory(d) => d.path.as_str(),
+        }
+    }
+
+    pub fn get_path_string(&self) -> String {
+        match self {
+            FsNode::File(f) => f.path.clone(),
+            FsNode::Directory(d) => d.path.clone(),
+        }
+    }
+
+    pub fn get_pathbuf(&self) -> Option<PathBuf> {
+        let path_str = self.get_path_str();
+
+        match Path::new(path_str).exists() {
+            true => return Some(PathBuf::from(path_str)),
+            false => return None,
+        }
+    }
+
+    pub fn get_expanded(&self) -> Option<bool> {
+        match self {
+            FsNode::File(_) => None,
+            FsNode::Directory(d) => Some(d.expanded),
+        }
+    }
+
+    pub fn get_contents(&self) -> Option<Vec<FsNode>> {
+        match self {
+            FsNode::File(_) => None,
+            FsNode::Directory(d) => Some(d.contents.clone()),
+        }
     }
 }
 
@@ -102,7 +139,7 @@ impl FileInfo {
 ///     contents: Vec<FsNode>, //Contents within the directory
 /// }
 /// ```
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct DirInfo {
     pub name: String,
     pub path: String,
@@ -139,77 +176,72 @@ impl DirInfo {
 pub fn build_tree(dir_info: &DirInfo) -> Vec<String> {
     let dir_color = Color::Blue.bold();
     let mut tree: Vec<String> = Vec::new();
-    
-    tree.push(format!("{}", dir_color.paint(&dir_info.name).to_string().as_str()));
+    let expanded_color = Color::Green.bold();
+    let bracket_color = Color::White.bold();
+
+    tree.push(format!("{}{}{}{}", 
+        bracket_color.paint("[").to_string().as_str(),
+        expanded_color.paint(if dir_info.expanded {"˅"} else {"˃"}),
+        bracket_color.paint("]").to_string().as_str(),
+        dir_color.paint(&dir_info.name).to_string().as_str()
+    ));
     tree_recursion(&dir_info, String::new(), &mut tree);
     return tree;
 }
 
 ///Recursively appends and walks the DirInfo contents to build a file tree
 fn tree_recursion(dir_info: &DirInfo, path: String, tree: &mut Vec<String>) {
-    //The character set
-    //TODO: make it so the character set is a config static variable that can be chosen by the user
+    //Force files first
+    //TODO: make a config choice if folders or files first
+    let (mut contents, other_content): (Vec<_>, Vec<_>) = dir_info.contents.iter()
+        .partition(|n| matches!(n, FsNode::File(_)));
+    contents.extend(other_content);
+    
+    //Character set and color
+    //TODO: make a part of config and implement properly with UI
     let char_set = CharacterSet::U8_SLINE_CURVE;
-
-    //The color of the directory
-    //TODO: make this a config static variable that can be chosen by the user
-    //TODO: implement properly for both CLI and TUI
     let dir_color = Color::Blue.bold();
+    let expanded_color = Color::Green.bold();
+    let bracket_color = Color::White.bold();
 
     //Set up the formatted values
-    let joint = format!("{}{}{} ", char_set.joint, char_set.h_line, char_set.h_line);
-    let node = format!("{}{}{} ", char_set.node, char_set.h_line, char_set.h_line);
-    let vline = format!("{}   ", char_set.v_line);
+    let joint = format!(" {}{}{}", char_set.joint, char_set.h_line, char_set.h_line);
+    let node = format!(" {}{}{}", char_set.node, char_set.h_line, char_set.h_line);
+    let vline = format!(" {}  ", char_set.v_line);
 
-    //Count the files and folders within dir_info
-    let mut files: usize = 0;
-    let mut folders: usize = 0;
-    for entity in dir_info.contents.iter() {
-        match entity {
-            FsNode::File(_) => files += 1,
-            FsNode::Directory(_) => folders += 1,
-        }
-    }
-
-    //Process and list files first
-    //TODO: find a way to do this all in one pass
-    for entity in dir_info.contents.iter() {
-        let is_last = folders < 1 && files == 1;
-        let prefix = if is_last { &node } else { &joint };
+    //Iterate through contents and add them to the tree
+    let contents_len = contents.len();
+    for (index, entity) in contents.iter().enumerate() {
+        //Determine if the current entity is last
+        let is_last = index == contents_len - 1;
+        //Create the prefix
+        let prefix = format!("{}{}", 
+            path, if is_last { &node } else { &joint }
+        );
 
         match entity {
-            FsNode::File(file) => {
-                tree.push(path.clone() + prefix + &file.name);
-            },
-            FsNode::Directory(_) => (),
-        }
-        if files > 0 {
-            files -= 1;
-        }
-    }
-
-    //Process and list folders last
-    //TODO: find a way to do this all in one pass
-    for entity in dir_info.contents.iter() {
-        let is_last = folders <= 1;
-        let prefix = if is_last { &node } else { &joint };
-
-        match entity {
-            FsNode::File(_) => (),
+            FsNode::File(file) => tree.push(prefix.clone() + " " + &file.name),
             FsNode::Directory(subdir) => {
-                tree.push(format!("{}{}", 
-                    path.clone() + prefix.as_str(), 
-                    dir_color.paint(&subdir.name).to_string().as_str()
+                tree.push(format!("{}{}{}{}{}", 
+                    prefix.clone(), 
+                    bracket_color.paint("[").to_string().as_str(),
+                    expanded_color
+                        .paint(if subdir.expanded {"˅"} else {"˃"})
+                        .to_string().as_str(),
+                    bracket_color.paint("]").to_string().as_str(),
+                    dir_color.paint(&subdir.name).to_string().as_str(),
                 ));
-                let sub_path = if is_last {path.clone() + "    "} else {path.clone() + &vline};
+
                 //Recursively process expanded directories
+                let sub_path = if is_last {
+                    path.clone() + "    "
+                } else {
+                    path.clone() + &vline
+                };
                 if subdir.expanded {
                     tree_recursion(subdir, sub_path, tree);
                 }
             },
-        }
-        if folders > 0 {
-            folders -= 1;
         }
     }
 }

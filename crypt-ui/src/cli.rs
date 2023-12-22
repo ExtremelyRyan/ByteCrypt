@@ -71,7 +71,7 @@ enum Commands {
     ///Import | Export database
     Keeper {
         ///Import CSV keeper file to database
-        #[arg(short = 'i', required = false, default_value_t = false)]
+        #[arg(short = 'i', long, required = false, default_value_t = false)]
         import: bool,
 
         ///Export Keeper to CSV file
