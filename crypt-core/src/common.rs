@@ -1,5 +1,5 @@
 use anyhow::{Ok, Result};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::{
     fs::OpenOptions,
@@ -12,7 +12,7 @@ use ansi_term::Color;
 use crate::ui_repo::CharacterSet;
 
 /// given a path, dissect and return a struct containing the full path, is_dir, parent path, and name.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct PathInfo {
     pub full_path: PathBuf,
     pub is_dir: bool,
@@ -43,10 +43,63 @@ impl PathInfo {
 /// File(FileInfo),
 /// Directory(DirInfo),
 ///```
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum FsNode {
     File(FileInfo),
     Directory(DirInfo),
+}
+
+impl FsNode {
+    pub fn is_dir(&self) -> bool {
+        match self {
+            FsNode::File(_) => false,
+            FsNode::Directory(_) => true,
+        }
+    }
+
+    pub fn get_name(&self) -> &str {
+        match self {
+            FsNode::File(f) => f.name.as_str(),
+            FsNode::Directory(d) => d.name.as_str(),
+        }
+    }
+
+    pub fn get_path_str(&self) -> &str {
+        match self {
+            FsNode::File(f) => f.path.as_str(),
+            FsNode::Directory(d) => d.path.as_str(),
+        }
+    }
+
+    pub fn get_path_string(&self) -> String {
+        match self {
+            FsNode::File(f) => f.path.clone(),
+            FsNode::Directory(d) => d.path.clone(),
+        }
+    }
+
+    pub fn get_pathbuf(&self) -> Option<PathBuf> {
+        let path_str = self.get_path_str();
+
+        match Path::new(path_str).exists() {
+            true => return Some(PathBuf::from(path_str)),
+            false => return None,
+        }
+    }
+
+    pub fn get_expanded(&self) -> Option<bool> {
+        match self {
+            FsNode::File(_) => None,
+            FsNode::Directory(d) => Some(d.expanded),
+        }
+    }
+
+    pub fn get_contents(&self) -> Option<Vec<FsNode>> {
+        match self {
+            FsNode::File(_) => None,
+            FsNode::Directory(d) => Some(d.contents.clone()),
+        }
+    }
 }
 
 ///Stores information about a file
@@ -82,7 +135,7 @@ impl FileInfo {
 ///     contents: Vec<FsNode>, //Contents within the directory
 /// }
 /// ```
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct DirInfo {
     pub name: String,
     pub path: String,

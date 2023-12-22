@@ -148,7 +148,7 @@ impl Default for Config {
         Config {
             database_path: format!("{}", database_path.display()),
             // cloud_services: Vec::new(),
-            ignore_items: vec![".".to_string()],
+            ignore_items: vec!["target".to_string()],
             retain: true,
             backup: true,
             zstd_level: 3,
