@@ -1,17 +1,16 @@
 use crypt_cloud::drive::{self, g_walk};
 use crypt_core::{
-    db::{self, query_crypt},
-    config::{self, Config, ConfigTask, ItemsTask},
-    filecrypt::{decrypt_file, encrypt_file, get_uuid, FileCrypt},
     common::{
-        get_full_file_path, walk_directory, 
-        walk_paths,send_information, PathInfo,
-        build_tree, DirInfo, FileInfo,
+        build_tree, get_full_file_path, send_information, walk_directory, walk_paths, PathInfo,
     },
+    config::{self, Config, ConfigTask, ItemsTask},
+    db::{self, query_crypt},
+    db::{export_keeper, import_keeper},
+    filecrypt::{decrypt_file, encrypt_file, get_uuid, FileCrypt},
     token::CloudTask,
-    token::{CloudService, UserToken}, db::{import_keeper, export_keeper},
+    token::{CloudService, UserToken},
 };
-use std::{collections::HashMap, path::PathBuf, any::Any};
+use std::{collections::HashMap, path::PathBuf};
 use tokio::runtime::Runtime;
 
 ///Base information required for all directive calls
@@ -21,16 +20,10 @@ use tokio::runtime::Runtime;
 /// # use crypt_lib::util::directive::Directive;
 /// let directive = Directive::new("relevant/file.path".to_string());
 ///```
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Directive {
     path: String,
 }
-
-impl Default for Directive {
-    fn default() -> Self {
-        Self{ path: String::new() }
-    }
-} 
 
 impl Directive {
     ///Creates a directive with the requisite path
@@ -153,16 +146,16 @@ impl Directive {
                         let mut folder_ids: HashMap<String, String> = HashMap::new();
                         //Get walk path given and build a list of PathInfos
                         let path_info = PathInfo::new(&self.path);
-                        let paths =
-                            walk_paths(self.path.as_str());
+                        let paths = walk_paths(self.path.as_str());
                         //Create a hashmap relating PathInfo to FileCrypt for relevant .crypt files
                         let mut crypts: HashMap<PathInfo, FileCrypt> = HashMap::new();
                         for file in paths.clone().iter() {
                             if !file.is_dir && file.name.contains(".crypt") {
-                                let fc = query_crypt(get_uuid(
+                                let contents =
                                     &std::fs::read(file.full_path.display().to_string().as_str())
-                                        .expect("Could not get uuid")))
-                                    .expect("Could not query keeper");
+                                        .unwrap();
+                                let (s, _) = get_uuid(contents);
+                                let fc = query_crypt(s).expect("Could not query keeper");
                                 crypts.insert(file.to_owned(), fc);
                             }
                         }
@@ -173,7 +166,7 @@ impl Directive {
                             .collect();
 
                         //Match if directory or file
-                        match path_info.is_dir { 
+                        match path_info.is_dir {
                             //Full directory upload
                             true => {
                                 //Create the root directory
@@ -219,10 +212,11 @@ impl Directive {
                                         .to_string();
                                     if path.name.contains(".crypt") {
                                         let drive_id = crypts.get(&path).unwrap().drive_id.as_str();
-                                        if drive_id != "" {
+                                        if drive_id.is_empty() {
                                             let exists = runtime.block_on(drive::g_id_exists(
                                                 drive_id,
-                                                user_token.clone()));
+                                                user_token.clone(),
+                                            ));
 
                                             println!("{:?}", exists);
                                         }
@@ -238,7 +232,7 @@ impl Directive {
                                         if path.name.contains(".crypt") {
                                             crypts
                                                 .entry(path)
-                                                .and_modify(|fc| fc.drive_id = file_id.unwrap()); 
+                                                .and_modify(|fc| fc.drive_id = file_id.unwrap());
                                         }
                                     }
                                 }
@@ -254,7 +248,7 @@ impl Directive {
                                 if path_info.name.contains(".crypt") {
                                     crypts
                                         .entry(path_info)
-                                        .and_modify(|fc| fc.drive_id = file_id.unwrap()); 
+                                        .and_modify(|fc| fc.drive_id = file_id.unwrap());
                                 }
                             }
                         }
@@ -265,7 +259,7 @@ impl Directive {
                         //TESTING PORPISES
                         let after_upload_keeper = db::query_keeper_crypt().unwrap();
                         for item in after_upload_keeper {
-                            println!("{:?}", item);
+                            println!("{:#?}", item);
                         }
                         //Print the directory
                         let cloud_directory = runtime
@@ -274,21 +268,15 @@ impl Directive {
                         send_information(build_tree(&cloud_directory));
                     }
                     CloudTask::Download => {
-                        runtime.block_on(drive::google_query_file("1MVo5in4JCOLJ9YzbVTkj9jAY9cHoH8C8",user_token));
-                        
-                        let res: DirInfo = runtime.block_on(g_walk("Crypt", user_token)).unwrap();
-                        // println!("{res:#?}");
+                        println!("path {}", self.path);
 
+                        _ = runtime.block_on(drive::google_query_file(
+                            "1MVo5in4JCOLJ9YzbVTkj9jAY9cHoH8C8",
+                            user_token.clone(),
+                        ));
 
-                        // testing: get all files from vec 
-                        for f in res.contents { 
-                            if f.get_kind().0.is_some() {
-                                println!("{}, {}", f.get_contents().0);
-                            }
-                            // let (name, path) = f.get_contents();
-                            // println!("name: {}, \t path: {}", name, path);
-                        }
-                        
+                        let res = runtime.block_on(g_walk("Crypt", user_token)).unwrap();
+                        println!("{res:#?}");
                     }
                     CloudTask::View => {
                         let cloud_directory = runtime

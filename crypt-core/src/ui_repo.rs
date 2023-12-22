@@ -1,4 +1,3 @@
-
 pub enum Color {
     Black,
     Red,
@@ -10,7 +9,6 @@ pub enum Color {
     White,
     Custom(String),
 }
-
 
 #[derive(Clone, Copy)]
 pub struct CharacterSet {

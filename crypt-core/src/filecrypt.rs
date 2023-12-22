@@ -1,9 +1,9 @@
 use crate::{
+    common::get_full_file_path,
     common::{get_crypt_folder, get_file_bytes, write_contents_to_file},
     config::get_config,
     db::{insert_crypt, query_crypt},
     encryption::decrypt,
-    common::get_full_file_path,
 };
 use anyhow::Result;
 use log::*;
@@ -122,7 +122,6 @@ pub fn decrypt_file(path: &str, output: Option<String>) -> Result<(), EncryptErr
 /// # use crypt_lib::{Config, load_config};
 /// # use crypt_lib::encryption::{encrypt_file};
 ///
-/// let conf = (); // Initialize your Config struct accordingly
 /// let path = "/path/to/your/file.txt";
 /// encrypt_file(&conf, path, false);
 /// ```
@@ -172,10 +171,6 @@ pub fn encrypt_file(path: &str, in_place: bool) {
 
     // write fc to crypt_keeper
     insert_crypt(&fc).expect("failed to insert FileCrypt data into database!");
-
-    if !conf.retain {
-        std::fs::remove_file(path).unwrap_or_else(|_| panic!("failed to delete {}", path));
-    }
 }
 
 /// Generates the output file path for decrypted content based on the provided parameters.
@@ -291,9 +286,12 @@ pub fn generate_uuid() -> String {
 }
 
 /// gets UUID from encrypted file contents.
-pub fn get_uuid(contents: &Vec<u8>) -> (String, Vec<u8>) {
+pub fn get_uuid(contents: &[u8]) -> (String, Vec<u8>) {
     let (uuid, contents) = contents.split_at(36);
-    (String::from_utf8(uuid.to_vec()).unwrap_or(String::from_utf8_lossy(uuid).to_string()), contents.to_vec())
+    (
+        String::from_utf8(uuid.to_vec()).unwrap_or(String::from_utf8_lossy(uuid).to_string()),
+        contents.to_vec(),
+    )
 }
 
 pub fn prepend_uuid(uuid: &String, encrypted_contents: &mut Vec<u8>) -> Vec<u8> {
@@ -334,9 +332,9 @@ pub fn get_file_info(path: &str) -> (PathBuf, PathBuf, String, String) {
 // cargo nextest run
 #[cfg(test)]
 mod test {
+    use crate::config::load_config;
     use std::thread;
     use std::time::Duration;
-    use crate::config::load_config;
 
     use super::*;
 
@@ -360,8 +358,15 @@ mod test {
 
     #[test]
     fn test_get_uuid() {
-        let contents: Vec<u8> = vec![1,2,3,4,5,1,2,3,4,5,1,2,3,4,5,1,2,3,4,5,1,2,3,4,5,1,2,3,4,5,1,2,3,4,5,1,2,3,4,5];
-        let res_uuid: String = String::from_utf8(vec![1,2,3,4,5,1,2,3,4,5,1,2,3,4,5,1,2,3,4,5,1,2,3,4,5,1,2,3,4,5,1,2,3,4,5,1]).unwrap();
+        let contents: Vec<u8> = vec![
+            1, 2, 3, 4, 5, 1, 2, 3, 4, 5, 1, 2, 3, 4, 5, 1, 2, 3, 4, 5, 1, 2, 3, 4, 5, 1, 2, 3, 4,
+            5, 1, 2, 3, 4, 5, 1, 2, 3, 4, 5,
+        ];
+        let res_uuid: String = String::from_utf8(vec![
+            1, 2, 3, 4, 5, 1, 2, 3, 4, 5, 1, 2, 3, 4, 5, 1, 2, 3, 4, 5, 1, 2, 3, 4, 5, 1, 2, 3, 4,
+            5, 1, 2, 3, 4, 5, 1,
+        ])
+        .unwrap();
         assert_eq!(get_uuid(&contents), res_uuid);
     }
 }

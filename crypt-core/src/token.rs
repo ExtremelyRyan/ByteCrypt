@@ -1,5 +1,3 @@
-use chacha20poly1305::{aead::Aead, ChaCha20Poly1305, Key, KeyInit, Nonce};
-use serde::{Deserialize, Serialize};
 use crate::{
     common::{get_crypt_folder, send_information},
     config::get_config,
@@ -7,8 +5,10 @@ use crate::{
     encryption::{compress, decompress, generate_seeds},
     encryption::{KEY_SIZE, NONCE_SIZE},
 };
+use chacha20poly1305::{aead::Aead, ChaCha20Poly1305, Key, KeyInit, Nonce};
 use lazy_static::lazy_static;
 use oauth2::{basic::BasicClient, AuthUrl, ClientId, CsrfToken, RedirectUrl, ResponseType, Scope};
+use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
     fs,
@@ -23,7 +23,6 @@ const _GOOGLE_FOLDER: &str = "Crypt";
 pub const GOOGLE_CLIENT_ID: &str =
     "1006603075663-bi4o75nk6opljg7bicdiuden76s3v18f.apps.googleusercontent.com";
 const _CHUNK_SIZE: usize = 1_048_576; //1MB
-
 
 lazy_static! {
     ///Path for the google user token

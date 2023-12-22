@@ -1,33 +1,37 @@
 use std::path::PathBuf;
 
 use criterion::{criterion_group, criterion_main, Criterion};
-use crypt_core::{*, common::get_file_bytes, filecrypt::{generate_uuid, encrypt_file, FileCrypt}};
+use crypt_core::{
+    common::get_file_bytes,
+    filecrypt::{encrypt_file, generate_uuid, FileCrypt},
+    *,
+};
 
 #[cfg(target_os = "linux")]
-    static DRACULA: &str = "benches/files/dracula.txt"; 
-    #[cfg(target_os = "linux")]
-    static SHAKESPEARE: &str = "benches/files/Shakespeare.txt"; 
-    #[cfg(target_os = "linux")]
-    static DRACULA_CRYPT: &str = "benches/files/dracula.crypt"; 
-    #[cfg(target_os = "linux")]
-    static DRACULA_DECRYPT: &str = "benches/files/dracula-decrypted.txt";
-    #[cfg(target_os = "linux")]
-    static SHAKESPEARE_CRYPT: &str = "benches/files/Shakespeare.crypt";
-    #[cfg(target_os = "linux")]
-    static SHAKESPEARE_DECRYPT: &str = "benches/files/Shakespeare-decrypted.txt"; 
+static DRACULA: &str = "benches/files/dracula.txt";
+#[cfg(target_os = "linux")]
+static SHAKESPEARE: &str = "benches/files/Shakespeare.txt";
+#[cfg(target_os = "linux")]
+static DRACULA_CRYPT: &str = "benches/files/dracula.crypt";
+#[cfg(target_os = "linux")]
+static DRACULA_DECRYPT: &str = "benches/files/dracula-decrypted.txt";
+#[cfg(target_os = "linux")]
+static SHAKESPEARE_CRYPT: &str = "benches/files/Shakespeare.crypt";
+#[cfg(target_os = "linux")]
+static SHAKESPEARE_DECRYPT: &str = "benches/files/Shakespeare-decrypted.txt";
 
-    #[cfg(target_os = "windows")]
-    static DRACULA: &str = "benches\\files\\dracula.txt";
-    #[cfg(target_os = "windows")]
-    static SHAKESPEARE: &str = "benches\\files\\Shakespeare.txt";
-    #[cfg(target_os = "windows")]
-    static DRACULA_CRYPT: &str = "benches\\files\\dracula.crypt";
-    #[cfg(target_os = "windows")]
-    static SHAKESPEARE_CRYPT: &str = "benches\\files\\Shakespeare.crypt";
-    #[cfg(target_os = "windows")]
-    static DRACULA_DECRYPT: &str = "benches\\files\\dracula-decrypted.txt";
-    #[cfg(target_os = "windows")]
-    static SHAKESPEARE_DECRYPT: &str = "benches\\files\\Shakespeare-decrypted.txt";
+#[cfg(target_os = "windows")]
+static DRACULA: &str = "benches\\files\\dracula.txt";
+#[cfg(target_os = "windows")]
+static SHAKESPEARE: &str = "benches\\files\\Shakespeare.txt";
+#[cfg(target_os = "windows")]
+static DRACULA_CRYPT: &str = "benches\\files\\dracula.crypt";
+#[cfg(target_os = "windows")]
+static SHAKESPEARE_CRYPT: &str = "benches\\files\\Shakespeare.crypt";
+#[cfg(target_os = "windows")]
+static DRACULA_DECRYPT: &str = "benches\\files\\dracula-decrypted.txt";
+#[cfg(target_os = "windows")]
+static SHAKESPEARE_DECRYPT: &str = "benches\\files\\Shakespeare-decrypted.txt";
 
 // encrypt test with 850kb file
 pub fn enc_benchmark(c: &mut Criterion) {
@@ -66,7 +70,6 @@ pub fn shakespeare_content_encryption(c: &mut Criterion) {
 
 // encrypt test with 5mb file
 pub fn enc_benchmark_large(c: &mut Criterion) {
-
     c.bench_function("full file encryption (shakespeare)", |b| {
         b.iter(|| encrypt_file(SHAKESPEARE, false))
     });
@@ -106,7 +109,6 @@ pub fn dec_benchmark(c: &mut Criterion) {
 
 // decrypt test with 5mb file
 pub fn dec_benchmark_large(c: &mut Criterion) {
-
     c.bench_function("decrypt Shakespeare", |b| {
         b.iter(|| crate::filecrypt::decrypt_file(SHAKESPEARE_CRYPT, None))
     });
@@ -154,7 +156,7 @@ criterion_group!(
     enc_benchmark,
     dracula_content_encryption,
     shakespeare_content_encryption,
-    enc_benchmark_large, 
+    enc_benchmark_large,
     dec_benchmark,
     dec_benchmark_large,
     test_compute_hash,
