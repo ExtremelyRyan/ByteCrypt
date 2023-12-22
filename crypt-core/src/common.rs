@@ -1,5 +1,8 @@
 use anyhow::{Ok, Result};
 use std::path::{Path, PathBuf};
+use std::any::TypeId;
+use std::fs::File;
+use std::path::PathBuf;
 use std::process::Command;
 use std::{
     fs::OpenOptions,
@@ -123,6 +126,7 @@ impl FileInfo {
             path,
         }
     }
+
 }
 
 ///Stores information about a directory

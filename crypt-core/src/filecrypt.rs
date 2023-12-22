@@ -69,18 +69,17 @@ pub fn decrypt_file(path: &str, output: Option<String>) -> Result<(), EncryptErr
     let parent_dir = &fp.parent().unwrap().to_owned();
 
     // rip out uuid from contents
-    let contents = std::fs::read(path).expect("failed to read decryption file!");
-    let (uuid, content) = contents.split_at(36);
-    let uuid_str = String::from_utf8(uuid.to_vec()).unwrap();
+    let content = std::fs::read(path).expect("failed to read decryption file!");
+    let (uuid, contents) = get_uuid(&content);
 
     // query db with uuid
-    let fc = query_crypt(uuid_str).unwrap();
+    let fc = query_crypt(uuid).unwrap();
     let fc_hash: [u8; 32] = fc.hash.to_owned();
 
     // get output file
     let file = generate_output_file(&fc, output, parent_dir);
 
-    let mut decrypted_content = decrypt(fc.clone(), &content.to_vec()).expect("failed decryption");
+    let mut decrypted_content = decrypt(fc.clone(), &contents.to_vec()).expect("failed decryption");
 
     // unzip contents
     decrypted_content = decompress(&decrypted_content);
@@ -292,9 +291,9 @@ pub fn generate_uuid() -> String {
 }
 
 /// gets UUID from encrypted file contents.
-pub fn get_uuid(contents: &Vec<u8>) -> String {
-    let (uuid, _) = contents.split_at(36);
-    String::from_utf8(uuid.to_vec()).unwrap_or(String::from_utf8_lossy(uuid).to_string())
+pub fn get_uuid(contents: &Vec<u8>) -> (String, Vec<u8>) {
+    let (uuid, contents) = contents.split_at(36);
+    (String::from_utf8(uuid.to_vec()).unwrap_or(String::from_utf8_lossy(uuid).to_string()), contents.to_vec())
 }
 
 pub fn prepend_uuid(uuid: &String, encrypted_contents: &mut Vec<u8>) -> Vec<u8> {
