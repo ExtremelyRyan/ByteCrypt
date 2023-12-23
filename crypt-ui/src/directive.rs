@@ -167,7 +167,7 @@ impl Directive {
 
                         //Match if directory or file
                         match path_info.is_dir {
-                            //Full directory upload
+                            // Full directory upload
                             true => {
                                 //Create the root directory
                                 folder_ids.insert(
@@ -212,7 +212,7 @@ impl Directive {
                                         .to_string();
                                     if path.name.contains(".crypt") {
                                         let drive_id = crypts.get(&path).unwrap().drive_id.as_str();
-                                        if drive_id.is_empty() {
+                                        if !drive_id.is_empty() {
                                             let exists = runtime.block_on(drive::g_id_exists(
                                                 drive_id,
                                                 user_token.clone(),
