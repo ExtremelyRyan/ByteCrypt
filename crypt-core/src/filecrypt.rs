@@ -367,6 +367,6 @@ mod test {
             5, 1, 2, 3, 4, 5, 1,
         ])
         .unwrap();
-        assert_eq!(get_uuid(&contents), res_uuid);
+        assert_eq!(get_uuid(&contents).0, res_uuid);
     }
 }
