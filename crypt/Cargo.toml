@@ -12,13 +12,13 @@ keywords = ["encryption", "files"]
 categories = ["command-line-utilities", "file-encryption"]
 license = "MIT"
 rust-version = "1.70"
-
+workspace = "../"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 crypt-ui = { path = "../crypt-ui" }
 
-anyhow = "1.0.75"
+anyhow = "1"
 
 # Logging
 env_logger = "0.10.1"

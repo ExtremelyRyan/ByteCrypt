@@ -1,10 +1,9 @@
-use anyhow::{Ok, Error, Result};
-use crypt_core::{
+pub use crypt_core::{
     common::DirInfo,
     common::{FileInfo, FsNode},
     token::UserToken,
 };
-
+use anyhow::{Ok, Error, Result};
 use async_recursion::async_recursion;
 use reqwest::{header::{CONTENT_LENGTH, CONTENT_RANGE, LOCATION}, Response, Client};
 use serde_json::Value;
@@ -68,7 +67,7 @@ pub async fn g_id_exists(id: &str, creds: UserToken) -> Result<bool> {
 pub async fn g_create_folder(
     creds: &UserToken,
     path: Option<&PathBuf>,
-    parent: String,
+    parent: &str,
 ) -> Result<String> {
 
     let save_path = match path {
@@ -145,7 +144,7 @@ pub async fn g_create_folder(
 }
 
 ///Uploads a file to google drive
-pub async fn g_upload(creds: UserToken, path: &str, parent: String) -> Result<String> {
+pub async fn g_upload(creds: UserToken, path: &str, parent: &str) -> Result<String> {
     //Get file content
     let mut file = tokio::fs::File::open(path).await?;
     let file_name = std::path::Path::new(path)
