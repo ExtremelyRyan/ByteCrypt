@@ -1,15 +1,11 @@
-use anyhow::{Error, Ok, Result};
-use crypt_core::{
+pub use crypt_core::{
     common::DirInfo,
     common::{FileInfo, FsNode},
     token::UserToken,
 };
-
+use anyhow::{Ok, Error, Result};
 use async_recursion::async_recursion;
-use reqwest::{
-    header::{CONTENT_LENGTH, CONTENT_RANGE, LOCATION},
-    Client, Response,
-};
+use reqwest::{header::{CONTENT_LENGTH, CONTENT_RANGE, LOCATION}, Response, Client};
 use serde_json::Value;
 use std::path::PathBuf;
 use tokio::io::AsyncReadExt;
@@ -29,6 +25,7 @@ pub async fn request_url(url: &str, creds: &UserToken) -> Result<Response, Error
 
 //Takes in an id and checks if that id exists on Google Drive
 pub async fn g_id_exists(id: &str, creds: UserToken) -> Result<bool> {
+
     //Create the URL, we don't care about trashed items
     let url = format!(
         "https://www.googleapis.com/drive/v3/files/{}?fields=trashed",
@@ -60,6 +57,7 @@ pub async fn g_create_folder(
     path: Option<&PathBuf>,
     parent: &str,
 ) -> Result<String> {
+
     let save_path = match path {
         Some(p) => p.to_str().unwrap(),
         None => GOOGLE_FOLDER,

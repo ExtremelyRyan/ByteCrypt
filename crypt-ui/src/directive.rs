@@ -5,13 +5,15 @@ use crypt_core::{
     },
     config::{self, Config, ConfigTask, ItemsTask},
     db::{self, query_crypt},
-    db::{export_keeper, import_keeper},
+    db::{export_keeper, import_keeper, delete_keeper},
     filecrypt::{decrypt_file, encrypt_file, get_uuid, FileCrypt},
     token::CloudTask,
     token::{CloudService, UserToken},
 };
 use std::{collections::HashMap, path::PathBuf};
 use tokio::runtime::Runtime;
+
+use crate::cli::KeeperCommand;
 
 ///Base information required for all directive calls
 ///
@@ -371,20 +373,47 @@ pub fn config(path: &str, config_task: ConfigTask) {
     };
 }
 
-pub fn keeper(import: &bool, export: &bool, csv_path: &String) {
-    match (import, export) {
-        (true, false) => {
-            // UNTESTED
-            if csv_path.is_empty() {
-                println!("please add a path to the csv");
+pub fn keeper(kc: &KeeperCommand) {
+    match kc {
+        KeeperCommand::Import { path } => {
+            if path.is_empty() {
+                send_information(vec![format!("please add a path to the csv")]);
                 return;
             }
-            let _ = import_keeper(csv_path);
-        }
-        (false, true) => {
-            let _ = export_keeper();
-        }
-        (false, false) | (true, true) => (),
+            match import_keeper(path) {
+                Ok(_) => (),
+                Err(e) => panic!("problem importing keeper to database! {}", e),
+            }
+        },
+        KeeperCommand::Export { alt_path } => {
+            match export_keeper(Some(&alt_path)) {
+                Ok(_) => (),
+                Err(e) => panic!("problem exporting keeper! {}", e),
+            }
+        },
+        KeeperCommand::Purge {} => { 
+            send_information(vec![
+                format!("==================== WARNING ===================="),
+                format!("DOING THIS WILL IRREVERSIBLY DELETE YOUR DATABASE"),
+                format!("DOING THIS WILL IRREVERSIBLY DELETE YOUR DATABASE"),
+                format!("DOING THIS WILL IRREVERSIBLY DELETE YOUR DATABASE"),
+                format!(r#"type "delete database" to delete, or "q" to quit"#)
+                ]);
+                let mut phrase = String::new();
+                let match_phrase = String::from("delete database");
+                loop { 
+                    std::io::stdin()
+                        .read_line(&mut phrase)
+                        .expect("Failed to read line");
+                        phrase = phrase.trim().to_string();
+                     
+                    
+                    if phrase.eq(&match_phrase) { break; }
+                    if phrase.eq("q") { return; }
+                }
+            _ = delete_keeper();
+            send_information(vec![format!("database deleted.")]);
+        },
     }
 }
 // }

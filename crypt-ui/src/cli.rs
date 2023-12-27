@@ -266,7 +266,7 @@ pub fn load_cli() {
                 let (task, path) = match task {
                     Some(DriveCommand::Upload { path }) => (CloudTask::Upload, path),
                     Some(DriveCommand::Download { path }) => (CloudTask::Download, path),
-                    Some(DriveCommand::View { path }) => (CloudTask::View, path),
+                    Some(DriveCommand::View { path  }) => (CloudTask::View, path),
                     None => panic!("invalid input"),
                 };
                 directive::cloud(path, CloudService::Dropbox, task);
@@ -277,11 +277,9 @@ pub fn load_cli() {
             }
         },
         // Keeper
-        Some(Commands::Keeper { category }) => match category {
-            Some(KeeperCommand::Import { path }) => todo!(),
-            Some(KeeperCommand::Export { alt_path }) => todo!(),
-            Some(KeeperCommand::Purge {}) => todo!(),
-            _ => (),
+        Some(Commands::Keeper { category }) => {
+            let kc = category.as_ref().unwrap();
+            directive::keeper(kc);
         },
 
         // Config
