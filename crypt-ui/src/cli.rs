@@ -4,10 +4,8 @@ use crypt_core::{
     token::{CloudService, CloudTask},
 };
 
-use crate::{
-    directive::{self, Directive},
-    tui::load_tui,
-};
+use crate::directive;
+use crate::tui::load_tui;
 
 ///CLI arguments
 #[derive(Parser, Debug)]
@@ -80,17 +78,9 @@ enum Commands {
 
     ///Import | Export database
     Keeper {
-        ///Import CSV keeper file to database
-        #[arg(short = 'i', long, required = false, default_value_t = false)]
-        import: bool,
-
-        ///Export Keeper to CSV file
-        #[arg(short = 'e', long, required = false, default_value_t = false)]
-        export: bool,
-
-        //Path to CSV file for import
-        #[arg(required = false, default_value_t = String::from(""))]
-        csv_path: String,
+        /// Categories
+        #[command(subcommand)]
+        category: Option<KeeperCommand>,
     },
 }
 
@@ -191,6 +181,31 @@ pub enum ConfigCommand {
     LoadDefault,
 }
 
+/// Subcommands for Keeper
+#[derive(Subcommand, Debug)]
+pub enum KeeperCommand {
+    /// View or update the database path
+    #[command(short_flag = 'i')]
+    Import {
+        #[arg(required = true, default_value_t = String::from(""))]
+        path: String,
+    },
+
+    /// View or change which directories and/or filetypes are to be ignored
+    #[command(short_flag = 'e')]
+    Export {
+        /// value to update config
+        #[arg(required = false, default_value_t = String::from(""))]
+        alt_path: String,
+    },
+
+    /// PURGES DATABASE FROM SYSTEM
+    #[command(short_flag = 'p')]
+    Purge {},
+}
+
+impl KeeperCommand {}
+
 /// Runs the CLI and returns a directive to be processed
 pub fn load_cli() {
     // Run the cli and get responses
@@ -222,8 +237,7 @@ pub fn load_cli() {
             in_place,
             output,
         }) => {
-            let directive = Directive::new(path.to_owned());
-            directive.encrypt(in_place.to_owned(), output.to_owned());
+            directive::encrypt(path, in_place.to_owned(), output.to_owned());
         }
 
         // Decryption
@@ -232,8 +246,7 @@ pub fn load_cli() {
             in_place,
             output,
         }) => {
-            let directive = Directive::new(path.to_owned());
-            directive.decrypt(in_place.to_owned(), output.to_owned());
+            directive::decrypt(path, in_place.to_owned(), output.to_owned());
         }
 
         // Cloud
@@ -245,8 +258,7 @@ pub fn load_cli() {
                     Some(DriveCommand::View { path }) => (CloudTask::View, path),
                     None => panic!("invalid input"),
                 };
-                let directive = Directive::new(path.to_owned());
-                directive.cloud(CloudService::Google, task);
+                directive::cloud(path, CloudService::Google, task);
             }
 
             // Dropbox
@@ -257,8 +269,7 @@ pub fn load_cli() {
                     Some(DriveCommand::View { path }) => (CloudTask::View, path),
                     None => panic!("invalid input"),
                 };
-                let directive: Directive = Directive::new(path.to_owned());
-                directive.cloud(CloudService::Dropbox, task);
+                directive::cloud(path, CloudService::Dropbox, task);
             }
 
             None => {
@@ -266,20 +277,18 @@ pub fn load_cli() {
             }
         },
         // Keeper
-        Some(Commands::Keeper {
-            import,
-            export,
-            csv_path,
-        }) => {
-            directive::Directive::keeper(import, export, csv_path);
-        }
+        Some(Commands::Keeper { category }) => match category {
+            Some(KeeperCommand::Import { path }) => todo!(),
+            Some(KeeperCommand::Export { alt_path }) => todo!(),
+            Some(KeeperCommand::Purge {}) => todo!(),
+            _ => (),
+        },
 
         // Config
         Some(Commands::Config { category }) => {
             match category {
                 Some(ConfigCommand::DatabasePath { path }) => {
-                    let directive = Directive::new(path.to_owned());
-                    directive.config(ConfigTask::DatabasePath);
+                    directive::config(path, ConfigTask::DatabasePath);
                 }
 
                 // IgnoreItems
@@ -290,43 +299,38 @@ pub fn load_cli() {
                         _ => panic!("invalid input"),
                     };
 
-                    let directive = Directive::default();
-                    directive.config(ConfigTask::IgnoreItems(add_remove, item.to_owned()));
+                    directive::config("", ConfigTask::IgnoreItems(add_remove, item.to_owned()));
                 }
 
                 // Retain
                 Some(ConfigCommand::Retain { choice }) => {
-                    let directive = Directive::default();
                     let choice = match choice.to_lowercase().as_str() {
                         "true" | "t" => true,
                         "false" | "f" => false,
                         _ => panic!("Unable to parse passed value"),
                     };
-                    directive.config(ConfigTask::Retain(choice));
+                    directive::config("", ConfigTask::Retain(choice));
                 }
 
                 // Backup
                 Some(ConfigCommand::Backup { choice }) => {
-                    let directive = Directive::default();
                     let choice = match choice.to_lowercase().as_str() {
                         "true" | "t" => true,
                         "false" | "f" => false,
                         _ => panic!("Unable to parse passed value"),
                     };
-                    directive.config(ConfigTask::Backup(choice));
+                    directive::config("", ConfigTask::Backup(choice));
                 }
 
                 // ZstdLevel
                 Some(ConfigCommand::ZstdLevel { level }) => {
-                    let directive = Directive::default();
                     let level: i32 = level.parse().expect("Could not interpret passed value");
-                    directive.config(ConfigTask::ZstdLevel(level));
+                    directive::config("", ConfigTask::ZstdLevel(level));
                 }
 
                 // LoadDefault
                 Some(ConfigCommand::LoadDefault) => {
-                    let directive = Directive::default();
-                    directive.config(ConfigTask::LoadDefault);
+                    directive::config("", ConfigTask::LoadDefault);
                 }
 
                 None => (),
