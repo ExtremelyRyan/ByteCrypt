@@ -294,9 +294,35 @@ pub fn get_uuid(contents: &[u8]) -> (String, Vec<u8>) {
     )
 }
 
-pub fn prepend_uuid(uuid: &String, encrypted_contents: &mut Vec<u8>) -> Vec<u8> {
+/// Prepends a UUID represented as a string to a vector of encrypted contents. Modifies vector in place.
+///
+/// # Arguments
+///
+/// * `uuid` - A string slice representing the UUID to prepend.
+/// * `encrypted_contents` - A mutable reference to a vector of bytes containing encrypted contents.
+///
+/// # Returns
+///
+/// Returns a new vector of bytes with the UUID prepended to the original encrypted contents.
+///
+/// # Examples
+///
+/// ```
+/// use crypt_core::filecrypt::prepend_uuid;
+///
+/// let mut encrypted_data = vec![1, 2, 3];
+/// let uuid = "550e8400-e29b-41d4-a716-446655440000";
+///
+/// let result = prepend_uuid(uuid, &mut encrypted_data);
+///
+/// assert_eq!(result.len(), encrypted_data.len() + 36); // UUID is 36 bytes
+/// assert_eq!(&result[0..36], uuid.as_bytes());        // Check if UUID is prepended correctly
+/// assert_eq!(&result[36..], encrypted_data.as_slice()); // Check if original contents are preserved
+/// ```
+pub fn prepend_uuid(uuid: &str, encrypted_contents: &mut Vec<u8>) -> Vec<u8> {
     let mut uuid_bytes = uuid.as_bytes().to_vec();
-    uuid_bytes.append(encrypted_contents);
+    let mut encc = encrypted_contents.clone();
+    uuid_bytes.append(&mut encc);
     uuid_bytes
 }
 
