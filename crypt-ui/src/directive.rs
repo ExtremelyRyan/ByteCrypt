@@ -1,27 +1,18 @@
-use crypt_cloud::drive::{self, g_walk};
-use crypt_core::{
+use crypt_cloud::crypt_core::{
     common::{
         build_tree, get_full_file_path, send_information, walk_directory, walk_paths, PathInfo,
     },
     config::{self, Config, ConfigTask, ItemsTask},
     db::{self, query_crypt},
-    db::{export_keeper, import_keeper, delete_keeper},
+    db::{delete_keeper, export_keeper, import_keeper},
     filecrypt::{decrypt_file, encrypt_file, get_uuid, FileCrypt},
     token::CloudTask,
     token::{CloudService, UserToken},
 };
+use crypt_cloud::drive::{self, g_walk};
 use std::{collections::HashMap, path::PathBuf};
 use tokio::runtime::Runtime;
-
 use crate::cli::KeeperCommand;
-
-///Base information required for all directive calls
-///
-/// # Example
-///```ignore
-/// # use crypt_lib::util::directive::Directive;
-/// let directive = Directive::new("relevant/file.path".to_string());
-///```
 
 ///Process the encryption directive
 ///
@@ -376,44 +367,38 @@ pub fn config(path: &str, config_task: ConfigTask) {
 pub fn keeper(kc: &KeeperCommand) {
     match kc {
         KeeperCommand::Import { path } => {
-            if path.is_empty() {
-                send_information(vec![format!("please add a path to the csv")]);
-                return;
-            }
-            match import_keeper(path) {
-                Ok(_) => (),
-                Err(e) => panic!("problem importing keeper to database! {}", e),
-            }
+            KeeperCommand::import(path);
+        }
+        KeeperCommand::Export { alt_path } => match export_keeper(Some(&alt_path)) {
+            Ok(_) => (),
+            Err(e) => panic!("problem exporting keeper! {}", e),
         },
-        KeeperCommand::Export { alt_path } => {
-            match export_keeper(Some(&alt_path)) {
-                Ok(_) => (),
-                Err(e) => panic!("problem exporting keeper! {}", e),
-            }
-        },
-        KeeperCommand::Purge {} => { 
+        KeeperCommand::Purge {} => {
             send_information(vec![
                 format!("==================== WARNING ===================="),
-                format!("DOING THIS WILL IRREVERSIBLY DELETE YOUR DATABASE"),
-                format!("DOING THIS WILL IRREVERSIBLY DELETE YOUR DATABASE"),
-                format!("DOING THIS WILL IRREVERSIBLY DELETE YOUR DATABASE"),
-                format!(r#"type "delete database" to delete, or "q" to quit"#)
-                ]);
-                let mut phrase = String::new();
-                let match_phrase = String::from("delete database");
-                loop { 
-                    std::io::stdin()
-                        .read_line(&mut phrase)
-                        .expect("Failed to read line");
-                        phrase = phrase.trim().to_string();
-                     
-                    
-                    if phrase.eq(&match_phrase) { break; }
-                    if phrase.eq("q") { return; }
+                format!("DOING THIS WILL IRREVERSIBLY DELETE YOUR DATABASE\n"),
+                format!("DOING THIS WILL IRREVERSIBLY DELETE YOUR DATABASE\n"),
+                format!("DOING THIS WILL IRREVERSIBLY DELETE YOUR DATABASE\n\n"),
+                format!(r#"type "delete database" to delete, or "q" to quit"#),
+            ]);
+            let mut phrase = String::new();
+            let match_phrase = String::from("delete database");
+            loop {
+                std::io::stdin()
+                    .read_line(&mut phrase)
+                    .expect("Failed to read line");
+                phrase = phrase.trim().to_string();
+
+                if phrase.eq(&match_phrase) {
+                    break;
                 }
+                if phrase.eq("q") {
+                    return;
+                }
+            }
             _ = delete_keeper();
             send_information(vec![format!("database deleted.")]);
-        },
+        }
     }
 }
 // }

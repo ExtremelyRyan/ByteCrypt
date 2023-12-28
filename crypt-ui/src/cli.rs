@@ -1,7 +1,7 @@
 use clap::{Parser, Subcommand};
-use crypt_core::{
+use crypt_cloud::crypt_core::{
     config::{self, ConfigTask, ItemsTask},
-    token::{CloudService, CloudTask},
+    token::{CloudService, CloudTask}, common::send_information, db::import_keeper,
 };
 
 use crate::directive;
@@ -204,7 +204,19 @@ pub enum KeeperCommand {
     Purge {},
 }
 
-impl KeeperCommand {}
+impl KeeperCommand {
+    pub fn import(path: &String) { 
+        if path.is_empty() {
+            send_information(vec![format!("please add a path to the csv")]);
+            return;
+        }
+        match import_keeper(path) {
+            Ok(_) => (),
+            Err(e) => panic!("problem importing keeper to database! {}", e),
+        }
+    }
+}
+ 
 
 /// Runs the CLI and returns a directive to be processed
 pub fn load_cli() {
@@ -266,7 +278,7 @@ pub fn load_cli() {
                 let (task, path) = match task {
                     Some(DriveCommand::Upload { path }) => (CloudTask::Upload, path),
                     Some(DriveCommand::Download { path }) => (CloudTask::Download, path),
-                    Some(DriveCommand::View { path  }) => (CloudTask::View, path),
+                    Some(DriveCommand::View { path }) => (CloudTask::View, path),
                     None => panic!("invalid input"),
                 };
                 directive::cloud(path, CloudService::Dropbox, task);
@@ -280,7 +292,7 @@ pub fn load_cli() {
         Some(Commands::Keeper { category }) => {
             let kc = category.as_ref().unwrap();
             directive::keeper(kc);
-        },
+        }
 
         // Config
         Some(Commands::Config { category }) => {
