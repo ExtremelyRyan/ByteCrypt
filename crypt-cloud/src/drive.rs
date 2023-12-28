@@ -27,12 +27,18 @@ const CHUNK_SIZE: usize = 5_242_880; //5MB
 /// This function could panic if `reqwest` crate fails to create a new `Client`
 pub async fn request_url(url: &str, creds: &UserToken) -> Result<Response, Error> {
     let client = reqwest::Client::new();
-    let response = client.get(url).bearer_auth(&creds.access_token).send().await.map_err(Error::from)?;
+    let response = client
+        .get(url)
+        .bearer_auth(&creds.access_token)
+        .send()
+        .await
+        .map_err(Error::from)?;
     Ok(response)
 }
 
 //Takes in an id and checks if that id exists on Google Drive
 pub async fn g_id_exists(user_token: &UserToken, id: &str) -> Result<bool> {
+
     //Create the URL, we don't care about trashed items
     let url = format!(
         "https://www.googleapis.com/drive/v3/files/{}?fields=trashed",

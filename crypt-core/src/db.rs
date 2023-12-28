@@ -88,7 +88,6 @@ pub fn export_keeper(alt_path: Option<&str>) -> Result<()> {
         true => write_contents_to_file(alt_path.unwrap(), data.into_bytes()),
         false => write_contents_to_file(path.to_str().unwrap(), data.into_bytes()),
     }
-    
 }
 
 /// Imports csv into database. <b>WARNING</b>, overrides may occur!
@@ -442,12 +441,12 @@ pub fn delete_crypt(uuid: String) -> Result<()> {
 // / let fc = FileCrypt::new({...});
 // / let _ = insert_crypt(&fc);
 // /```
-pub fn delete_keeper() -> Result<()> { 
+pub fn delete_keeper() -> Result<()> {
     let path;
-        {
-            let config = get_config();
-            path = config.database_path.to_string();
-        }
+    {
+        let config = get_config();
+        path = config.database_path.to_string();
+    }
     if Path::new(&path).exists() {
         fs::remove_file(path)?;
     }

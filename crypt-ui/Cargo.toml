@@ -26,5 +26,5 @@ crossterm = "0.27.0"
 log = "0.4.20"
 
 crypt-cloud = { path = "../crypt-cloud" }
-crypt-core = { path = "../crypt-core" }
+# crypt-core = { path = "../crypt-core" }
  
