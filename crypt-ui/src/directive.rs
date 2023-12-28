@@ -146,7 +146,7 @@ impl Directive {
                         "".to_string()
                     }
                 };
-                // let _ = runtime.block_on(drive::g_drive_info(&user_token));
+
                 match task {
                     CloudTask::Upload => {
                         //Track all folder ids
@@ -217,20 +217,23 @@ impl Directive {
                                         .get(&parent_path)
                                         .expect("Could not retrieve parent ID")
                                         .to_string();
+
+                                    let mut exists = false;
                                     if path.name.contains(".crypt") {
                                         let drive_id = crypts.get(&path).unwrap().drive_id.as_str();
                                         if drive_id != "" {
-                                            let exists = runtime.block_on(drive::g_id_exists(
-                                                drive_id,
-                                                user_token.clone()));
+                                            exists = runtime.block_on(drive::g_id_exists(
+                                                &user_token,
+                                                drive_id)
+                                            ).expect("Could not query drive for file ID");
 
                                             println!("{:?}", exists);
                                         }
                                     }
 
-                                    if !path.is_dir {
+                                    if !path.is_dir && !exists {
                                         let file_id = runtime.block_on(drive::g_upload(
-                                            user_token.clone(),
+                                            &user_token,
                                             &path.full_path.display().to_string(),
                                             parent_id,
                                         ));
@@ -240,13 +243,19 @@ impl Directive {
                                                 .entry(path)
                                                 .and_modify(|fc| fc.drive_id = file_id.unwrap()); 
                                         }
+                                    } else {
+                                        let _ = runtime.block_on(drive::g_update(
+                                            &user_token,
+                                            &crypts.get(&path).unwrap().drive_id.as_str(),
+                                            &path.full_path.display().to_string().as_str(),
+                                        ));
                                     }
                                 }
                             }
                             //Individual file(s)
                             false => {
                                 let file_id = runtime.block_on(drive::g_upload(
-                                    user_token.clone(),
+                                    &user_token,
                                     &path_info.full_path.display().to_string(),
                                     crypt_folder,
                                 ));
@@ -269,7 +278,7 @@ impl Directive {
                         }
                         //Print the directory
                         let cloud_directory = runtime
-                            .block_on(drive::g_walk("Crypt", user_token))
+                            .block_on(drive::g_walk(&user_token, "Crypt"))
                             .expect("Could not view directory information");
                         send_information(build_tree(&cloud_directory));
                     }
@@ -286,7 +295,7 @@ impl Directive {
                     }
                     CloudTask::View => {
                         let cloud_directory = runtime
-                            .block_on(drive::g_walk(&self.path, user_token))
+                            .block_on(drive::g_walk(&user_token, &self.path))
                             .expect("Could not view directory information");
                         send_information(build_tree(&cloud_directory));
                     }
