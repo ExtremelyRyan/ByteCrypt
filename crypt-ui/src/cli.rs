@@ -4,7 +4,8 @@ use crypt_core::{
     token::{CloudService, CloudTask},
 };
 
-use crate::{directive::{Directive, self}, tui::load_tui};
+use crate::directive;
+use crate::tui::load_tui;
 
 ///CLI arguments
 #[derive(Parser, Debug)]
@@ -31,6 +32,20 @@ pub struct CommandLineArgs {
 ///CLI commands
 #[derive(Subcommand, Debug)]
 enum Commands {
+    ///Upload, download, or view file or folder to cloud provider
+    Cloud {
+        ///Categories
+        #[command(subcommand)]
+        category: Option<CloudCommand>,
+    },
+
+    /// View or change configuration
+    Config {
+        /// Categories
+        #[command(subcommand)]
+        category: Option<ConfigCommand>,
+    },
+
     ///Encrypt file or folder of files
     Encrypt {
         ///Path to File or Directory
@@ -61,47 +76,25 @@ enum Commands {
         output: Option<String>,
     },
 
-    ///Upload, download, or view file or folder to cloud provider
-    Cloud {
-        ///Categories
-        #[command(subcommand)]
-        category: Option<CloudCommand>,
-    },
-
     ///Import | Export database
     Keeper {
-        ///Import CSV keeper file to database
-        #[arg(short = 'i', long, required = false, default_value_t = false)]
-        import: bool,
-
-        ///Export Keeper to CSV file
-        #[arg(short = 'e', long, required = false, default_value_t = false)]
-        export: bool,
-
-        //Path to CSV file for import
-        #[arg(required = false, default_value_t = String::from(""))]
-        csv_path: String,
-    },
-
-    ///View or change configuration
-    Config {
-        ///Categories
+        /// Categories
         #[command(subcommand)]
-        category: Option<ConfigCommand>,
+        category: Option<KeeperCommand>,
     },
 }
 
 ///Subcommands for Upload
 #[derive(Subcommand, Debug)]
 pub enum CloudCommand {
-    ///View, upload, or download actions for Google Drive
+    /// View, upload, or download actions for Google Drive
     #[command(short_flag = 'g')]
     Google {
         #[command(subcommand)]
         task: Option<DriveCommand>,
     },
 
-    ///View, upload, or download actions for DropBox
+    /// View, upload, or download actions for DropBox
     #[command(short_flag = 'd')]
     Dropbox {
         #[command(subcommand)]
@@ -112,42 +105,42 @@ pub enum CloudCommand {
 ///
 #[derive(Subcommand, Debug, Clone)]
 pub enum DriveCommand {
-    ///Upload a file or folder
+    /// Upload a file or folder
     #[command(short_flag = 'u')]
     Upload {
         #[arg(required = false, default_value_t = String::from(""))]
         path: String,
     },
 
-    ///Download a file or folder
+    /// Download a file or folder
     #[command(short_flag = 'd')]
     Download {
         #[arg(required = false, default_value_t = String::from(""))]
         path: String,
     },
 
-    ///View a file or folder
+    /// View a file or folder
     #[command(short_flag = 'v')]
     #[clap(alias = "list")]
     View {
         // Default to Crypt folder if nothing passed in.
-        #[arg(required = false, default_value_t = String::from("Crypt"))]  
+        #[arg(required = false, default_value_t = String::from("Crypt"))]
         path: String,
     },
 }
 
-///Subcommands for Config
+/// Subcommands for Config
 #[derive(Subcommand, Debug)]
 pub enum ConfigCommand {
-    ///View or update the database path
+    /// View or update the database path
     #[command(short_flag = 'd')]
     DatabasePath {
-        ///Database path; if empty, prints current path
+        /// Database path; if empty, prints current path
         #[arg(required = false, default_value_t = String::from(""))]
         path: String,
     },
 
-    ///View or change which directories and/or filetypes are to be ignored
+    /// View or change which directories and/or filetypes are to be ignored
     #[command(short_flag = 'i')]
     IgnoreItems {
         /// value to update config
@@ -159,23 +152,23 @@ pub enum ConfigCommand {
         item: String,
     },
 
-    ///Update whether to retain original files after encryption or decryption
+    /// Update whether to retain original files after encryption or decryption
     #[command(short_flag = 'r')]
     Retain {
-        ///Configure retaining original file: kept if true
+        /// Configure retaining original file: kept if true
         #[arg(required = false, default_value_t = String::from(""))]
         choice: String,
     },
 
-    ///Update whether to retain original files after encryption or decryption
+    /// Update whether to retain original files after encryption or decryption
     #[command(short_flag = 'b')]
     Backup {
-        ///Configure retaining original file: kept if true
+        /// Configure retaining original file: kept if true
         #[arg(required = false, default_value_t = String::from(""))]
         choice: String,
     },
 
-    ///View or change the compression level (-7 to 22) -- higher is more compression
+    /// View or change the compression level (-7 to 22) -- higher is more compression
     #[command(short_flag = 'z')]
     ZstdLevel {
         /// value to update config
@@ -183,14 +176,39 @@ pub enum ConfigCommand {
         level: String,
     },
 
-    ///Revert config back to default
+    /// Revert config back to default
     #[command(short_flag = 'l')]
     LoadDefault,
 }
 
-///Runs the CLI and returns a directive to be processed
+/// Subcommands for Keeper
+#[derive(Subcommand, Debug)]
+pub enum KeeperCommand {
+    /// View or update the database path
+    #[command(short_flag = 'i')]
+    Import {
+        #[arg(required = true, default_value_t = String::from(""))]
+        path: String,
+    },
+
+    /// View or change which directories and/or filetypes are to be ignored
+    #[command(short_flag = 'e')]
+    Export {
+        /// value to update config
+        #[arg(required = false, default_value_t = String::from(""))]
+        alt_path: String,
+    },
+
+    /// PURGES DATABASE FROM SYSTEM
+    #[command(short_flag = 'p')]
+    Purge {},
+}
+
+impl KeeperCommand {}
+
+/// Runs the CLI and returns a directive to be processed
 pub fn load_cli() {
-    //Run the cli and get responses
+    // Run the cli and get responses
     let cli = CommandLineArgs::parse();
 
     // Invoked as: `crypt --md > commands.md`
@@ -198,19 +216,19 @@ pub fn load_cli() {
         clap_markdown::print_help_markdown::<CommandLineArgs>();
     }
 
-    //If debug mode was passed
+    // If debug mode was passed
     if cli.debug {
         debug_mode();
     }
 
-    //Call TUI if flag was passed
+    // Call TUI if flag was passed
     if cli.tui {
         load_tui().expect("failed to load TUI");
     }
 
-    //Process the command passed by the user
+    // Process the command passed by the user
     match &cli.command {
-        //Nothing passed (Help screen printed)
+        // Nothing passed (Help screen printed)
         None => (),
 
         // Encryption
@@ -219,8 +237,7 @@ pub fn load_cli() {
             in_place,
             output,
         }) => {
-            let directive = Directive::new(path.to_owned());
-            directive.encrypt(in_place.to_owned(), output.to_owned());
+            directive::encrypt(path, in_place.to_owned(), output.to_owned());
         }
 
         // Decryption
@@ -229,8 +246,7 @@ pub fn load_cli() {
             in_place,
             output,
         }) => {
-            let directive = Directive::new(path.to_owned());
-            directive.decrypt(in_place.to_owned(), output.to_owned());
+            directive::decrypt(path, in_place.to_owned(), output.to_owned());
         }
 
         // Cloud
@@ -242,19 +258,18 @@ pub fn load_cli() {
                     Some(DriveCommand::View { path }) => (CloudTask::View, path),
                     None => panic!("invalid input"),
                 };
-                let directive = Directive::new(path.to_owned());
-                directive.cloud(CloudService::Google, task);
+                directive::cloud(path, CloudService::Google, task);
             }
 
+            // Dropbox
             Some(CloudCommand::Dropbox { task }) => {
                 let (task, path) = match task {
                     Some(DriveCommand::Upload { path }) => (CloudTask::Upload, path),
                     Some(DriveCommand::Download { path }) => (CloudTask::Download, path),
-                    Some(DriveCommand::View { path }) => (CloudTask::View, path),
+                    Some(DriveCommand::View { path  }) => (CloudTask::View, path),
                     None => panic!("invalid input"),
                 };
-                let directive: Directive = Directive::new(path.to_owned());
-                directive.cloud(CloudService::Dropbox, task);
+                directive::cloud(path, CloudService::Dropbox, task);
             }
 
             None => {
@@ -262,18 +277,19 @@ pub fn load_cli() {
             }
         },
         // Keeper
-        Some(Commands::Keeper { import, export, csv_path, }) => {
-            directive::Directive::keeper(import, export, csv_path);
-        }
+        Some(Commands::Keeper { category }) => {
+            let kc = category.as_ref().unwrap();
+            directive::keeper(kc);
+        },
 
-        //Config
+        // Config
         Some(Commands::Config { category }) => {
             match category {
                 Some(ConfigCommand::DatabasePath { path }) => {
-                    let directive = Directive::new(path.to_owned());
-                    directive.config(ConfigTask::DatabasePath);
+                    directive::config(path, ConfigTask::DatabasePath);
                 }
 
+                // IgnoreItems
                 Some(ConfigCommand::IgnoreItems { add_remove, item }) => {
                     let add_remove = match add_remove.to_lowercase().as_str() {
                         "add" | "a" => ItemsTask::Add,
@@ -281,41 +297,38 @@ pub fn load_cli() {
                         _ => panic!("invalid input"),
                     };
 
-                    let directive = Directive::default();
-                    directive.config(ConfigTask::IgnoreItems(add_remove, item.to_owned()));
+                    directive::config("", ConfigTask::IgnoreItems(add_remove, item.to_owned()));
                 }
 
-                //Retain
+                // Retain
                 Some(ConfigCommand::Retain { choice }) => {
-                    let directive = Directive::default();
                     let choice = match choice.to_lowercase().as_str() {
                         "true" | "t" => true,
                         "false" | "f" => false,
                         _ => panic!("Unable to parse passed value"),
                     };
-                    directive.config(ConfigTask::Retain(choice));
+                    directive::config("", ConfigTask::Retain(choice));
                 }
 
-                //Backup
+                // Backup
                 Some(ConfigCommand::Backup { choice }) => {
-                    let directive = Directive::default();
                     let choice = match choice.to_lowercase().as_str() {
                         "true" | "t" => true,
                         "false" | "f" => false,
                         _ => panic!("Unable to parse passed value"),
                     };
-                    directive.config(ConfigTask::Backup(choice));
+                    directive::config("", ConfigTask::Backup(choice));
                 }
 
+                // ZstdLevel
                 Some(ConfigCommand::ZstdLevel { level }) => {
-                    let directive = Directive::default();
                     let level: i32 = level.parse().expect("Could not interpret passed value");
-                    directive.config(ConfigTask::ZstdLevel(level));
+                    directive::config("", ConfigTask::ZstdLevel(level));
                 }
 
+                // LoadDefault
                 Some(ConfigCommand::LoadDefault) => {
-                    let directive = Directive::default();
-                    directive.config(ConfigTask::LoadDefault);
+                    directive::config("", ConfigTask::LoadDefault);
                 }
 
                 None => (),

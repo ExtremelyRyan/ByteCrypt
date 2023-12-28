@@ -70,7 +70,7 @@ fn init_keeper(conn: &Connection) -> Result<()> {
 
 ///Exports ALL content within the `crypt_keeper` database to a csv for easy sharing.
 /// Exports `crypt_export.csv` to crypt folder
-pub fn export_keeper() -> Result<()> {
+pub fn export_keeper(alt_path: Option<&str>) -> Result<()> {
     // https://rust-lang-nursery.github.io/rust-cookbook/encoding/csv.html
     let db_crypts = query_keeper_crypt().unwrap();
     let mut wtr = WriterBuilder::new().has_headers(false).from_writer(vec![]);
@@ -84,7 +84,11 @@ pub fn export_keeper() -> Result<()> {
     path.push("crypt_export.csv");
 
     info!("writing export to {}", &path.display());
-    write_contents_to_file(path.to_str().unwrap(), data.into_bytes())
+    match alt_path.is_some() {
+        true => write_contents_to_file(alt_path.unwrap(), data.into_bytes()),
+        false => write_contents_to_file(path.to_str().unwrap(), data.into_bytes()),
+    }
+    
 }
 
 /// Imports csv into database. <b>WARNING</b>, overrides may occur!
@@ -320,7 +324,7 @@ pub fn query_keeper_for_existing_file(full_path: PathBuf) -> Result<FileCrypt> {
     .map_err(|e| match e {
         //Handle the errors
         rusqliteError::QueryReturnedNoRows => {
-            anyhow!("No crypt with that uuid exists")
+            anyhow!("No crypt with that uuid exists ")
         }
         _ => anyhow!("Keeper query failed {}", e),
     })
@@ -438,10 +442,14 @@ pub fn delete_crypt(uuid: String) -> Result<()> {
 // / let fc = FileCrypt::new({...});
 // / let _ = insert_crypt(&fc);
 // /```
-pub fn delete_keeper() -> Result<()> {
-    // TODO remove hardcoded pathways for this
-    if Path::new("src/database/crypt_keeper.db").exists() {
-        fs::remove_file("src/database/crypt_keeper.db")?;
+pub fn delete_keeper() -> Result<()> { 
+    let path;
+        {
+            let config = get_config();
+            path = config.database_path.to_string();
+        }
+    if Path::new(&path).exists() {
+        fs::remove_file(path)?;
     }
     Ok(())
 }

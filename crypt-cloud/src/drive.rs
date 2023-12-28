@@ -1,12 +1,9 @@
 use crypt_core::{token::UserToken, common::DirInfo, common::{FileInfo, FsNode}};
-use anyhow::{Result, Error};
-use reqwest::header::{CONTENT_LENGTH, CONTENT_RANGE, LOCATION};
+use reqwest::{header::{CONTENT_LENGTH, CONTENT_RANGE, LOCATION}, Response, Client};
+use anyhow::{Ok, Error, Result};
 use serde_json::Value;
 use std::path::PathBuf;
-use tokio::{
-    fs::File,
-    io::AsyncReadExt,
-};
+use tokio::{fs::File, io::AsyncReadExt};
 use async_recursion::async_recursion;
 
 const GOOGLE_FOLDER: &str = "Crypt";
@@ -14,27 +11,42 @@ pub const GOOGLE_CLIENT_ID: &str =
     "1006603075663-bi4o75nk6opljg7bicdiuden76s3v18f.apps.googleusercontent.com";
 const CHUNK_SIZE: usize = 5_242_880; //5MB
 
+/// <b>Asynchronously</b> sends an HTTP GET request to the specified URL with the provided user credentials.
+///
+/// # Arguments
+///
+/// * `url` - A string slice or reference to the URL to send the request to.
+/// * `creds` - A reference to a `UserToken` containing the necessary credentials, including the access token.
+/// # Errors
+///
+/// This function may return an error if the request fails. Possible error types include
+/// network issues, authentication failures, or server errors.
+///
+/// # Panics
+///
+/// This function could panic if `reqwest` crate fails to create a new `Client`
+pub async fn request_url(url: &str, creds: &UserToken) -> Result<Response, Error> {
+    let client = reqwest::Client::new();
+    let response = client.get(url).bearer_auth(&creds.access_token).send().await.map_err(Error::from)?;
+    Ok(response)
+}
 
 //Takes in an id and checks if that id exists on Google Drive
 pub async fn g_id_exists(user_token: &UserToken, id: &str) -> Result<bool> {
-    let client = reqwest::Client::new();
     //Create the URL, we don't care about trashed items
     let url = format!(
         "https://www.googleapis.com/drive/v3/files/{}?fields=trashed",
         id,
     );
+
     //Send the url and get the response
-    let response = client
-        .get(&url)
-        .bearer_auth(&user_token.access_token)
-        .send()
-        .await?;
+    let response = request_url(&url, &user_token).await?;
 
     match response.status() {
         reqwest::StatusCode::OK => {
             let files = response.json::<Value>().await?;
-            return Ok(files["trashed"].as_bool().unwrap_or(true) == false)
-        },
+            return Ok(!files["trashed"].as_bool().unwrap_or(true));
+        }
         reqwest::StatusCode::NOT_FOUND => return Ok(false),
         _ => {
             let error = response.json::<Value>().await?;
@@ -46,13 +58,12 @@ pub async fn g_id_exists(user_token: &UserToken, id: &str) -> Result<bool> {
 
 ///Parse the drive and create the folder if it doesn't exist
 pub async fn g_create_folder(
-    user_token: &UserToken, path: Option<&PathBuf>, parent: String
+    user_token: &UserToken, path: Option<&PathBuf>, parent: &str
 ) -> Result<String> {
     let save_path = match path {
         Some(p) => p.to_str().unwrap(),
         None => GOOGLE_FOLDER,
     };
-    let client = reqwest::Client::new();
 
     //Check if the folder exists
     let query = format!(
@@ -63,14 +74,12 @@ pub async fn g_create_folder(
         "https://www.googleapis.com/drive/v3/files?q={}",
         query
     );
-    let response = client
-        .get(url)
-        .bearer_auth(&user_token.access_token)
-        .send()
-        .await?;
+    //Send the url and get the response
+    let response = request_url(&url, &user_token).await?;
+
     //If drive query failed, break out and print error
     if !response.status().is_success() {
-        return Err(anyhow::Error::msg(format!("{:?}", response.text().await?)));
+        return Err(Error::msg(format!("{:?}", response.text().await?)));
     }
     //If folder exists, break out
     let folders = response.json::<Value>().await?;
@@ -94,7 +103,7 @@ pub async fn g_create_folder(
         }),
     };
     //If folder doesn't exist, create new folder
-    let _ = client
+    let _ = Client::new()
         .post("https://www.googleapis.com/drive/v3/files")
         .bearer_auth(&user_token.access_token)
         .json(&json)
@@ -106,14 +115,13 @@ pub async fn g_create_folder(
         save_path
     );
     let url = format!("https://www.googleapis.com/drive/v3/files?q={}", query);
-    let response = client
-        .get(url)
-        .bearer_auth(&user_token.access_token)
-        .send()
-        .await?;
+
+    //Send the url and get the response
+    let response = request_url(&url, &user_token).await?;
+
     //If drive query failed, break out and print error
     if !response.status().is_success() {
-        return Err(anyhow::Error::msg(format!("{:?}", response.text().await?)));
+        return Err(Error::msg(format!("{:?}", response.text().await?)));
     }
     //Search through and return id
     let folders = response.json::<Value>().await?;
@@ -125,11 +133,12 @@ pub async fn g_create_folder(
         }
     }
     // println!("Error creating folder: {:?}", response.text().await?);
-    return Err(anyhow::Error::msg("Could not create folder".to_string()));
+    return Err(Error::msg("Could not create folder".to_string()));
 }
 
 ///Updates a file that already exists on google drive
 pub async fn g_update(user_token: &UserToken, id: &str, path: &str) -> Result<String> {
+    //Get file content
     let mut file = tokio::fs::File::open(path).await?;
     let file_size = std::fs::metadata(path)?.len();
     
@@ -159,7 +168,7 @@ pub async fn g_update(user_token: &UserToken, id: &str, path: &str) -> Result<St
 }
 
 ///Uploads a file to google drive
-pub async fn g_upload(user_token: &UserToken, path: &str, parent: String) -> Result<String> {
+pub async fn g_upload(user_token: &UserToken, path: &str, parent: &str) -> Result<String> {
     //Get file content
     let mut file = File::open(path).await?;
     let file_name = std::path::Path::new(path)
@@ -184,7 +193,7 @@ pub async fn g_upload(user_token: &UserToken, path: &str, parent: String) -> Res
     let session_uri = response
         .headers()
         .get(LOCATION)
-        .ok_or_else(|| anyhow::Error::msg("Location header missing"))?
+        .ok_or_else(|| Error::msg("Location header missing"))?
         .to_str()?
         .to_string();
 
@@ -231,12 +240,12 @@ async fn upload_chunks(session_uri: &str, file: &mut File, file_size: u64) -> Re
                 if let Some(id) = body["id"].as_str() {
                     return Ok(id.to_string());
                 } else {
-                    return Err(anyhow::Error::msg(format!("Failed retrieve file ID")));
+                    return Err(Error::msg("Failed retrieve file ID"));
                 }
             }
             //TODO: Deal with HTTP 401 Unauthorized Error
             status => {
-                return Err(anyhow::Error::msg(format!("Failed to upload: {}", status)));
+                return Err(Error::msg(format!("Failed to upload: {}", status)));
             }
         }
 
@@ -248,7 +257,6 @@ async fn upload_chunks(session_uri: &str, file: &mut File, file_size: u64) -> Re
 
 ///Query google drive and return a Vec<String> of each item within the relevant folder
 pub async fn g_view(user_token: &UserToken, name: &str) -> Result<Vec<String>> {
-    let client = reqwest::Client::new();
     //Get the folder id
     let mut folder_id = String::new();
     let query = format!(
@@ -256,14 +264,13 @@ pub async fn g_view(user_token: &UserToken, name: &str) -> Result<Vec<String>> {
         name
     );
     let url = format!("https://www.googleapis.com/drive/v3/files?q={}", query);
-    let response = client
-        .get(url)
-        .bearer_auth(&user_token.access_token)
-        .send()
-        .await?;
+
+    //Send the url and get the response
+    let response = request_url(&url, &user_token).await?;
+
     //If drive query failed, break out and print error
     if !response.status().is_success() {
-        return Err(anyhow::Error::msg(format!("{:?}", response.text().await?)));
+        return Err(Error::msg(format!("{:?}", response.text().await?)));
     }
     //Search through response and return id
     let folders = response.json::<Value>().await?;
@@ -279,11 +286,10 @@ pub async fn g_view(user_token: &UserToken, name: &str) -> Result<Vec<String>> {
         "https://www.googleapis.com/drive/v3/files?q='{}' in parents",
         folder_id
     );
-    let response = client
-        .get(&url)
-        .bearer_auth(&user_token.access_token)
-        .send()
-        .await?;
+
+    //Send the url and get the response
+    let response = request_url(&url, &user_token).await?;
+
     //If successful, convert to vec<string>
     if response.status().is_success() {
         let files = response.json::<Value>().await?;
@@ -296,7 +302,7 @@ pub async fn g_view(user_token: &UserToken, name: &str) -> Result<Vec<String>> {
             None => Vec::new(),
         })
     } else {
-        Err(anyhow::Error::msg("Could not query folder"))
+        Err(Error::msg("Could not query folder"))
     }
 }
 
@@ -309,14 +315,13 @@ pub async fn g_walk(user_token: &UserToken, name: &str) -> Result<DirInfo> {
         name
     );
     let url = format!("https://www.googleapis.com/drive/v3/files?q={}", query);
-    let response = client
-        .get(url)
-        .bearer_auth(&user_token.access_token)
-        .send()
-        .await?;
+
+    //Send the url and get the response
+    let response = request_url(&url, &user_token).await?;
+
     //If drive query failed, break out and print error
     if !response.status().is_success() {
-        return Err(anyhow::Error::msg(format!("{:?}", response.text().await?)));
+        return Err(Error::msg(format!("{:?}", response.text().await?)));
     }
     //Search through response and return id
     let folders = response.json::<Value>().await?;
@@ -328,11 +333,33 @@ pub async fn g_walk(user_token: &UserToken, name: &str) -> Result<DirInfo> {
         }
     }
 
-    return Err(anyhow::Error::msg("Folder not found"));
+    return Err(Error::msg("Folder not found"));
 }
 
+/// Query google using file_id and download contents
+///
+/// TEMP: downloading
+pub async fn google_query_file(file_id: &str, creds: UserToken) -> Result<()> {
+    let url = format!(
+        "https://www.googleapis.com/drive/v3/files/{}?alt=media&source=downloadUrl",
+        file_id
+    );
+    //Send the url and get the response
+    let response = request_url(&url, &creds).await?;
 
-///Helper function for g_walk, recursively walks through subdirectories
+    //If drive query failed, break out and print error
+    if !response.status().is_success() {
+        return Err(Error::msg(format!("{:?}", response.text().await?)));
+    }
+
+    let text = &response.bytes().await?;
+    // TODO: Move somewhere else.
+    // TODO: Also, get name from file and use that instead of "downloaded".
+    _ = std::fs::write("downloaded.crypt", text);
+    Ok(())
+}
+
+///Walks google drive to get all of the files within their respective folders
 #[async_recursion]
 async fn walk_cloud(
     user_token: &UserToken, client: &reqwest::Client, folder_id: &str 
@@ -342,14 +369,11 @@ async fn walk_cloud(
         "https://www.googleapis.com/drive/v3/files?q='{}' in parents and trashed = false",
         folder_id
     );
-    let response = client
-        .get(&url)
-        .bearer_auth(&user_token.access_token)
-        .send()
-        .await?;
+    //Send the url and get the response
+    let response = request_url(&url, &user_token).await?;
 
     if !response.status().is_success() {
-        return Err(anyhow::Error::msg("Could not view folder"));
+        return Err(Error::msg("Could not view folder"));
     }
 
     let files = response.json::<Value>().await?;
@@ -367,9 +391,7 @@ async fn walk_cloud(
         }
     }
 
-    let url = format!(
-        "https://www.googleapis.com/drive/v3/files/{}", folder_id
-    );
+    let url = format!("https://www.googleapis.com/drive/v3/files/{}", folder_id);
 
     let dir_name = client
         .get(&url)
@@ -384,12 +406,11 @@ async fn walk_cloud(
 
     Ok(DirInfo::new(
         dir_name,
-        folder_id.to_string(), 
-        true, 
-        contents
+        folder_id.to_string(),
+        true,
+        contents,
     ))
 }
-
 
 // --------------------------------------  UNUSED  --------------------------------------
 ///Gets drive info from google drive
@@ -409,11 +430,8 @@ pub async fn g_drive_info(user_token: &UserToken) -> Result<Vec<Value>> {
             None => "https://www.googleapis.com/drive/v3/files".to_string(),
         };
 
-        let response = reqwest::Client::new()
-            .get(url)
-            .bearer_auth(&user_token.access_token)
-            .send()
-            .await?;
+        //Send the url and get the response
+        let response = request_url(&url, &user_token).await?;
 
         if response.status().is_success() {
             let stuff = response.json::<Value>().await?;
@@ -432,4 +450,3 @@ pub async fn g_drive_info(user_token: &UserToken) -> Result<Vec<Value>> {
     }
     Ok(values)
 }
-

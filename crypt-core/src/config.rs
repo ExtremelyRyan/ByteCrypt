@@ -202,7 +202,7 @@ impl Config {
     pub fn get_database_path(&self) -> &str {
         self.database_path.as_ref()
     }
-    pub fn set_database_path(&mut self, path: &String) {
+    pub fn set_database_path(&mut self, path: &str) {
         self.database_path = path.to_owned();
         _ = save_config(self);
     }
@@ -239,13 +239,13 @@ impl Config {
         self.ignore_items = ignore_directories;
         _ = save_config(self);
     }
-    pub fn append_ignore_items(&mut self, item: &String) {
+    pub fn append_ignore_items(&mut self, item: &str) {
         self.ignore_items.push(item.to_owned());
         _ = save_config(self);
     }
 
-    pub fn remove_ignore_item(&mut self, item: &String) {
-        if self.ignore_items.contains(item) {
+    pub fn remove_ignore_item(&mut self, item: &str) {
+        if self.ignore_items.contains(&item.to_string()) {
             let index = &self.ignore_items.iter().position(|x| x == item);
             let num = index.unwrap();
             self.ignore_items.remove(num);

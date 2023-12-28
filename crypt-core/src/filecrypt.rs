@@ -1,9 +1,9 @@
 use crate::{
+    common::get_full_file_path,
     common::{get_crypt_folder, get_file_bytes, write_contents_to_file},
     config::get_config,
     db::{insert_crypt, query_crypt},
     encryption::decrypt,
-    common::get_full_file_path,
 };
 use anyhow::Result;
 use log::*;
@@ -69,18 +69,17 @@ pub fn decrypt_file(path: &str, output: Option<String>) -> Result<(), EncryptErr
     let parent_dir = &fp.parent().unwrap().to_owned();
 
     // rip out uuid from contents
-    let contents = std::fs::read(path).expect("failed to read decryption file!");
-    let (uuid, content) = contents.split_at(36);
-    let uuid_str = String::from_utf8(uuid.to_vec()).unwrap();
+    let content = std::fs::read(path).expect("failed to read decryption file!");
+    let (uuid, contents) = get_uuid(&content);
 
     // query db with uuid
-    let fc = query_crypt(uuid_str).unwrap();
+    let fc = query_crypt(uuid).unwrap();
     let fc_hash: [u8; 32] = fc.hash.to_owned();
 
     // get output file
     let file = generate_output_file(&fc, output, parent_dir);
 
-    let mut decrypted_content = decrypt(fc.clone(), &content.to_vec()).expect("failed decryption");
+    let mut decrypted_content = decrypt(fc.clone(), &contents.to_vec()).expect("failed decryption");
 
     // unzip contents
     decrypted_content = decompress(&decrypted_content);
@@ -123,7 +122,6 @@ pub fn decrypt_file(path: &str, output: Option<String>) -> Result<(), EncryptErr
 /// # use crypt_lib::{Config, load_config};
 /// # use crypt_lib::encryption::{encrypt_file};
 ///
-/// let conf = (); // Initialize your Config struct accordingly
 /// let path = "/path/to/your/file.txt";
 /// encrypt_file(&conf, path, false);
 /// ```
@@ -173,10 +171,6 @@ pub fn encrypt_file(path: &str, in_place: bool) {
 
     // write fc to crypt_keeper
     insert_crypt(&fc).expect("failed to insert FileCrypt data into database!");
-
-    if !conf.retain {
-        std::fs::remove_file(path).unwrap_or_else(|_| panic!("failed to delete {}", path));
-    }
 }
 
 /// Generates the output file path for decrypted content based on the provided parameters.
@@ -292,14 +286,43 @@ pub fn generate_uuid() -> String {
 }
 
 /// gets UUID from encrypted file contents.
-pub fn get_uuid(contents: &Vec<u8>) -> String {
-    let (uuid, _) = contents.split_at(36);
-    String::from_utf8(uuid.to_vec()).unwrap_or(String::from_utf8_lossy(uuid).to_string())
+pub fn get_uuid(contents: &[u8]) -> (String, Vec<u8>) {
+    let (uuid, contents) = contents.split_at(36);
+    (
+        String::from_utf8(uuid.to_vec()).unwrap_or(String::from_utf8_lossy(uuid).to_string()),
+        contents.to_vec(),
+    )
 }
 
-pub fn prepend_uuid(uuid: &String, encrypted_contents: &mut Vec<u8>) -> Vec<u8> {
+/// Prepends a UUID represented as a string to a vector of encrypted contents. Modifies vector in place.
+///
+/// # Arguments
+///
+/// * `uuid` - A string slice representing the UUID to prepend.
+/// * `encrypted_contents` - A mutable reference to a vector of bytes containing encrypted contents.
+///
+/// # Returns
+///
+/// Returns a new vector of bytes with the UUID prepended to the original encrypted contents.
+///
+/// # Examples
+///
+/// ```
+/// use crypt_core::filecrypt::prepend_uuid;
+///
+/// let mut encrypted_data = vec![1, 2, 3];
+/// let uuid = "550e8400-e29b-41d4-a716-446655440000";
+///
+/// let result = prepend_uuid(uuid, &mut encrypted_data);
+///
+/// assert_eq!(result.len(), encrypted_data.len() + 36); // UUID is 36 bytes
+/// assert_eq!(&result[0..36], uuid.as_bytes());        // Check if UUID is prepended correctly
+/// assert_eq!(&result[36..], encrypted_data.as_slice()); // Check if original contents are preserved
+/// ```
+pub fn prepend_uuid(uuid: &str, encrypted_contents: &mut Vec<u8>) -> Vec<u8> {
     let mut uuid_bytes = uuid.as_bytes().to_vec();
-    uuid_bytes.append(encrypted_contents);
+    let mut encc = encrypted_contents.clone();
+    uuid_bytes.append(&mut encc);
     uuid_bytes
 }
 
@@ -335,9 +358,9 @@ pub fn get_file_info(path: &str) -> (PathBuf, PathBuf, String, String) {
 // cargo nextest run
 #[cfg(test)]
 mod test {
+    use crate::config::load_config;
     use std::thread;
     use std::time::Duration;
-    use crate::config::load_config;
 
     use super::*;
 
@@ -361,8 +384,15 @@ mod test {
 
     #[test]
     fn test_get_uuid() {
-        let contents: Vec<u8> = vec![1,2,3,4,5,1,2,3,4,5,1,2,3,4,5,1,2,3,4,5,1,2,3,4,5,1,2,3,4,5,1,2,3,4,5,1,2,3,4,5];
-        let res_uuid: String = String::from_utf8(vec![1,2,3,4,5,1,2,3,4,5,1,2,3,4,5,1,2,3,4,5,1,2,3,4,5,1,2,3,4,5,1,2,3,4,5,1]).unwrap();
-        assert_eq!(get_uuid(&contents), res_uuid);
+        let contents: Vec<u8> = vec![
+            1, 2, 3, 4, 5, 1, 2, 3, 4, 5, 1, 2, 3, 4, 5, 1, 2, 3, 4, 5, 1, 2, 3, 4, 5, 1, 2, 3, 4,
+            5, 1, 2, 3, 4, 5, 1, 2, 3, 4, 5,
+        ];
+        let res_uuid: String = String::from_utf8(vec![
+            1, 2, 3, 4, 5, 1, 2, 3, 4, 5, 1, 2, 3, 4, 5, 1, 2, 3, 4, 5, 1, 2, 3, 4, 5, 1, 2, 3, 4,
+            5, 1, 2, 3, 4, 5, 1,
+        ])
+        .unwrap();
+        assert_eq!(get_uuid(&contents).0, res_uuid);
     }
 }

@@ -1,15 +1,12 @@
 use anyhow::{Ok, Result};
 use std::path::{Path, PathBuf};
 use std::process::Command;
-use std::{
-    fs::OpenOptions,
-    io::Write,
-};  
+use std::{fs::OpenOptions, io::Write};
 use walkdir::WalkDir;
 
 use crate::config;
-use ansi_term::Color;
 use crate::ui_repo::CharacterSet;
+use ansi_term::Color;
 
 /// given a path, dissect and return a struct containing the full path, is_dir, parent path, and name.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -82,8 +79,8 @@ impl FsNode {
         let path_str = self.get_path_str();
 
         match Path::new(path_str).exists() {
-            true => return Some(PathBuf::from(path_str)),
-            false => return None,
+            true => Some(PathBuf::from(path_str)),
+            false => None,
         }
     }
 
@@ -118,10 +115,7 @@ pub struct FileInfo {
 
 impl FileInfo {
     pub fn new(name: String, path: String) -> Self {
-        Self {
-            name,
-            path,
-        }
+        Self { name, path }
     }
 }
 
@@ -175,24 +169,27 @@ pub fn build_tree(dir_info: &DirInfo) -> Vec<String> {
     let expanded_color = Color::Green.bold();
     let bracket_color = Color::White.bold();
 
-    tree.push(format!("{}{}{}{}", 
+    tree.push(format!(
+        "{}{}{}{}",
         bracket_color.paint("[").to_string().as_str(),
-        expanded_color.paint(if dir_info.expanded {"˅"} else {"˃"}),
+        expanded_color.paint(if dir_info.expanded { "˅" } else { "˃" }),
         bracket_color.paint("]").to_string().as_str(),
         dir_color.paint(&dir_info.name).to_string().as_str()
     ));
-    tree_recursion(&dir_info, String::new(), &mut tree);
-    return tree;
+    tree_recursion(dir_info, String::new(), &mut tree);
+    tree
 }
 
 ///Recursively appends and walks the DirInfo contents to build a file tree
 fn tree_recursion(dir_info: &DirInfo, path: String, tree: &mut Vec<String>) {
     //Force files first
     //TODO: make a config choice if folders or files first
-    let (mut contents, other_content): (Vec<_>, Vec<_>) = dir_info.contents.iter()
+    let (mut contents, other_content): (Vec<_>, Vec<_>) = dir_info
+        .contents
+        .iter()
         .partition(|n| matches!(n, FsNode::File(_)));
     contents.extend(other_content);
-    
+
     //Character set and color
     //TODO: make a part of config and implement properly with UI
     let char_set = CharacterSet::U8_SLINE_CURVE;
@@ -211,19 +208,19 @@ fn tree_recursion(dir_info: &DirInfo, path: String, tree: &mut Vec<String>) {
         //Determine if the current entity is last
         let is_last = index == contents_len - 1;
         //Create the prefix
-        let prefix = format!("{}{}", 
-            path, if is_last { &node } else { &joint }
-        );
+        let prefix = format!("{}{}", path, if is_last { &node } else { &joint });
 
         match entity {
             FsNode::File(file) => tree.push(prefix.clone() + " " + &file.name),
             FsNode::Directory(subdir) => {
-                tree.push(format!("{}{}{}{}{}", 
-                    prefix.clone(), 
+                tree.push(format!(
+                    "{}{}{}{}{}",
+                    prefix.clone(),
                     bracket_color.paint("[").to_string().as_str(),
                     expanded_color
-                        .paint(if subdir.expanded {"˅"} else {"˃"})
-                        .to_string().as_str(),
+                        .paint(if subdir.expanded { "˅" } else { "˃" })
+                        .to_string()
+                        .as_str(),
                     bracket_color.paint("]").to_string().as_str(),
                     dir_color.paint(&subdir.name).to_string().as_str(),
                 ));
@@ -237,7 +234,7 @@ fn tree_recursion(dir_info: &DirInfo, path: String, tree: &mut Vec<String>) {
                 if subdir.expanded {
                     tree_recursion(subdir, sub_path, tree);
                 }
-            },
+            }
         }
     }
 }
@@ -311,9 +308,6 @@ pub fn send_information(info: Vec<String>) {
     //TODO: GUI
 }
 
-
-
-
 // ///Generates a directory to convert into strings
 // pub fn generate_directory(path: &PathBuf) -> anyhow::Result<DirInfo> {
 //     let p = path.display().to_string();
@@ -386,12 +380,11 @@ pub fn walk_paths(path_in: &str) -> Vec<PathInfo> {
     pathlist
 }
 
-
 /// get full full path from a relative path
 pub fn get_full_file_path(path: &str) -> PathBuf {
     let canonicalize = dunce::canonicalize(path);
     match canonicalize {
-        core::result::Result::Ok(c) => return c,
+        core::result::Result::Ok(c) => c,
         Err(_) => PathBuf::from(path),
     }
 }
@@ -399,17 +392,13 @@ pub fn get_full_file_path(path: &str) -> PathBuf {
 pub fn is_hidden(entry: &walkdir::DirEntry) -> bool {
     let conf = config::get_config();
     let mut b: bool = false;
-    entry
-        .file_name()
-        .to_str()
-        .map(|s: &str| {
-            conf.ignore_items.into_iter().for_each(|item| {
-                b = s.to_string().contains(&item) || s.starts_with('.');
-            }) 
-        });
-        b
+    entry.file_name().to_str().map(|s: &str| {
+        conf.ignore_items.into_iter().for_each(|item| {
+            b = s.to_string().contains(&item) || s.starts_with('.');
+        })
+    });
+    b
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -419,6 +408,6 @@ mod tests {
     fn test_walk_directory() {
         let path = "../test_folder/";
         let res = walk_directory(path).unwrap();
-        assert_eq!(res[0].file_name().unwrap().to_str().unwrap(),"file1.txt");
+        assert_eq!(res[0].file_name().unwrap().to_str().unwrap(), "file1.txt");
     }
 }
