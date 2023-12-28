@@ -4,9 +4,9 @@ use crypt_cloud::crypt_core::{
     },
     config::{self, Config, ConfigTask, ItemsTask},
     db::{self, query_crypt},
-    db::{delete_keeper, export_keeper, import_keeper},
+    db::{delete_keeper, export_keeper},
     filecrypt::{decrypt_file, encrypt_file, get_uuid, FileCrypt},
-    token::CloudTask,
+    token::{CloudTask, purge_tokens},
     token::{CloudService, UserToken},
 };
 use crypt_cloud::drive::{self, g_walk};
@@ -373,31 +373,40 @@ pub fn keeper(kc: &KeeperCommand) {
             Ok(_) => (),
             Err(e) => panic!("problem exporting keeper! {}", e),
         },
-        KeeperCommand::Purge {} => {
-            send_information(vec![
-                format!("==================== WARNING ===================="),
-                format!("DOING THIS WILL IRREVERSIBLY DELETE YOUR DATABASE\n"),
-                format!("DOING THIS WILL IRREVERSIBLY DELETE YOUR DATABASE\n"),
-                format!("DOING THIS WILL IRREVERSIBLY DELETE YOUR DATABASE\n\n"),
-                format!(r#"type "delete database" to delete, or "q" to quit"#),
-            ]);
-            let mut phrase = String::new();
-            let match_phrase = String::from("delete database");
-            loop {
-                std::io::stdin()
-                    .read_line(&mut phrase)
-                    .expect("Failed to read line");
-                phrase = phrase.trim().to_string();
+        KeeperCommand::Purge { item } => {
+            match item.trim().to_lowercase().as_str() {
+                "database" | "db" => {
+                    send_information(vec![
+                        format!("==================== WARNING ===================="),
+                        format!("DOING THIS WILL IRREVERSIBLY DELETE YOUR DATABASE\n"),
+                        format!("DOING THIS WILL IRREVERSIBLY DELETE YOUR DATABASE\n"),
+                        format!("DOING THIS WILL IRREVERSIBLY DELETE YOUR DATABASE\n\n"),
+                        format!(r#"type "delete database" to delete, or "q" to quit"#),
+                    ]);
+                    let mut phrase = String::new();
+                    let match_phrase = String::from("delete database");
+                    loop {
+                        std::io::stdin()
+                            .read_line(&mut phrase)
+                            .expect("Failed to read line");
+                        phrase = phrase.trim().to_string();
+        
+                        if phrase.eq(&match_phrase) {
+                            break;
+                        }
+                        if phrase.eq("q") {
+                            return;
+                        }
+                    }
+                    _ = delete_keeper();
+                    send_information(vec![format!("database deleted.")]);
+                },
+                "t" | "token" | "tokens" => {
+                    purge_tokens();
+                },
+                _ => send_information(vec![format!("invalid entry entered.")]),
+            };
 
-                if phrase.eq(&match_phrase) {
-                    break;
-                }
-                if phrase.eq("q") {
-                    return;
-                }
-            }
-            _ = delete_keeper();
-            send_information(vec![format!("database deleted.")]);
         }
     }
 }

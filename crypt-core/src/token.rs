@@ -15,7 +15,7 @@ use std::{
     io::{BufRead, BufReader, Read, Write},
     net::TcpListener,
     path::Path,
-    time::{SystemTime, UNIX_EPOCH},
+    time::{SystemTime, UNIX_EPOCH}
 };
 use url::form_urlencoded;
 
@@ -389,4 +389,21 @@ pub fn decrypt_token(user_token: &UserToken, access_token: Vec<u8>) -> String {
     let decompressed_token = decompress(cipher.as_slice());
 
     String::from_utf8(decompressed_token).expect("Could not decrypt token")
+}
+
+pub fn purge_tokens() {
+    let mut path = get_crypt_folder();
+    path.push(".config");
+
+    path.push(".google"); 
+    if path.exists() {
+        _ = std::fs::remove_file(&path);
+        send_information(vec![format!("removed google token file.")]);
+    }
+    path.pop();
+    path.push(".dropbox"); 
+    if path.exists() {
+        _ = std::fs::remove_file(&path);
+        send_information(vec![format!("removed dropbox token file.")]);
+    }
 }

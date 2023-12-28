@@ -201,7 +201,11 @@ pub enum KeeperCommand {
 
     /// PURGES DATABASE FROM SYSTEM
     #[command(short_flag = 'p')]
-    Purge {},
+    Purge {
+        /// tokens | db
+        #[arg(required = true, default_value_t = String::from(""))]
+        item: String,
+    },
 }
 
 impl KeeperCommand {
