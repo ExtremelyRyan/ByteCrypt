@@ -226,8 +226,7 @@ pub fn cloud(path: &str, platform: CloudService, task: CloudTask) {
                             ));
                             //Update the FileCrypt's drive_id
                             if path_info.name.contains(".crypt") {
-                                crypts
-                                    .entry(path_info)
+                                crypts.entry(path_info)
                                     .and_modify(|fc| fc.drive_id = file_id.unwrap());
                             }
                         }
