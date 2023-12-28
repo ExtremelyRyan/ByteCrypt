@@ -1,18 +1,18 @@
+use crate::cli::KeeperCommand;
 use crypt_cloud::crypt_core::{
     common::{
         build_tree, get_full_file_path, send_information, walk_directory, walk_paths, PathInfo,
     },
     config::{self, Config, ConfigTask, ItemsTask},
     db::{self, query_crypt},
-    db::{delete_keeper, export_keeper},
+    db::{delete_keeper, export_keeper, query_keeper_crypt},
     filecrypt::{decrypt_file, encrypt_file, get_uuid, FileCrypt},
-    token::{CloudTask, purge_tokens},
+    token::{purge_tokens, CloudTask},
     token::{CloudService, UserToken},
 };
 use crypt_cloud::drive::{self, g_walk};
 use std::{collections::HashMap, path::PathBuf};
 use tokio::runtime::Runtime;
-use crate::cli::KeeperCommand;
 
 ///Process the encryption directive
 ///
@@ -184,10 +184,8 @@ pub fn cloud(path: &str, platform: CloudService, task: CloudTask) {
                                 if path.name.contains(".crypt") {
                                     let drive_id = crypts.get(&path).unwrap().drive_id.as_str();
                                     if !drive_id.is_empty() {
-                                        let exists = runtime.block_on(drive::g_id_exists(
-                                            &user_token,
-                                            drive_id,
-                                        ));
+                                        let exists = runtime
+                                            .block_on(drive::g_id_exists(&user_token, drive_id));
 
                                         println!("{:?}", exists);
                                     }
@@ -217,15 +215,22 @@ pub fn cloud(path: &str, platform: CloudService, task: CloudTask) {
                             ));
                             //Update the FileCrypt's drive_id
                             if path_info.name.contains(".crypt") {
-                                crypts.entry(path_info)
+                                crypts
+                                    .entry(path_info)
                                     .and_modify(|fc| fc.drive_id = file_id.unwrap());
                             }
                         }
                     }
+                    
+                    
+                    //TODO: === This isnt working ====
                     //Update the keeper with any changes to FileCrypts
                     for (_, value) in crypts {
                         let _ = db::insert_crypt(&value);
                     }
+                    //TODO: === /This isnt working ====
+
+
                     //TESTING PORPISES
                     let after_upload_keeper = db::query_keeper_crypt().unwrap();
                     for item in after_upload_keeper {
@@ -368,10 +373,18 @@ pub fn keeper(kc: &KeeperCommand) {
         KeeperCommand::Import { path } => {
             KeeperCommand::import(path);
         }
-        KeeperCommand::Export { alt_path } => match export_keeper(Some(&alt_path)) {
-            Ok(_) => (),
-            Err(e) => panic!("problem exporting keeper! {}", e),
-        },
+        KeeperCommand::Export { alt_path } => {
+            let res;
+            if alt_path.is_empty() {
+                res = export_keeper(None);
+            } else {
+                res = export_keeper(Some(&alt_path))
+            }
+            match res {
+                Ok(_) => (),
+                Err(e) => panic!("problem exporting keeper! {}", e),
+            };
+        }
         KeeperCommand::Purge { item } => {
             match item.trim().to_lowercase().as_str() {
                 "database" | "db" => {
@@ -389,7 +402,7 @@ pub fn keeper(kc: &KeeperCommand) {
                             .read_line(&mut phrase)
                             .expect("Failed to read line");
                         phrase = phrase.trim().to_string();
-        
+
                         if phrase.eq(&match_phrase) {
                             break;
                         }
@@ -399,13 +412,28 @@ pub fn keeper(kc: &KeeperCommand) {
                     }
                     _ = delete_keeper();
                     send_information(vec![format!("database deleted.")]);
-                },
+                }
                 "t" | "token" | "tokens" => {
                     purge_tokens();
-                },
+                }
                 _ => send_information(vec![format!("invalid entry entered.")]),
             };
-
+        }
+        //
+        KeeperCommand::List {} => {
+            let fc = query_keeper_crypt().unwrap();
+            for crypt in fc {
+                println!(
+                    "{}",
+                    format!(
+                        "file: {}{} \nfull file path: {}\ncloud location: {}\n",
+                        crypt.filename,
+                        crypt.ext,
+                        crypt.full_path.display(),
+                        crypt.drive_id,
+                    )
+                );
+            }
         }
     }
 }

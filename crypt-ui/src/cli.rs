@@ -1,7 +1,9 @@
 use clap::{Parser, Subcommand};
 use crypt_cloud::crypt_core::{
+    common::send_information,
     config::{self, ConfigTask, ItemsTask},
-    token::{CloudService, CloudTask}, common::send_information, db::import_keeper,
+    db::import_keeper,
+    token::{CloudService, CloudTask},
 };
 
 use crate::directive;
@@ -206,10 +208,14 @@ pub enum KeeperCommand {
         #[arg(required = true, default_value_t = String::from(""))]
         item: String,
     },
+    /// TODO: maybe get rid of this in the future. for now, handy debugging tool for small db.
+    /// List each file in the database
+    #[command(short_flag = 'l')]
+    List {},
 }
 
 impl KeeperCommand {
-    pub fn import(path: &String) { 
+    pub fn import(path: &String) {
         if path.is_empty() {
             send_information(vec![format!("please add a path to the csv")]);
             return;
@@ -220,7 +226,6 @@ impl KeeperCommand {
         }
     }
 }
- 
 
 /// Runs the CLI and returns a directive to be processed
 pub fn load_cli() {

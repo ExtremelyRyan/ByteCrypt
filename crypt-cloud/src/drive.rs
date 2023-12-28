@@ -1,10 +1,17 @@
-use crypt_core::{token::UserToken, common::DirInfo, common::{FileInfo, FsNode}};
-use reqwest::{header::{CONTENT_LENGTH, CONTENT_RANGE, LOCATION}, Response, Client};
-use anyhow::{Ok, Error, Result};
+use anyhow::{Error, Ok, Result};
+use async_recursion::async_recursion;
+use crypt_core::{
+    common::DirInfo,
+    common::{FileInfo, FsNode},
+    token::UserToken,
+};
+use reqwest::{
+    header::{CONTENT_LENGTH, CONTENT_RANGE, LOCATION},
+    Client, Response,
+};
 use serde_json::Value;
 use std::path::PathBuf;
 use tokio::{fs::File, io::AsyncReadExt};
-use async_recursion::async_recursion;
 
 const GOOGLE_FOLDER: &str = "Crypt";
 pub const GOOGLE_CLIENT_ID: &str =
@@ -38,7 +45,6 @@ pub async fn request_url(url: &str, creds: &UserToken) -> Result<Response, Error
 
 //Takes in an id and checks if that id exists on Google Drive
 pub async fn g_id_exists(user_token: &UserToken, id: &str) -> Result<bool> {
-
     //Create the URL, we don't care about trashed items
     let url = format!(
         "https://www.googleapis.com/drive/v3/files/{}?fields=trashed",
@@ -56,15 +62,19 @@ pub async fn g_id_exists(user_token: &UserToken, id: &str) -> Result<bool> {
         reqwest::StatusCode::NOT_FOUND => return Ok(false),
         _ => {
             let error = response.json::<Value>().await?;
-            return Err(Error::msg(
-                format!("Could not query Google Drive: {:?}", error)))
-        },
+            return Err(Error::msg(format!(
+                "Could not query Google Drive: {:?}",
+                error
+            )));
+        }
     }
 }
 
 ///Parse the drive and create the folder if it doesn't exist
 pub async fn g_create_folder(
-    user_token: &UserToken, path: Option<&PathBuf>, parent: &str
+    user_token: &UserToken,
+    path: Option<&PathBuf>,
+    parent: &str,
 ) -> Result<String> {
     let save_path = match path {
         Some(p) => p.to_str().unwrap(),
@@ -76,10 +86,7 @@ pub async fn g_create_folder(
         "name = '{}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false",
         save_path
     );
-    let url = format!(
-        "https://www.googleapis.com/drive/v3/files?q={}",
-        query
-    );
+    let url = format!("https://www.googleapis.com/drive/v3/files?q={}", query);
     //Send the url and get the response
     let response = request_url(&url, &user_token).await?;
 
@@ -147,7 +154,7 @@ pub async fn g_update(user_token: &UserToken, id: &str, path: &str) -> Result<St
     //Get file content
     let mut file = tokio::fs::File::open(path).await?;
     let file_size = std::fs::metadata(path)?.len();
-    
+
     let client = reqwest::Client::new();
     let url = format!(
         "https://www.googleapis.com/upload/drive/v3/files/{}?uploadType=resumable",
@@ -169,7 +176,6 @@ pub async fn g_update(user_token: &UserToken, id: &str, path: &str) -> Result<St
         .to_str()?
         .to_owned();
 
-    
     return Ok(upload_chunks(&session_uri, &mut file, file_size).await?);
 }
 
@@ -259,7 +265,7 @@ async fn upload_chunks(session_uri: &str, file: &mut File, file_size: u64) -> Re
     }
 
     return Err(anyhow::Error::msg(format!("File upload not successful")));
-} 
+}
 
 ///Query google drive and return a Vec<String> of each item within the relevant folder
 pub async fn g_view(user_token: &UserToken, name: &str) -> Result<Vec<String>> {
@@ -368,8 +374,10 @@ pub async fn google_query_file(file_id: &str, creds: UserToken) -> Result<()> {
 ///Walks google drive to get all of the files within their respective folders
 #[async_recursion]
 async fn walk_cloud(
-    user_token: &UserToken, client: &reqwest::Client, folder_id: &str 
-) ->  Result<DirInfo> {
+    user_token: &UserToken,
+    client: &reqwest::Client,
+    folder_id: &str,
+) -> Result<DirInfo> {
     let mut contents = Vec::new();
     let url = format!(
         "https://www.googleapis.com/drive/v3/files?q='{}' in parents and trashed = false",
