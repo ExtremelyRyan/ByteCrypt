@@ -185,8 +185,8 @@ pub fn cloud(path: &str, platform: CloudService, task: CloudTask) {
                                     let drive_id = crypts.get(&path).unwrap().drive_id.as_str();
                                     if !drive_id.is_empty() {
                                         let exists = runtime.block_on(drive::g_id_exists(
+                                            &user_token,
                                             drive_id,
-                                            user_token.clone(),
                                         ));
 
                                         println!("{:?}", exists);
@@ -195,7 +195,7 @@ pub fn cloud(path: &str, platform: CloudService, task: CloudTask) {
 
                                 if !path.is_dir {
                                     let file_id = runtime.block_on(drive::g_upload(
-                                        user_token.clone(),
+                                        &user_token,
                                         &path.full_path.display().to_string(),
                                         &parent_id,
                                     ));
@@ -211,14 +211,13 @@ pub fn cloud(path: &str, platform: CloudService, task: CloudTask) {
                         //Individual file(s)
                         false => {
                             let file_id = runtime.block_on(drive::g_upload(
-                                user_token.clone(),
+                                &user_token,
                                 &path_info.full_path.display().to_string(),
                                 &crypt_folder,
                             ));
                             //Update the FileCrypt's drive_id
                             if path_info.name.contains(".crypt") {
-                                crypts
-                                    .entry(path_info)
+                                crypts.entry(path_info)
                                     .and_modify(|fc| fc.drive_id = file_id.unwrap());
                             }
                         }
@@ -234,7 +233,7 @@ pub fn cloud(path: &str, platform: CloudService, task: CloudTask) {
                     }
                     //Print the directory
                     let cloud_directory = runtime
-                        .block_on(drive::g_walk("Crypt", user_token))
+                        .block_on(drive::g_walk(&user_token, "Crypt"))
                         .expect("Could not view directory information");
                     send_information(build_tree(&cloud_directory));
                 }
@@ -246,12 +245,12 @@ pub fn cloud(path: &str, platform: CloudService, task: CloudTask) {
                         user_token.clone(),
                     ));
 
-                    let res = runtime.block_on(g_walk("Crypt", user_token)).unwrap();
+                    let res = runtime.block_on(g_walk(&user_token, "Crypt")).unwrap();
                     println!("{res:#?}");
                 }
                 CloudTask::View => {
                     let cloud_directory = runtime
-                        .block_on(drive::g_walk(path, user_token))
+                        .block_on(drive::g_walk(&user_token, path))
                         .expect("Could not view directory information");
                     send_information(build_tree(&cloud_directory));
                 }
