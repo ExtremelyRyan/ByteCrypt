@@ -42,6 +42,9 @@ pub struct Config {
     /// serves as the default location for the SQLite database path.
     pub database_path: String,
 
+    ///Whether to ignore hidden files (begin with .)
+    pub ignore_hidden: bool,
+
     /// collection of any directories to ignore during folder encryption.
     pub ignore_items: Vec<String>,
 
@@ -72,6 +75,7 @@ pub struct Config {
 ///```
 pub enum ConfigOptions {
     DatabasePath,
+    IgnoreHidden,
     IgnoreItems,
     Retain,
     Backup,
@@ -82,6 +86,7 @@ impl ToString for ConfigOptions {
     fn to_string(&self) -> String {
         match self {
             Self::DatabasePath => "database_path".to_string(),
+            Self::IgnoreHidden=> "ignore_hidden".to_string(),
             Self::IgnoreItems => "ignore_items".to_string(),
             Self::Retain => "retain".to_string(),
             Self::Backup => "backup".to_string(),
@@ -104,6 +109,7 @@ impl ToString for ConfigOptions {
 ///```
 pub enum ConfigTask {
     DatabasePath,
+    IgnoreHidden(bool),
     IgnoreItems(ItemsTask, String),
     Retain(bool),
     Backup(bool),
@@ -132,6 +138,7 @@ impl std::fmt::Display for Config {
         _ = writeln!(f, "Config:");
         // _ = writeln!(f, "cloud_services: {:?}", self.cloud_services);
         _ = writeln!(f, "  database_path: {}", self.database_path);
+        _ = writeln!(f, "  ignore_hidden: {}", self.ignore_hidden);
         _ = writeln!(f, "  ignore_item: {:?}", self.ignore_items);
         _ = writeln!(f, "  retain: {}", self.retain);
         _ = writeln!(f, "  backup: {}", self.backup);
@@ -148,6 +155,7 @@ impl Default for Config {
         Config {
             database_path: format!("{}", database_path.display()),
             // cloud_services: Vec::new(),
+            ignore_hidden: true,
             ignore_items: vec!["target".to_string()],
             retain: true,
             backup: true,
@@ -160,7 +168,8 @@ impl Config {
     fn _new(
         database_path: String,
         // cloud_services: Vec<String>,
-        ignore_directories: Vec<String>,
+        ignore_hidden: bool,
+        ignore_items: Vec<String>,
         retain: bool,
         backup: bool,
         zstd_level: i32,
@@ -168,7 +177,8 @@ impl Config {
         Self {
             database_path,
             // cloud_services,
-            ignore_items: ignore_directories,
+            ignore_hidden,
+            ignore_items,
             retain,
             backup,
             zstd_level,
@@ -205,6 +215,10 @@ impl Config {
     pub fn set_database_path(&mut self, path: &str) {
         self.database_path = path.to_owned();
         _ = save_config(self);
+    }
+
+    pub fn set_ignore_hidden(&mut self, choice: bool) {
+        self.ignore_hidden = choice;
     }
 
     pub fn backup(&self) -> bool {

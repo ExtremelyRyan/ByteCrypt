@@ -7,11 +7,12 @@ use crypt_cloud::crypt_core::{
         build_tree, get_full_file_path, send_information, walk_directory, walk_paths, PathInfo,
     },
     config::{self, Config, ConfigTask, ItemsTask},
-    db::{self, query_crypt},
-    db::{delete_keeper, export_keeper, query_keeper_crypt, query_keeper_by_file_name},
+    db::{
+        self, delete_keeper, query_crypt, export_keeper, 
+        query_keeper_crypt, query_keeper_by_file_name
+    },
     filecrypt::{decrypt_file, encrypt_file, get_uuid, FileCrypt, decrypt_contents},
-    token::{purge_tokens, CloudTask},
-    token::{CloudService, UserToken},
+    token::{purge_tokens, CloudTask, CloudService, UserToken},
 };
 use crypt_cloud::drive::{self, g_walk};
 use std::{collections::HashMap, path::PathBuf};
@@ -265,8 +266,8 @@ pub fn cloud(path: &str, platform: CloudService, task: CloudTask) {
                     // step 2: get drive id and query file, retreve contents
 
                     let bytes = runtime.block_on(drive::google_query_file(
+                        &user_token,
                         &fc.drive_id,
-                        user_token.clone(),
                     )).unwrap_or(vec![]);
 
                     // TODO: if something went wrong, what do?
