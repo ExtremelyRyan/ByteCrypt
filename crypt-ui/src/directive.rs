@@ -395,6 +395,7 @@ pub fn config(path: &str, config_task: ConfigTask) {
                 "An error has occured attmepting to load defaults"
             )]),
         },
+        ConfigTask::IgnoreHidden(_) => todo!(),
     };
 }
 
