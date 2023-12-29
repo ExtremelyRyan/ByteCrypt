@@ -1,12 +1,15 @@
-use crate::cli::KeeperCommand;
+use crate::cli::{
+    KeeperCommand,
+    KeeperPurgeSubCommand::{Database, Token},
+};
 use crypt_cloud::crypt_core::{
     common::{
         build_tree, get_full_file_path, send_information, walk_directory, walk_paths, PathInfo,
     },
     config::{self, Config, ConfigTask, ItemsTask},
     db::{self, query_crypt},
-    db::{delete_keeper, export_keeper, query_keeper_crypt},
-    filecrypt::{decrypt_file, encrypt_file, get_uuid, FileCrypt},
+    db::{delete_keeper, export_keeper, query_keeper_crypt, query_keeper_by_file_name},
+    filecrypt::{decrypt_file, encrypt_file, get_uuid, FileCrypt, decrypt_contents},
     token::{purge_tokens, CloudTask},
     token::{CloudService, UserToken},
 };
@@ -221,20 +224,17 @@ pub fn cloud(path: &str, platform: CloudService, task: CloudTask) {
                             }
                         }
                     }
-                    
-                    
-                    //TODO: === This isnt working ====
                     //Update the keeper with any changes to FileCrypts
                     for (_, value) in crypts {
                         let _ = db::insert_crypt(&value);
                     }
-                    //TODO: === /This isnt working ====
-
 
                     //TESTING PORPISES
                     let after_upload_keeper = db::query_keeper_crypt().unwrap();
                     for item in after_upload_keeper {
-                        println!("{:#?}", item);
+                        println!("file: {}{}", item.filename, item.ext);
+                        println!("full path: {}", item.full_path.display());
+                        println!("drive ID: {}", item.drive_id);
                     }
                     //Print the directory
                     let cloud_directory = runtime
@@ -243,15 +243,35 @@ pub fn cloud(path: &str, platform: CloudService, task: CloudTask) {
                     send_information(build_tree(&cloud_directory));
                 }
                 CloudTask::Download => {
+
+                    // OK, so what are we wanting to do here? we are looking at the list of files on the cloud
+                    // from running `crypt cloud -g view`
+
+                    // `path` that we are getting from the user is the filename (should not have ext, but might)
+                    // so we can query for that from the db.
+
+                    // Step 1: get path from the user and verify it exists in our database.
                     println!("path {}", path);
+                    let fc = query_keeper_by_file_name(path).unwrap();
 
-                    _ = runtime.block_on(drive::google_query_file(
-                        "1MVo5in4JCOLJ9YzbVTkj9jAY9cHoH8C8",
+                    // TODO: Step 1.1: if multiple filecrypts exist for the same filename, then perhaps it's just easier
+                    // if we download the file, and check uuid.
+                    // thought about having user select, but based off what? filename, the "fullpath" we have in the db?
+
+                    
+                    // step 2: get drive id and query file, retreve contents
+
+                    let bytes = runtime.block_on(drive::google_query_file(
+                        &fc.drive_id,
                         user_token.clone(),
-                    ));
+                    )).unwrap_or(vec![]);
 
-                    let res = runtime.block_on(g_walk(&user_token, "Crypt")).unwrap();
-                    println!("{res:#?}");
+                    // Step 2.5: unzip / decrypt contents / write to file.
+                    _ = decrypt_contents(fc, bytes);
+
+
+                    // let res = runtime.block_on(g_walk(&user_token, "Crypt")).unwrap();
+                    // println!("{res:#?}");
                 }
                 CloudTask::View => {
                     let cloud_directory = runtime
@@ -385,40 +405,36 @@ pub fn keeper(kc: &KeeperCommand) {
                 Err(e) => panic!("problem exporting keeper! {}", e),
             };
         }
-        KeeperCommand::Purge { item } => {
-            match item.trim().to_lowercase().as_str() {
-                "database" | "db" => {
-                    send_information(vec![
-                        format!("==================== WARNING ===================="),
-                        format!("DOING THIS WILL IRREVERSIBLY DELETE YOUR DATABASE\n"),
-                        format!("DOING THIS WILL IRREVERSIBLY DELETE YOUR DATABASE\n"),
-                        format!("DOING THIS WILL IRREVERSIBLY DELETE YOUR DATABASE\n\n"),
-                        format!(r#"type "delete database" to delete, or "q" to quit"#),
-                    ]);
-                    let mut phrase = String::new();
-                    let match_phrase = String::from("delete database");
-                    loop {
-                        std::io::stdin()
-                            .read_line(&mut phrase)
-                            .expect("Failed to read line");
-                        phrase = phrase.trim().to_string();
+        KeeperCommand::Purge { category } => match category {
+            Some(Token {}) => purge_tokens(),
+            Some(Database {}) => {
+                send_information(vec![
+                    format!("==================== WARNING ===================="),
+                    format!("DOING THIS WILL IRREVERSIBLY DELETE YOUR DATABASE\n"),
+                    format!("DOING THIS WILL IRREVERSIBLY DELETE YOUR DATABASE\n"),
+                    format!("DOING THIS WILL IRREVERSIBLY DELETE YOUR DATABASE\n\n"),
+                    format!(r#"type "delete database" to delete, or "q" to quit"#),
+                ]);
+                let mut phrase = String::new();
+                let match_phrase = String::from("delete database");
+                loop {
+                    std::io::stdin()
+                        .read_line(&mut phrase)
+                        .expect("Failed to read line");
+                    phrase = phrase.trim().to_string();
 
-                        if phrase.eq(&match_phrase) {
-                            break;
-                        }
-                        if phrase.eq("q") {
-                            return;
-                        }
+                    if phrase.eq(&match_phrase) {
+                        break;
                     }
-                    _ = delete_keeper();
-                    send_information(vec![format!("database deleted.")]);
+                    if phrase.eq("q") {
+                        return;
+                    }
                 }
-                "t" | "token" | "tokens" => {
-                    purge_tokens();
-                }
-                _ => send_information(vec![format!("invalid entry entered.")]),
-            };
-        }
+                _ = delete_keeper();
+                send_information(vec![format!("database was deleted.")]);
+            }
+            None => send_information(vec![format!("invalid entry entered.")]),
+        },
         //
         KeeperCommand::List {} => {
             let fc = query_keeper_crypt().unwrap();

@@ -329,6 +329,87 @@ pub fn query_keeper_for_existing_file(full_path: PathBuf) -> Result<FileCrypt> {
     })
 }
 
+///Queries the database if a file's metadata matches existing entry in crypt keeper
+///
+/// # Example:
+///```ignore
+/// let path = PathBuf::from("path/to/file.txt");
+/// let fc = insert_crypt(path);
+///```
+pub fn query_keeper_by_file_name(file_name: &str) -> Result<FileCrypt> {
+    //Get the connection
+    let conn = get_keeper()?;
+
+    //Get the results of the query
+    conn.query_row(
+        "SELECT *
+        FROM crypt
+        WHERE filename = ?1",
+        params![file_name.to_string()],
+        |row| {
+            let get: String = row.get(4)?;
+            Ok(FileCrypt {
+                uuid: row.get(0)?,
+                filename: row.get(1)?,
+                ext: row.get(2)?,
+                drive_id: row.get(3)?,
+                full_path: PathBuf::from(get),
+                key: row.get(5)?,
+                nonce: row.get(6)?,
+                hash: row.get(7)?,
+            })
+        },
+    )
+    .map_err(|e| match e {
+        //Handle the errors
+        rusqliteError::QueryReturnedNoRows => {
+            anyhow!("No crypt with that uuid exists ")
+        }
+        _ => anyhow!("Keeper query failed {}", e),
+    })
+}
+
+/// Searches the Crypt for FileCrypts whose `drive_id` IS NOT NULL AND IS NOT "", and returns those results in a vector.
+pub fn query_keeper_for_files_with_drive_id() -> Result<Vec<FileCrypt>> {
+    //Get the connection
+    let conn = get_keeper().map_err(|_| anyhow!("Failed to get keeper"))?;
+
+    //Create the query and execute
+    let mut query = conn.prepare(
+        r#"
+        SELECT *
+        FROM crypt
+        WHERE drive_id IS NOT NULL AND drive_id != "" "#,
+    )?;
+
+    //Get the results of the query
+    let query_result = query.query_map([], |row| {
+        let get: String = row.get(4)?;
+        let key: [u8; KEY_SIZE] = row.get(5)?;
+        let nonce: [u8; NONCE_SIZE] = row.get(6)?;
+        let hash: [u8; KEY_SIZE] = row.get(7)?;
+
+        Ok(FileCrypt {
+            uuid: row.get(0)?,
+            filename: row.get(1)?,
+            ext: row.get(2)?,
+            drive_id: row.get(3)?,
+            full_path: PathBuf::from(get),
+            key,
+            nonce,
+            hash,
+        })
+    })?;
+
+    //Convert the results into a vector
+    let mut crypts: Vec<FileCrypt> = Vec::new();
+    for crypt in query_result {
+        crypts.push(crypt.unwrap());
+    }
+
+    Ok(crypts)
+}
+
 ///Queries the database for all crypts
 ///
 /// # Example:

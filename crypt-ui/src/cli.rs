@@ -78,7 +78,7 @@ enum Commands {
         output: Option<String>,
     },
 
-    ///Import | Export database
+    ///Import | Export | Purge database
     Keeper {
         /// Categories
         #[command(subcommand)]
@@ -117,6 +117,7 @@ pub enum DriveCommand {
     /// Download a file or folder
     #[command(short_flag = 'd')]
     Download {
+        /// name of the file you want to get from the cloud
         #[arg(required = false, default_value_t = String::from(""))]
         path: String,
     },
@@ -204,14 +205,26 @@ pub enum KeeperCommand {
     /// PURGES DATABASE FROM SYSTEM
     #[command(short_flag = 'p')]
     Purge {
-        /// tokens | db
-        #[arg(required = true, default_value_t = String::from(""))]
-        item: String,
+        /// Categories
+        #[command(subcommand)]
+        category: Option<KeeperPurgeSubCommand>,
     },
     /// TODO: maybe get rid of this in the future. for now, handy debugging tool for small db.
     /// List each file in the database
     #[command(short_flag = 'l')]
     List {},
+}
+
+/// Subcommands for Keeper
+#[derive(Subcommand, Debug)]
+pub enum KeeperPurgeSubCommand {
+    /// Purges google and Dropbox tokens
+    #[command(short_flag = 't', alias = "tokens")]
+    Token {},
+
+    /// Purges database file and IS UNREVERSABLE!
+    #[command(short_flag = 'd', alias = "db")]
+    Database {},
 }
 
 impl KeeperCommand {
@@ -362,4 +375,14 @@ pub fn load_cli() {
 
 fn debug_mode() {
     println!("Why would you do this ._.");
+}
+
+pub fn test() {
+    let crypts = crypt_cloud::crypt_core::db::query_keeper_for_files_with_drive_id().unwrap();
+
+    for crypt in crypts {
+        println!("file: {}{}", crypt.filename, crypt.ext);
+        println!("full path: {}", crypt.full_path.display());
+        println!("drive ID: {}\n", crypt.drive_id);
+    }
 }

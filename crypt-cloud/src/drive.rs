@@ -351,7 +351,7 @@ pub async fn g_walk(user_token: &UserToken, name: &str) -> Result<DirInfo> {
 /// Query google using file_id and download contents
 ///
 /// TEMP: downloading
-pub async fn google_query_file(file_id: &str, creds: UserToken) -> Result<()> {
+pub async fn google_query_file(file_id: &str, creds: UserToken) -> Result<Vec<u8>> {
     let url = format!(
         "https://www.googleapis.com/drive/v3/files/{}?alt=media&source=downloadUrl",
         file_id
@@ -364,11 +364,12 @@ pub async fn google_query_file(file_id: &str, creds: UserToken) -> Result<()> {
         return Err(Error::msg(format!("{:?}", response.text().await?)));
     }
 
-    let text = &response.bytes().await?;
+    let bytes = &response.bytes().await?;
+    let text = bytes.to_vec();
     // TODO: Move somewhere else.
     // TODO: Also, get name from file and use that instead of "downloaded".
-    _ = std::fs::write("downloaded.crypt", text);
-    Ok(())
+    // _ = std::fs::write("downloaded.crypt", text);
+    Ok(text)
 }
 
 ///Walks google drive to get all of the files within their respective folders

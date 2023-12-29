@@ -8,5 +8,8 @@ fn main() -> anyhow::Result<()> {
 
     load_cli();
 
+    // println!("printing out crypts with drive ID");
+    // crypt_ui::cli::test();
+
     Ok(())
 }

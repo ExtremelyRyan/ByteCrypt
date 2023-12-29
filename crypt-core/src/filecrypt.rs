@@ -108,6 +108,40 @@ pub fn decrypt_file(path: &str, output: Option<String>) -> Result<(), EncryptErr
     Ok(())
 }
 
+pub fn decrypt_contents(fc: FileCrypt, contents: Vec<u8>) -> Result<(), EncryptErrors> {
+
+    let fc_hash: [u8; 32] = fc.hash.to_owned();
+
+    // get output file
+    let file = generate_output_file(&fc, None, &Path::new("."));
+
+    let (_uuid, stripped_contents) = get_uuid(&contents);
+
+    let mut decrypted_content = decrypt(fc.clone(), &stripped_contents.to_vec()).expect("failed decryption");
+
+    // unzip contents
+    decrypted_content = decompress(&decrypted_content);
+
+    // compute hash on contents
+    let hash = compute_hash(&decrypted_content);
+
+    // verify file integrity
+    if hash != fc_hash {
+        let s = format!(
+            "HASH COMPARISON FAILED\nfile hash: {:?}\ndecrypted hash:{:?}",
+            &fc.hash.to_vec(),
+            hash
+        );
+        return Err(EncryptErrors::HashFail(s));
+    }
+
+    if write_contents_to_file(&file, decrypted_content).is_err() {
+        eprintln!("failed to write contents to {file}");
+        std::process::exit(2);
+    }
+    Ok(())
+}
+
 /// Encrypts the contents of a file and performs additional operations based on the provided configuration.
 ///
 /// # Arguments
