@@ -244,6 +244,9 @@ pub fn cloud(path: &str, platform: CloudService, task: CloudTask) {
                 }
                 CloudTask::Download => {
 
+                    // TODO: how do we handle paths that do not match / misspelled / mis-cased?
+                    // TODO: 
+
                     // OK, so what are we wanting to do here? we are looking at the list of files on the cloud
                     // from running `crypt cloud -g view`
 
@@ -265,6 +268,12 @@ pub fn cloud(path: &str, platform: CloudService, task: CloudTask) {
                         &fc.drive_id,
                         user_token.clone(),
                     )).unwrap_or(vec![]);
+
+                    // TODO: if something went wrong, what do?
+                    if bytes.is_empty() {
+                        send_information(vec![format!("Failed to get contents of cloud file. Please try again.")]);
+                        std::process::exit(2);
+                    }
 
                     // Step 2.5: unzip / decrypt contents / write to file.
                     _ = decrypt_contents(fc, bytes);
