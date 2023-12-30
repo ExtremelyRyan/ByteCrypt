@@ -8,13 +8,13 @@ use crypt_cloud::crypt_core::{
     },
     config::{self, Config, ConfigTask, ItemsTask},
     db::{
-        self, delete_keeper, query_crypt, export_keeper, 
-        query_keeper_crypt, query_keeper_by_file_name
+        self, delete_keeper, export_keeper, query_crypt, query_keeper_by_file_name,
+        query_keeper_crypt,
     },
-    filecrypt::{decrypt_file, encrypt_file, get_uuid, FileCrypt, decrypt_contents},
-    token::{purge_tokens, CloudTask, CloudService, UserToken},
+    filecrypt::{decrypt_contents, decrypt_file, encrypt_file, get_uuid, FileCrypt},
+    token::{purge_tokens, CloudService, CloudTask, UserToken},
 };
-use crypt_cloud::drive::{self, g_walk};
+use crypt_cloud::drive;
 use std::{collections::HashMap, path::PathBuf};
 use tokio::runtime::Runtime;
 
@@ -31,23 +31,24 @@ use tokio::runtime::Runtime;
 ///```
 ///TODO: implement output
 pub fn encrypt(path: &str, in_place: bool, _output: Option<String>) {
+    let buf = PathBuf::from(path);
     //Determine if file or directory
-    match PathBuf::from(path).is_dir() {
-        //if directory
-        true => {
-            // get vec of dir
-            let dir = walk_directory(path).expect("could not find directory!");
-            // dbg!(&dir);
-            for path in dir {
-                send_information(vec![format!("Encrypting file: {}", path.display())]);
-                encrypt_file(path.display().to_string().as_str(), in_place)
+    if buf.is_dir() {
+        // get vec of dir
+        let dir = walk_directory(path);
+
+        match dir {
+            Ok(d) => {
+                for p in d {
+                    send_information(vec![format!("Encrypting file: {}", p.display())]);
+                    encrypt_file(p.display().to_string().as_str(), in_place)
+                }
             }
+            Err(_) => todo!(),
         }
-        //if file
-        false => {
-            encrypt_file(path, in_place);
-        }
-    };
+    } else if buf.is_file() {
+        encrypt_file(path, in_place);
+    }
 }
 
 ///Process the decryption directive
@@ -83,6 +84,218 @@ pub fn decrypt(path: &str, _in_place: bool, output: Option<String>) {
             let _ = decrypt_file(path, output.to_owned());
         }
     };
+}
+
+pub fn google_upload(path: &String, no_encrypt: &bool) {
+    let runtime = Runtime::new().unwrap();
+
+    // TODO: Split this off into a seperate function.
+    let user_token = UserToken::new_google();
+
+    //Access google drive and ensure a crypt folder exists, create if doesn't
+    let crypt_folder = match runtime.block_on(drive::g_create_folder(&user_token, None, "")) {
+        Ok(folder_id) => folder_id,
+        Err(error) => {
+            send_information(vec![format!("{}", error)]);
+            "".to_string()
+        }
+    };
+    // TODO end
+
+    //Track all folder ids
+    let mut folder_ids: HashMap<String, String> = HashMap::new();
+    //Get walk path given and build a list of PathInfos
+    let path_info = PathInfo::new(path);
+    let paths = walk_paths(path);
+    //Create a hashmap relating PathInfo to FileCrypt for relevant .crypt files
+    let mut crypts: HashMap<PathInfo, FileCrypt> = HashMap::new();
+    for file in paths.clone().iter() {
+        if !file.is_dir && file.name.contains(".crypt") {
+            let contents = &std::fs::read(file.full_path.display().to_string().as_str()).unwrap();
+            let (s, _) = get_uuid(contents);
+            let fc = query_crypt(s).expect("Could not query keeper");
+            crypts.insert(file.to_owned(), fc);
+        }
+    }
+    //Remove the root directory
+    let paths: Vec<PathInfo> = paths
+        .into_iter()
+        .filter(|p| p.name != path_info.name)
+        .collect();
+
+    //Match if directory or file
+    match path_info.is_dir {
+        // Full directory upload
+        true => {
+            //Create the root directory
+            folder_ids.insert(
+                path_info.full_path.display().to_string(),
+                runtime
+                    .block_on(drive::g_create_folder(
+                        &user_token,
+                        Some(&PathBuf::from(path_info.name.clone())),
+                        &crypt_folder,
+                    ))
+                    .expect("Could not create directory in google drive"),
+            );
+            //Create all folders relative to the root directory
+            for path in paths.clone() {
+                let parent_path = path.parent.display().to_string();
+                let parent_id = folder_ids
+                    .get(&parent_path)
+                    .expect("Could not retrieve parent ID")
+                    .to_string();
+
+                if path.is_dir {
+                    folder_ids.insert(
+                        path.full_path.display().to_string(),
+                        runtime
+                            .block_on(drive::g_create_folder(
+                                &user_token,
+                                Some(&PathBuf::from(path.name.clone())),
+                                &parent_id,
+                            ))
+                            .expect("Could not create directory in google drive"),
+                    );
+                }
+            }
+            //Upload every file to their respective parent directory
+            for path in paths {
+                let parent_path = path.parent.display().to_string();
+                let parent_id = folder_ids
+                    .get(&parent_path)
+                    .expect("Could not retrieve parent ID")
+                    .to_string();
+                if path.name.contains(".crypt") {
+                    let drive_id = crypts.get(&path).unwrap().drive_id.as_str();
+                    if !drive_id.is_empty() {
+                        let exists = runtime.block_on(drive::g_id_exists(&user_token, drive_id));
+
+                        println!("{:?}", exists);
+                    }
+                }
+
+                if !path.is_dir {
+                    let file_id = runtime.block_on(drive::g_upload(
+                        &user_token,
+                        &path.full_path.display().to_string(),
+                        &parent_id,
+                    ));
+                    //Update the FileCrypt's drive_id
+                    if path.name.contains(".crypt") {
+                        crypts
+                            .entry(path)
+                            .and_modify(|fc| fc.drive_id = file_id.unwrap());
+                    }
+                }
+            }
+        }
+        //Individual file(s)
+        false => {
+            let file_id = runtime.block_on(drive::g_upload(
+                &user_token,
+                &path_info.full_path.display().to_string(),
+                &crypt_folder,
+            ));
+            //Update the FileCrypt's drive_id
+            if path_info.name.contains(".crypt") {
+                crypts
+                    .entry(path_info)
+                    .and_modify(|fc| fc.drive_id = file_id.unwrap());
+            }
+        }
+    }
+    //Update the keeper with any changes to FileCrypts
+    for (_, value) in crypts {
+        let _ = db::insert_crypt(&value);
+    }
+
+    //TESTING PORPISES
+    let after_upload_keeper = db::query_keeper_crypt().unwrap();
+    for item in after_upload_keeper {
+        println!("file: {}{}", item.filename, item.ext);
+        println!("full path: {}", item.full_path.display());
+        println!("drive ID: {}", item.drive_id);
+    }
+    //Print the directory
+    let cloud_directory = runtime
+        .block_on(drive::g_walk(&user_token, "Crypt"))
+        .expect("Could not view directory information");
+    send_information(build_tree(&cloud_directory));
+}
+
+pub fn google_download(path: &String) {
+    let runtime = Runtime::new().unwrap();
+
+    // TODO: Split this off into a seperate function.
+    let user_token = UserToken::new_google();
+
+    //Access google drive and ensure a crypt folder exists, create if doesn't
+    let crypt_folder = match runtime.block_on(drive::g_create_folder(&user_token, None, "")) {
+        Ok(folder_id) => folder_id,
+        Err(error) => {
+            send_information(vec![format!("{}", error)]);
+            "".to_string()
+        }
+    };
+
+    // TODO: how do we handle paths that do not match / misspelled / mis-cased?
+    // TODO:
+
+    // OK, so what are we wanting to do here? we are looking at the list of files on the cloud
+    // from running `crypt cloud -g view`
+
+    // `path` that we are getting from the user is the filename (should not have ext, but might)
+    // so we can query for that from the db.
+
+    // Step 1: get path from the user and verify it exists in our database.
+    println!("path {}", path);
+    let fc = query_keeper_by_file_name(path).unwrap();
+
+    // TODO: Step 1.1: if multiple filecrypts exist for the same filename, then perhaps it's just easier
+    // if we download the file, and check uuid.
+    // thought about having user select, but based off what? filename, the "fullpath" we have in the db?
+
+    // step 2: get drive id and query file, retreve contents
+
+    let bytes = runtime
+        .block_on(drive::google_query_file(&user_token, &fc.drive_id))
+        .unwrap_or(vec![]);
+
+    // TODO: if something went wrong, what do?
+    if bytes.is_empty() {
+        send_information(vec![format!(
+            "Failed to get contents of cloud file. Please try again."
+        )]);
+        std::process::exit(2);
+    }
+
+    // Step 2.5: unzip / decrypt contents / write to file.
+    _ = decrypt_contents(fc, bytes);
+
+    // let res = runtime.block_on(g_walk(&user_token, "Crypt")).unwrap();
+    // println!("{res:#?}");
+}
+
+pub fn google_view(path: &String) {
+    let runtime = Runtime::new().unwrap();
+
+    // TODO: Split this off into a seperate function.
+    let user_token = UserToken::new_google();
+
+    //Access google drive and ensure a crypt folder exists, create if doesn't
+    let crypt_folder = match runtime.block_on(drive::g_create_folder(&user_token, None, "")) {
+        Ok(folder_id) => folder_id,
+        Err(error) => {
+            send_information(vec![format!("{}", error)]);
+            "".to_string()
+        }
+    };
+
+    let cloud_directory = runtime
+        .block_on(drive::g_walk(&user_token, path))
+        .expect("Could not view directory information");
+    send_information(build_tree(&cloud_directory));
 }
 
 ///View, upload, or download files from supported cloud service
@@ -244,9 +457,8 @@ pub fn cloud(path: &str, platform: CloudService, task: CloudTask) {
                     send_information(build_tree(&cloud_directory));
                 }
                 CloudTask::Download => {
-
                     // TODO: how do we handle paths that do not match / misspelled / mis-cased?
-                    // TODO: 
+                    // TODO:
 
                     // OK, so what are we wanting to do here? we are looking at the list of files on the cloud
                     // from running `crypt cloud -g view`
@@ -262,23 +474,22 @@ pub fn cloud(path: &str, platform: CloudService, task: CloudTask) {
                     // if we download the file, and check uuid.
                     // thought about having user select, but based off what? filename, the "fullpath" we have in the db?
 
-                    
                     // step 2: get drive id and query file, retreve contents
 
-                    let bytes = runtime.block_on(drive::google_query_file(
-                        &user_token,
-                        &fc.drive_id,
-                    )).unwrap_or(vec![]);
+                    let bytes = runtime
+                        .block_on(drive::google_query_file(&user_token, &fc.drive_id))
+                        .unwrap_or(vec![]);
 
                     // TODO: if something went wrong, what do?
                     if bytes.is_empty() {
-                        send_information(vec![format!("Failed to get contents of cloud file. Please try again.")]);
+                        send_information(vec![format!(
+                            "Failed to get contents of cloud file. Please try again."
+                        )]);
                         std::process::exit(2);
                     }
 
                     // Step 2.5: unzip / decrypt contents / write to file.
                     _ = decrypt_contents(fc, bytes);
-
 
                     // let res = runtime.block_on(g_walk(&user_token, "Crypt")).unwrap();
                     // println!("{res:#?}");

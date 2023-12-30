@@ -406,8 +406,11 @@ mod tests {
 
     #[test]
     fn test_walk_directory() {
-        let path = "../test_folder/";
+        let path = ".";
         let res = walk_directory(path).unwrap();
-        assert_eq!(res[0].file_name().unwrap().to_str().unwrap(), "file1.txt");
+        assert_eq!(
+            res[0].file_name().unwrap().to_str().unwrap(),
+            "encryption_benchmark.rs"
+        );
     }
 }

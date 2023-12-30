@@ -3,17 +3,15 @@ use crate::{
     common::{get_crypt_folder, get_file_bytes, write_contents_to_file},
     config::get_config,
     db::{insert_crypt, query_crypt},
-    encryption::decrypt,
+    encryption::{
+        compress, compute_hash, decompress, decrypt, encrypt, generate_seeds, KEY_SIZE, NONCE_SIZE,
+    },
 };
 use anyhow::Result;
 use log::*;
 use rand::RngCore;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
-
-use super::encryption::{
-    compress, compute_hash, decompress, encrypt, generate_seeds, KEY_SIZE, NONCE_SIZE,
-};
 
 pub enum EncryptErrors {
     HashFail(String),
@@ -109,7 +107,6 @@ pub fn decrypt_file(path: &str, output: Option<String>) -> Result<(), EncryptErr
 }
 
 pub fn decrypt_contents(fc: FileCrypt, contents: Vec<u8>) -> Result<(), EncryptErrors> {
-
     let fc_hash: [u8; 32] = fc.hash.to_owned();
 
     // get output file
@@ -117,7 +114,8 @@ pub fn decrypt_contents(fc: FileCrypt, contents: Vec<u8>) -> Result<(), EncryptE
 
     let (_uuid, stripped_contents) = get_uuid(&contents);
 
-    let mut decrypted_content = decrypt(fc.clone(), &stripped_contents.to_vec()).expect("failed decryption");
+    let mut decrypted_content =
+        decrypt(fc.clone(), &stripped_contents.to_vec()).expect("failed decryption");
 
     // unzip contents
     decrypted_content = decompress(&decrypted_content);
