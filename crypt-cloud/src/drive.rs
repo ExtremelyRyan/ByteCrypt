@@ -351,13 +351,13 @@ pub async fn g_walk(user_token: &UserToken, name: &str) -> Result<DirInfo> {
 /// Query google using file_id and download contents
 ///
 /// TEMP: downloading
-pub async fn google_query_file(file_id: &str, creds: UserToken) -> Result<Vec<u8>> {
+pub async fn google_query_file(user_token: &UserToken, file_id: &str) -> Result<Vec<u8>> {
     let url = format!(
         "https://www.googleapis.com/drive/v3/files/{}?alt=media&source=downloadUrl",
         file_id
     );
     //Send the url and get the response
-    let response = request_url(&url, &creds).await?;
+    let response = request_url(&url, &user_token).await?;
 
     //If drive query failed, break out and print error
     if !response.status().is_success() {
