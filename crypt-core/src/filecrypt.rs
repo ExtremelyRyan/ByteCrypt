@@ -110,7 +110,7 @@ pub fn decrypt_contents(fc: FileCrypt, contents: Vec<u8>) -> Result<(), EncryptE
     let fc_hash: [u8; 32] = fc.hash.to_owned();
 
     // get output file
-    let file = generate_output_file(&fc, None, &Path::new("."));
+    let file = generate_output_file(&fc, None, Path::new("."));
 
     let (_uuid, stripped_contents) = get_uuid(&contents);
 
@@ -203,6 +203,50 @@ pub fn encrypt_file(path: &str, in_place: bool) {
 
     // write fc to crypt_keeper
     insert_crypt(&fc).expect("failed to insert FileCrypt data into database!");
+}
+
+pub fn encrypt_contents(path: &str) -> Vec<u8> {
+    let conf = get_config();
+    // parse out file path
+    let (fp, _, filename, extension) = get_file_info(path);
+
+    // get contents of file
+    let binding = get_file_bytes(path);
+    let mut contents = binding.as_slice();
+
+    let fc = FileCrypt::new(
+        filename,
+        extension,
+        "".to_string(),
+        fp,
+        compute_hash(contents),
+    );
+
+    // zip contents
+    let binding = compress(contents, conf.zstd_level);
+    contents = binding.as_slice();
+
+    let mut encrypted_contents = encrypt(&fc, contents).unwrap();
+
+    // prepend uuid to contents
+    encrypted_contents = prepend_uuid(&fc.uuid, &mut encrypted_contents);
+
+    // if we are backing up crypt files, then do so.
+    if conf.backup {
+        let mut path = get_crypt_folder();
+        // make sure we append the filename, dummy.
+        path.push(format!("{}{}", fc.filename, ".crypt"));
+
+        // TODO: fix this later. we do care if the backup file write fails, but not enough to crash the program.
+        _ = write_contents_to_file(path.to_str().unwrap(), encrypted_contents.clone());
+    }
+
+    // write fc to crypt_keeper
+    // TODO: also this. not sure how much we care at the moment, since this is only a *copy* of the contents
+    // TODO: of the file, not the actual file itself.
+    _ = insert_crypt(&fc);
+
+    encrypted_contents
 }
 
 /// Generates the output file path for decrypted content based on the provided parameters.
@@ -351,9 +395,9 @@ pub fn get_uuid(contents: &[u8]) -> (String, Vec<u8>) {
 /// assert_eq!(&result[0..36], uuid.as_bytes());        // Check if UUID is prepended correctly
 /// assert_eq!(&result[36..], encrypted_data.as_slice()); // Check if original contents are preserved
 /// ```
-pub fn prepend_uuid(uuid: &str, encrypted_contents: &mut Vec<u8>) -> Vec<u8> {
+pub fn prepend_uuid(uuid: &str, encrypted_contents: &mut [u8]) -> Vec<u8> {
     let mut uuid_bytes = uuid.as_bytes().to_vec();
-    let mut encc = encrypted_contents.clone();
+    let mut encc = encrypted_contents.to_owned();
     uuid_bytes.append(&mut encc);
     uuid_bytes
 }

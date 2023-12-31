@@ -392,11 +392,12 @@ pub fn get_full_file_path(path: &str) -> PathBuf {
 pub fn is_hidden(entry: &walkdir::DirEntry) -> bool {
     let conf = config::get_config();
     let mut b: bool = false;
-    entry.file_name().to_str().map(|s: &str| {
+    if let Some(s) = entry.file_name().to_str() {
         conf.ignore_items.into_iter().for_each(|item| {
+            // TODO: make this better ------------------v
             b = s.to_string().contains(&item) || s.starts_with('.');
         })
-    });
+    };
     b
 }
 

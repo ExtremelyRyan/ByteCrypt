@@ -3,10 +3,12 @@ use crypt_cloud::crypt_core::{
     common::send_information,
     config::{self, ConfigTask, ItemsTask},
     db::import_keeper,
-    token::{CloudService, CloudTask},
 };
 
-use crate::directive::{self, google_download, google_upload, google_view};
+use crate::directive::{
+    self, dropbox_download, dropbox_upload, dropbox_view, google_download, google_upload,
+    google_view,
+};
 use crate::tui::load_tui;
 
 ///CLI arguments
@@ -304,14 +306,17 @@ pub fn load_cli() {
             }
 
             // Dropbox
+            // TODO:
             Some(CloudCommand::Dropbox { task }) => {
-                let (task, path) = match task {
-                    Some(DriveCommand::Upload { path, no_encrypt }) => (CloudTask::Upload, path),
-                    Some(DriveCommand::Download { path }) => (CloudTask::Download, path),
-                    Some(DriveCommand::View { path }) => (CloudTask::View, path),
+                match task {
+                    Some(DriveCommand::Upload {
+                        path,
+                        no_encrypt: _,
+                    }) => dropbox_upload(path),
+                    Some(DriveCommand::Download { path }) => dropbox_download(path),
+                    Some(DriveCommand::View { path }) => dropbox_view(path),
                     None => panic!("invalid input"),
                 };
-                directive::cloud(path, CloudService::Dropbox, task);
             }
 
             None => {

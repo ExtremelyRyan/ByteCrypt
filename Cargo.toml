@@ -1,13 +1,24 @@
 [workspace]
 resolver = "2"
 default-run = "crypt"
-
+default-members = ["crypt"]
 members = [
     "crypt",
     "crypt-core",
     "crypt-ui",
     "crypt-cloud",
 ]
+
+[workspace.package]
+description = "file encryption application"
+documentation = "https://github.com/ExtremelyRyan/ByteCrypt"
+homepage = "https://github.com/ExtremelyRyan/ByteCrypt"
+repository = "https://github.com/ExtremelyRyan/ByteCrypt"
+readme = "README.md"
+keywords = ["encryption", "files"]
+categories = ["command-line-utilities", "file-encryption"]
+license = "MIT"
+rust-version = "1.70"
 
 # The development profile, used for `cargo build`.
 [profile.dev]
