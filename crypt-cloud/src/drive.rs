@@ -188,6 +188,7 @@ pub async fn g_upload(
     no_encrypt: &bool,
 ) -> Result<String> {
     //Get file content
+    // dbg!(&no_encrypt);
     let mut file = File::open(path).await?;
     let mut tmp; // to appease the compiler gods
     let mut file_name = std::path::Path::new(path)
@@ -232,7 +233,7 @@ pub async fn g_upload(
     // if the `no_encrypt` flag IS NOT true, assume we are encrypting contents to send.
     if !no_encrypt {
         let encrypted_content = encrypt_contents(path);
-        return Ok(upload_chunk_contents(&session_uri, &encrypted_content).await?);
+        return Ok(upload_content_chunks(&session_uri, &encrypted_content).await?);
     }
 
     return Ok(upload_chunks(&session_uri, &mut file, file_size).await?);
@@ -284,7 +285,7 @@ async fn upload_chunks(session_uri: &str, file: &mut File, file_size: u64) -> Re
     return Err(anyhow::Error::msg("File upload not successful"));
 }
 
-async fn upload_chunk_contents(session_uri: &str, data: &[u8]) -> Result<String> {
+async fn upload_content_chunks(session_uri: &str, data: &[u8]) -> Result<String> {
     let client = reqwest::Client::new();
     let data_size = data.len() as u64;
 
@@ -325,6 +326,24 @@ async fn upload_chunk_contents(session_uri: &str, data: &[u8]) -> Result<String>
     Err(anyhow::Error::msg("File upload not successful"))
 }
 
+/// Builds and returns a set of HTTP headers for a partial content range request.
+///
+/// The function constructs the `Content-Range` and `Content-Length` headers based on the
+/// specified start, end, and total size of the content range.
+///
+/// # Arguments
+///
+/// * `start` - The starting byte index of the content range.
+/// * `end` - The ending byte index (inclusive) of the content range.
+/// * `total_size` - The total size of the entire content.
+///
+/// # Returns
+///
+/// A `HeaderMap` containing the constructed HTTP headers.
+///
+/// # Panics
+///
+/// This function may panic if overflow occurs during the calculation of the `Content-Length`.
 fn build_headers(start: u64, end: u64, total_size: u64) -> HeaderMap {
     let content_range = format!("bytes {}-{}/{}", start, end, total_size);
 
@@ -333,7 +352,15 @@ fn build_headers(start: u64, end: u64, total_size: u64) -> HeaderMap {
         CONTENT_RANGE,
         HeaderValue::from_str(&content_range).unwrap(),
     );
-    headers.insert(CONTENT_LENGTH, HeaderValue::from(end - start + 1));
+    dbg!(&end, &start, &total_size);
+    // Ensure no overflow by adding first and then subtracting
+    let content_length = end.checked_add(1).and_then(|e| e.checked_sub(start));
+    if let Some(length) = content_length {
+        headers.insert(CONTENT_LENGTH, HeaderValue::from(length));
+    } else {
+        // TODO: find better way to handle this
+        panic!("Overflow when calculating content length");
+    }
 
     headers
 }
