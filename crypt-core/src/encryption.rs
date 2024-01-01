@@ -53,15 +53,12 @@ pub fn compress(contents: &[u8], level: i32) -> Vec<u8> {
 /// Decompresses a byte slice using the Zstandard compression algorithm.
 ///
 /// # Arguments
-///
 /// * `contents` - A byte slice containing the compressed data.
 ///
 /// # Returns
-///
 /// A `Vec<u8>` containing the decompressed data.
-///
+/// 
 /// # Panics
-///
 /// Panics if the decompression process fails.
 pub fn decompress(contents: &[u8]) -> Result<Vec<u8>, std::io::Error> {
     zstd::decode_all(contents)
@@ -88,8 +85,8 @@ pub fn generate_seeds() -> ([u8; KEY_SIZE], [u8; NONCE_SIZE]) {
 /// * `contents` - A reference to a `Vec<u8>` containing the encrypted data.
 ///
 /// # Returns
-///
 /// A `Result<Vec<u8>, chacha20poly1305::Error>` where the `Ok` variant contains the decrypted data on success.
+/// 
 /// # Errors
 /// Returns a `chacha20poly1305::Error` if the decryption process fails.
 ///

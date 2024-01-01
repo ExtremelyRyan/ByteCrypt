@@ -12,7 +12,7 @@ use crypt_cloud::crypt_core::{
         query_keeper_crypt, query_keeper_by_file_name
     },
     filecrypt::{decrypt_file, encrypt_file, get_uuid, FileCrypt, decrypt_contents},
-    token::{purge_tokens, CloudTask, CloudService, UserToken},
+    token::{purge_tokens, UserToken},
 };
 use crypt_cloud::drive;
 use std::{collections::HashMap, path::PathBuf};
@@ -130,7 +130,7 @@ pub fn google_upload(path: &str, no_encrypt: &bool) {
     for file in paths.clone().iter() {
         if !file.is_dir && file.name.contains(".crypt") {
             let contents = &std::fs::read(file.full_path.display().to_string().as_str()).unwrap();
-            let (s, _) = get_uuid(contents);
+            let (s, _) = get_uuid(contents).unwrap();
             let fc = query_crypt(s).expect("Could not query keeper");
             crypts.insert(file.to_owned(), fc);
         }

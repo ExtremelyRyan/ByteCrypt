@@ -1,4 +1,5 @@
 use anyhow::{Ok, Result};
+use std::fmt::Display;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::{fs::OpenOptions, io::Write};
@@ -131,9 +132,13 @@ impl FileInfo {
 /// ```
 #[derive(Debug, Default, Clone)]
 pub struct DirInfo {
+    /// name of the directory
     pub name: String,
+    /// path or ID of the directory
     pub path: String,
+    /// boolean deciding if the contents are displayed
     pub expanded: bool,
+    /// contents within the directory
     pub contents: Vec<FsNode>,
 }
 
@@ -154,15 +159,6 @@ impl DirInfo {
 /// * `dir_info`: a reference to the DirInfo struct representing the directory
 /// # Returns:
 /// A `Vec<String>` where each entry is a representation of an entity within the directory
-/// # Example:
-///```ignore
-/// let cloud_directory = g_walk("Crypt", UserToken::new_google());
-///
-/// let dir_tree = build_tree(cloud_directory);
-/// for entity in dir_tree {
-///     println!("{}", entity);    
-/// }
-///```
 pub fn build_tree(dir_info: &DirInfo) -> Vec<String> {
     let dir_color = Color::Blue.bold();
     let mut tree: Vec<String> = Vec::new();
@@ -180,7 +176,41 @@ pub fn build_tree(dir_info: &DirInfo) -> Vec<String> {
     tree
 }
 
-///Recursively appends and walks the DirInfo contents to build a file tree
+/// Recursively appends and walks the contents of a `DirInfo` structure to build a file tree.
+///
+/// # Arguments
+///
+/// * `dir_info` - A `DirInfo` structure representing a directory and its contents.
+/// * `path` - The current path in the file tree. Used to construct prefixes for visual representation.
+/// * `tree` - A mutable vector to store the lines of the resulting file tree.
+///
+/// # Tree Visualization
+///
+/// - The file tree is constructed with files listed first, followed by directories.
+/// - The expansion state of directories is indicated by arrows (˅ for expanded, ˃ for collapsed).
+/// - The function uses a character set and color configuration for visual appeal.
+///
+/// # Prefix Formatting
+///
+/// - The lines of the tree are formatted with proper characters for junctions, nodes, and vertical lines.
+/// - The `path` parameter is used to construct prefixes for each line in the tree.
+///
+/// # Configuration Options
+///
+/// - TODO: Consider adding a configuration choice for ordering folders or files first.
+/// - TODO: Implement a more flexible configuration system for character sets and colors.
+/// - TODO: Improve the handling of UI-related configurations.
+///
+/// # Notes
+///
+/// - Directories are processed recursively, and expanded directories lead to deeper levels in the tree.
+/// - The `tree` vector is mutated to store each line of the resulting file tree.
+///
+/// # TODO
+///
+/// - Consider adding a configuration choice for ordering folders or files first.
+/// - Implement a more flexible configuration system for character sets and colors.
+/// - Improve the handling of UI-related configurations.
 fn tree_recursion(dir_info: &DirInfo, path: String, tree: &mut Vec<String>) {
     //Force files first
     //TODO: make a config choice if folders or files first
@@ -244,6 +274,16 @@ pub fn get_file_bytes(path: &str) -> Vec<u8> {
     std::fs::read(path).expect("Can't open/read file!")
 }
 
+/// Writes the contents of a `Vec<u8>` to a file.
+///
+/// # Arguments
+///
+/// * `file` - The path to the file to be written.
+/// * `contents` - The data to be written to the file.
+///
+/// # Returns
+///
+/// Returns a `Result` indicating whether the write operation was successful.
 ///
 pub fn write_contents_to_file(file: &str, contents: Vec<u8>) -> Result<()> {
     let mut f = OpenOptions::new()
@@ -255,6 +295,7 @@ pub fn write_contents_to_file(file: &str, contents: Vec<u8>) -> Result<()> {
         .expect("failed writing to file");
     Ok(f.flush()?)
 }
+
 
 pub fn get_crypt_folder() -> PathBuf {
     let output = if cfg!(target_os = "windows") {
@@ -293,8 +334,25 @@ impl Convert for PathBuf {
     }
 }
 
-///Called to print any information passed
-pub fn print_information(info: Vec<String>) {
+/// Called to print any information passed.
+///
+/// # Arguments
+///
+/// * `info` - An iterable collection of items that implement the `Display` trait.
+///
+/// # Examples
+///
+/// ```rust
+/// # use crypt_core::common::print_information;
+///
+/// let info = vec!["Item 1", "Item 2", "Item 3"];
+/// print_information(info);
+/// ```
+pub fn print_information<T>(info: T)
+where
+    T: IntoIterator,
+    T::Item: Display,
+{
     for item in info {
         println!("{}", item);
     }
@@ -382,9 +440,10 @@ pub fn walk_paths(path_in: &str) -> Vec<PathInfo> {
 
 /// get full full path from a relative path
 pub fn get_full_file_path(path: &str) -> PathBuf {
+    use std::result::Result::Ok;
     let canonicalize = dunce::canonicalize(path);
     match canonicalize {
-        core::result::Result::Ok(c) => c,
+        Ok(c) => c,
         Err(_) => PathBuf::from(path),
     }
 }

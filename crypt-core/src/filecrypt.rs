@@ -13,7 +13,7 @@ use rand::RngCore;
 use serde::{Deserialize, Serialize};
 use std::{
     fs::read,
-    path::{Path, PathBuf},
+    path::{Path, PathBuf}, time::Duration,
 };
 
 /// Represents various errors that can occur during file decryption.
@@ -59,6 +59,13 @@ pub enum FcError {
     FileReadError,
     FileError(String),
     DecryptError(String),
+    GeneralError(String),
+}
+
+impl From<String> for FcError {
+    fn from(err_msg: String) -> Self {
+        FcError::GeneralError(err_msg)
+    }
 }
 
 
@@ -177,7 +184,7 @@ pub fn decrypt_file(path: &str, output: Option<String>) -> Result<(), FcError> {
 
     let content = read(path).map_err(|e| FcError::FileError(e.to_string()))?;
 
-    let (uuid, contents) = get_uuid(&content);
+    let (uuid, contents) = get_uuid(&content)?;
 
     let fc = query_crypt(uuid).map_err(|_| FcError::CryptQueryError)?;
 
@@ -219,7 +226,7 @@ pub fn decrypt_contents(fc: FileCrypt, contents: Vec<u8>) -> Result<(), FcError>
     // get output file
     let file = generate_output_file(&fc, None, Path::new("."));
 
-    let (_uuid, stripped_contents) = get_uuid(&contents);
+    let (_uuid, stripped_contents) = get_uuid(&contents)?;
 
     let mut decrypted_content =
         decrypt(fc.clone(), &stripped_contents.to_vec()).expect("failed decryption");
@@ -371,16 +378,6 @@ pub fn encrypt_contents(path: &str) -> Vec<u8> {
 ///
 /// Returns a string representing the final output file path.
 ///
-/// # Example
-///
-/// ```ignore
-///
-/// let fc = FileCrypt::new(/* initialize FileCrypt parameters */);
-/// let parent_dir = "/path/to/parent/directory";
-/// let output_file = generate_output_file(&fc, Some("/path/to/custom/output.txt".to_string()), &Path::new(parent_dir));
-/// println!("Output File: {}", output_file);
-/// ```
-///
 /// # Panics
 ///
 /// The function may panic if there are issues with creating directories or manipulating file paths.
@@ -448,20 +445,19 @@ fn generate_output_file(fc: &FileCrypt, output: Option<String>, parent_dir: &Pat
 ///
 /// # Example
 ///
-/// ```ignore
-/// # use crypt_lib::encryption::generate_uuid;
+/// ```rust
+/// # use crypt_core::filecrypt::generate_uuid;
 ///
 /// let uuid_string = generate_uuid();
 /// println!("Generated UUID: {}", uuid_string);
 /// ```
 /// # Panics
-///
 /// The function may panic if the system time cannot be retrieved or if the random bytes generation fails.
 pub fn generate_uuid() -> String {
     info!("generating new uuid");
     let ts = std::time::SystemTime::now()
         .duration_since(std::time::SystemTime::UNIX_EPOCH)
-        .unwrap();
+        .unwrap_or(Duration::new(63871342634, 0));
 
     let mut random_bytes = [0u8; 10];
     chacha20poly1305::aead::OsRng.fill_bytes(&mut random_bytes);
@@ -471,13 +467,48 @@ pub fn generate_uuid() -> String {
         .to_string()
 }
 
-/// gets UUID from encrypted file contents.
-pub fn get_uuid(contents: &[u8]) -> (String, Vec<u8>) {
+/// Extracts a UUID and the remaining contents from a byte slice.
+///
+/// # Arguments
+///
+/// * `contents` - A slice of `u8` bytes containing the UUID and additional data.
+///
+/// # Returns
+///
+/// A `Result` containing a tuple with the extracted UUID as a `String` and the
+/// remaining contents as a `Vec<u8>`. If the input is too short to extract the UUID,
+/// an `Err` variant is returned with an error message.
+///
+/// # Examples
+///
+/// ```rust
+///  # use crypt_core::filecrypt::get_uuid;
+/// let contents = b"123e4567-e89b-12d3-a456-426614174001rest_of_data";
+/// let result = get_uuid(contents);
+/// assert!(result.is_ok());
+/// let (uuid, rest) = result.unwrap();
+/// println!("UUID: {}", uuid);
+/// println!("Remaining Data: {:?}", rest);
+/// assert_eq!(uuid, "123e4567-e89b-12d3-a456-426614174001");
+/// ```
+///
+/// # Errors
+///
+/// Returns an `Err` variant with an error message if the input is too short to extract the UUID.
+///
+/// # Panics
+///
+/// The function will panic if the length of `contents` is less than 36.
+pub fn get_uuid(contents: &[u8]) -> Result<(String, Vec<u8>), String> {
+    if contents.len() < 36 {
+        return Err("Input too short to extract UUID".to_string());
+    }
+
     let (uuid, contents) = contents.split_at(36);
-    (
+    Ok((
         String::from_utf8(uuid.to_vec()).unwrap_or(String::from_utf8_lossy(uuid).to_string()),
         contents.to_vec(),
-    )
+    ))
 }
 
 /// Prepends a UUID represented as a string to a vector of encrypted contents. Modifies vector in place.
@@ -574,11 +605,12 @@ mod test {
             1, 2, 3, 4, 5, 1, 2, 3, 4, 5, 1, 2, 3, 4, 5, 1, 2, 3, 4, 5, 1, 2, 3, 4, 5, 1, 2, 3, 4,
             5, 1, 2, 3, 4, 5, 1, 2, 3, 4, 5,
         ];
-        let res_uuid: String = String::from_utf8(vec![
+        let uuid_test: String = String::from_utf8(vec![
             1, 2, 3, 4, 5, 1, 2, 3, 4, 5, 1, 2, 3, 4, 5, 1, 2, 3, 4, 5, 1, 2, 3, 4, 5, 1, 2, 3, 4,
             5, 1, 2, 3, 4, 5, 1,
         ])
         .unwrap();
-        assert_eq!(get_uuid(&contents).0, res_uuid);
+        let (uuid, _) = get_uuid(&contents).unwrap();
+        assert_eq!(uuid, uuid_test);
     }
 }
