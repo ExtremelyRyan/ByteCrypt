@@ -3,10 +3,12 @@ use crypt_cloud::crypt_core::{
     common::send_information,
     config::{self, ConfigTask, ItemsTask},
     db::import_keeper,
-    token::{CloudService, CloudTask},
 };
 
-use crate::directive;
+use crate::directive::{
+    self, dropbox_download, dropbox_upload, dropbox_view, google_download, google_upload,
+    google_view,
+};
 use crate::tui::load_tui;
 
 ///CLI arguments
@@ -110,8 +112,12 @@ pub enum DriveCommand {
     /// Upload a file or folder
     #[command(short_flag = 'u')]
     Upload {
+        /// Path to the file to be encrypted and uploaded to the cloud
         #[arg(required = false, default_value_t = String::from(""))]
         path: String,
+        /// if flag is passed, do not encrypt.
+        #[arg(long, short)]
+        no_encrypt: bool,
     },
 
     /// Download a file or folder
@@ -284,26 +290,33 @@ pub fn load_cli() {
         }
 
         // Cloud
+
+        // TODO: This needs to be torn apart. Each command needs to be called to a seperate function
+        // TODO: Trying to add the no_ecrypt flag pretty much breaks this entirely.
         Some(Commands::Cloud { category }) => match category {
             Some(CloudCommand::Google { task }) => {
-                let (task, path) = match task {
-                    Some(DriveCommand::Upload { path }) => (CloudTask::Upload, path),
-                    Some(DriveCommand::Download { path }) => (CloudTask::Download, path),
-                    Some(DriveCommand::View { path }) => (CloudTask::View, path),
+                match task {
+                    Some(DriveCommand::Upload { path, no_encrypt }) => {
+                        google_upload(path, no_encrypt)
+                    }
+                    Some(DriveCommand::Download { path }) => google_download(path),
+                    Some(DriveCommand::View { path }) => google_view(path),
                     None => panic!("invalid input"),
                 };
-                directive::cloud(path, CloudService::Google, task);
             }
 
             // Dropbox
+            // TODO:
             Some(CloudCommand::Dropbox { task }) => {
-                let (task, path) = match task {
-                    Some(DriveCommand::Upload { path }) => (CloudTask::Upload, path),
-                    Some(DriveCommand::Download { path }) => (CloudTask::Download, path),
-                    Some(DriveCommand::View { path }) => (CloudTask::View, path),
+                match task {
+                    Some(DriveCommand::Upload {
+                        path,
+                        no_encrypt: _,
+                    }) => dropbox_upload(path),
+                    Some(DriveCommand::Download { path }) => dropbox_download(path),
+                    Some(DriveCommand::View { path }) => dropbox_view(path),
                     None => panic!("invalid input"),
                 };
-                directive::cloud(path, CloudService::Dropbox, task);
             }
 
             None => {

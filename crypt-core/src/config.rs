@@ -86,7 +86,7 @@ impl ToString for ConfigOptions {
     fn to_string(&self) -> String {
         match self {
             Self::DatabasePath => "database_path".to_string(),
-            Self::IgnoreHidden=> "ignore_hidden".to_string(),
+            Self::IgnoreHidden => "ignore_hidden".to_string(),
             Self::IgnoreItems => "ignore_items".to_string(),
             Self::Retain => "retain".to_string(),
             Self::Backup => "backup".to_string(),

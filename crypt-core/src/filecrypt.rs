@@ -3,41 +3,115 @@ use crate::{
     common::{get_crypt_folder, get_file_bytes, write_contents_to_file},
     config::get_config,
     db::{insert_crypt, query_crypt},
-    encryption::decrypt,
+    encryption::{
+        compress, compute_hash, decompress, decrypt, encrypt, generate_seeds, KEY_SIZE, NONCE_SIZE,
+    },
 };
 use anyhow::Result;
 use log::*;
 use rand::RngCore;
 use serde::{Deserialize, Serialize};
-use std::path::{Path, PathBuf};
-
-use super::encryption::{
-    compress, compute_hash, decompress, encrypt, generate_seeds, KEY_SIZE, NONCE_SIZE,
+use std::{
+    fs::read,
+    path::{Path, PathBuf},
 };
 
-pub enum EncryptErrors {
+/// Represents various errors that can occur during file decryption.
+///
+/// The `FcError` enum provides specific error variants for different failure scenarios
+/// encountered during the decryption process.
+///
+/// # Variants
+///
+/// - `HashFail(String)`: Hash comparison between file and decrypted content failed.
+/// - `InvalidFilePath`: The provided file path is invalid.
+/// - `CryptQueryError`: Failed to query the cryptographic information.
+/// - `DecompressionError`: Failed to decompress the decrypted content.
+/// - `FileDeletionError(std::io::Error, String)`: Failed to delete the original file.
+/// - `FileReadError`: An error occurred while reading the file.
+/// - `FileError(String)`: An error occurred during file operations (read or write).
+/// - `DecryptError(String)`: Failed to decrypt the file contents.
+///
+/// # Examples
+///
+/// ```rust ignore
+/// use crypt_core::FcError;
+///
+/// fn handle_error(err: FcError) {
+///     match err {
+///         FcError::HashFail(message) => eprintln!("Hash failure: {}", message),
+///         FcError::InvalidFilePath => eprintln!("Invalid file path."),
+///         FcError::CryptQueryError => eprintln!("Cryptographic query failed."),
+///         FcError::DecompressionError => eprintln!("Decompression failed."),
+///         FcError::FileDeletionError(io_err, path) => eprintln!("Failed to delete file {}: {:?}", path, io_err),
+///         FcError::FileReadError => eprintln!("Error reading file."),
+///         FcError::FileError(message) => eprintln!("File operation error: {}", message),
+///         FcError::DecryptError(message) => eprintln!("Decryption error: {}", message),
+///     }
+/// }
+/// ```
+pub enum FcError {
     HashFail(String),
+    InvalidFilePath,
+    CryptQueryError,
+    DecompressionError,
+    FileDeletionError(std::io::Error, String),
+    FileReadError,
+    FileError(String),
+    DecryptError(String),
 }
 
+
+/// Represents cryptographic information associated with an encrypted file.
+///
+/// The `FileCrypt` struct contains details such as the UUID, filename, extension, drive ID,
+/// full path, encryption key, nonce, and hash of an encrypted file.
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct FileCrypt {
-    pub uuid: String,
-    pub filename: String,
-    pub ext: String,
-    pub drive_id: String,
-    pub full_path: PathBuf,
-    pub key: [u8; KEY_SIZE],
-    pub nonce: [u8; NONCE_SIZE],
-    pub hash: [u8; KEY_SIZE],
+  /// The UUID associated with the encrypted file.
+  pub uuid: String,
+    
+  /// The filename of the encrypted file.
+  pub filename: String,
+  
+  /// The extension of the encrypted file.
+  pub ext: String,
+  
+  /// The drive ID associated with the encrypted file.
+  pub drive_id: String,
+  
+  /// The full path of the encrypted file.
+  pub full_path: PathBuf,
+  
+  /// The encryption key used to encrypt the file.
+  pub key: [u8; KEY_SIZE],
+  
+  /// The nonce used in the encryption process.
+  pub nonce: [u8; NONCE_SIZE],
+  
+  /// The hash of the encrypted file.
+  pub hash: [u8; KEY_SIZE],
 }
 
 impl FileCrypt {
+    /// Creates a new `FileCrypt` instance with the provided parameters. Generates random `key`, `nonce`, and `UUID` during creation.
+    ///
+    /// # Arguments
+    ///
+    /// * `filename` - The filename of the encrypted file.
+    /// * `ext` - The extension of the encrypted file.
+    /// * `drive_id` - The drive ID associated with the encrypted file.
+    /// * `full_path` - The full path of the encrypted file.
+    /// * `hash` - The hash of the encrypted file.
+    ///
+    /// # Returns
+    /// A new `FileCrypt` instance with generated `UUID`, `key`, and `nonce`.
     pub fn new(
         filename: String,
         ext: String,
         drive_id: String,
         full_path: PathBuf,
-        hash: [u8; 32],
+        hash: [u8; KEY_SIZE],
     ) -> Self {
         // generate key & nonce
         let (key, nonce) = generate_seeds();
@@ -57,70 +131,104 @@ impl FileCrypt {
         }
     }
 
+    /// Sets the drive ID associated with the encrypted file.
+    ///
+    /// # Arguments
+    ///
+    /// * `drive_id` - The new drive ID value to set.
     pub fn set_drive_id(&mut self, drive_id: String) {
         self.drive_id = drive_id;
     }
 }
 
-pub fn decrypt_file(path: &str, output: Option<String>) -> Result<(), EncryptErrors> {
+/// Decrypts a file using ChaCha20Poly1305 encryption and verifies its integrity.
+///
+/// # Arguments
+///
+/// * `path` - The path to the encrypted file.
+/// * `output` - An optional output path for the decrypted content.
+/// * `conf` - An optional configuration, if not provided, the default configuration is used.
+///
+/// # Returns
+///
+/// A `Result<(), FcError>` indicating success or an error with details.
+///
+/// # Errors
+///
+/// This function returns various error types under the `FcError` enum:
+/// - `InvalidFilePath`: The provided file path is invalid.
+/// - `FileError(String)`: An error occurred while reading or writing the file.
+/// - `CryptQueryError`: Failed to query the cryptographic information.
+/// - `DecryptError(String)`: Failed to decrypt the file contents.
+/// - `DecompressionError`: Failed to decompress the decrypted content.
+/// - `HashFail(String)`: Hash comparison between file and decrypted content failed.
+/// - `FileDeletionError(std::io::Error, String)`: Failed to delete the original file.
+/// # Panics
+///
+/// This function may panic in case of critical errors, but most errors are returned in the `Result`.
+pub fn decrypt_file(path: &str, output: Option<String>) -> Result<(), FcError> {
     let conf = get_config();
-    // get path to encrypted file
+    
     let fp = get_full_file_path(path);
-    let parent_dir = &fp.parent().unwrap().to_owned();
+    let parent_dir = &fp
+        .parent()
+        .ok_or(FcError::InvalidFilePath)?
+        .to_owned();
 
-    // rip out uuid from contents
-    let content = std::fs::read(path).expect("failed to read decryption file!");
+    let content = read(path).map_err(|e| FcError::FileError(e.to_string()))?;
+
     let (uuid, contents) = get_uuid(&content);
 
-    // query db with uuid
-    let fc = query_crypt(uuid).unwrap();
+    let fc = query_crypt(uuid).map_err(|_| FcError::CryptQueryError)?;
+
     let fc_hash: [u8; 32] = fc.hash.to_owned();
 
-    // get output file
     let file = generate_output_file(&fc, output, parent_dir);
 
-    let mut decrypted_content = decrypt(fc.clone(), &contents.to_vec()).expect("failed decryption");
+    let mut decrypted_content = decrypt(fc.clone(), &contents.to_vec())
+        .map_err(|e| FcError::DecryptError(e.to_string()))?;
 
-    // unzip contents
-    decrypted_content = decompress(&decrypted_content);
+    decrypted_content =
+        decompress(&decrypted_content).map_err(|_| FcError::DecompressionError)?;
 
-    // compute hash on contents
     let hash = compute_hash(&decrypted_content);
 
-    // verify file integrity
     if hash != fc_hash {
         let s = format!(
             "HASH COMPARISON FAILED\nfile hash: {:?}\ndecrypted hash:{:?}",
             &fc.hash.to_vec(),
             hash
         );
-        return Err(EncryptErrors::HashFail(s));
+        return Err(FcError::HashFail(s));
     }
 
-    if write_contents_to_file(&file, decrypted_content).is_err() {
-        eprintln!("failed to write contents to {file}");
-        std::process::exit(2);
-    }
+    write_contents_to_file(&file, decrypted_content)
+        .map_err(|e| FcError::FileError(e.to_string()))?;
 
     if !conf.retain {
-        std::fs::remove_file(path).unwrap_or_else(|_| panic!("failed to delete {}", path));
+        std::fs::remove_file(path)
+            .map_err(|e| FcError::FileDeletionError(e, path.to_string()))?;
     }
+
     Ok(())
 }
 
-pub fn decrypt_contents(fc: FileCrypt, contents: Vec<u8>) -> Result<(), EncryptErrors> {
-
+pub fn decrypt_contents(fc: FileCrypt, contents: Vec<u8>) -> Result<(), FcError> {
     let fc_hash: [u8; 32] = fc.hash.to_owned();
 
     // get output file
-    let file = generate_output_file(&fc, None, &Path::new("."));
+    let file = generate_output_file(&fc, None, Path::new("."));
 
     let (_uuid, stripped_contents) = get_uuid(&contents);
 
-    let mut decrypted_content = decrypt(fc.clone(), &stripped_contents.to_vec()).expect("failed decryption");
+    let mut decrypted_content =
+        decrypt(fc.clone(), &stripped_contents.to_vec()).expect("failed decryption");
 
     // unzip contents
-    decrypted_content = decompress(&decrypted_content);
+    decrypted_content = match decompress(&decrypted_content) {
+        Ok(d) => d,
+        Err(_) => todo!(),
+    };
 
     // compute hash on contents
     let hash = compute_hash(&decrypted_content);
@@ -132,7 +240,7 @@ pub fn decrypt_contents(fc: FileCrypt, contents: Vec<u8>) -> Result<(), EncryptE
             &fc.hash.to_vec(),
             hash
         );
-        return Err(EncryptErrors::HashFail(s));
+        return Err(FcError::HashFail(s));
     }
 
     if write_contents_to_file(&file, decrypted_content).is_err() {
@@ -205,6 +313,50 @@ pub fn encrypt_file(path: &str, in_place: bool) {
 
     // write fc to crypt_keeper
     insert_crypt(&fc).expect("failed to insert FileCrypt data into database!");
+}
+
+pub fn encrypt_contents(path: &str) -> Vec<u8> {
+    let conf = get_config();
+    // parse out file path
+    let (fp, _, filename, extension) = get_file_info(path);
+
+    // get contents of file
+    let binding = get_file_bytes(path);
+    let mut contents = binding.as_slice();
+
+    let fc = FileCrypt::new(
+        filename,
+        extension,
+        "".to_string(),
+        fp,
+        compute_hash(contents),
+    );
+
+    // zip contents
+    let binding = compress(contents, conf.zstd_level);
+    contents = binding.as_slice();
+
+    let mut encrypted_contents = encrypt(&fc, contents).unwrap();
+
+    // prepend uuid to contents
+    encrypted_contents = prepend_uuid(&fc.uuid, &mut encrypted_contents);
+
+    // if we are backing up crypt files, then do so.
+    if conf.backup {
+        let mut path = get_crypt_folder();
+        // make sure we append the filename, dummy.
+        path.push(format!("{}{}", fc.filename, ".crypt"));
+
+        // TODO: fix this later. we do care if the backup file write fails, but not enough to crash the program.
+        _ = write_contents_to_file(path.to_str().unwrap(), encrypted_contents.clone());
+    }
+
+    // write fc to crypt_keeper
+    // TODO: also this. not sure how much we care at the moment, since this is only a *copy* of the contents
+    // TODO: of the file, not the actual file itself.
+    _ = insert_crypt(&fc);
+
+    encrypted_contents
 }
 
 /// Generates the output file path for decrypted content based on the provided parameters.
@@ -353,9 +505,9 @@ pub fn get_uuid(contents: &[u8]) -> (String, Vec<u8>) {
 /// assert_eq!(&result[0..36], uuid.as_bytes());        // Check if UUID is prepended correctly
 /// assert_eq!(&result[36..], encrypted_data.as_slice()); // Check if original contents are preserved
 /// ```
-pub fn prepend_uuid(uuid: &str, encrypted_contents: &mut Vec<u8>) -> Vec<u8> {
+pub fn prepend_uuid(uuid: &str, encrypted_contents: &mut [u8]) -> Vec<u8> {
     let mut uuid_bytes = uuid.as_bytes().to_vec();
-    let mut encc = encrypted_contents.clone();
+    let mut encc = encrypted_contents.to_owned();
     uuid_bytes.append(&mut encc);
     uuid_bytes
 }
