@@ -455,7 +455,8 @@ pub async fn google_query_file(user_token: &UserToken, file_id: &str) -> Result<
         file_id
     );
     //Send the url and get the response
-    let response = request_url(&url, user_token).await?;
+    let response = request_url(&url, &user_token).await?;
+
 
     //If drive query failed, break out and print error
     if !response.status().is_success() {
