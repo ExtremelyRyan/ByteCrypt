@@ -12,7 +12,7 @@ use crypt_cloud::crypt_core::{
         query_keeper_crypt, query_keeper_by_file_name
     },
     filecrypt::{decrypt_file, encrypt_file, get_uuid, FileCrypt, decrypt_contents},
-    token::{purge_tokens, CloudTask, CloudService, UserToken},
+    token::{purge_tokens, UserToken},
 };
 use crypt_cloud::drive;
 use std::{collections::HashMap, path::PathBuf};
@@ -130,7 +130,7 @@ pub fn google_upload(path: &str, no_encrypt: &bool) {
     for file in paths.clone().iter() {
         if !file.is_dir && file.name.contains(".crypt") {
             let contents = &std::fs::read(file.full_path.display().to_string().as_str()).unwrap();
-            let (s, _) = get_uuid(contents);
+            let (s, _) = get_uuid(contents).unwrap();
             let fc = query_crypt(s).expect("Could not query keeper");
             crypts.insert(file.to_owned(), fc);
         }
@@ -151,7 +151,7 @@ pub fn google_upload(path: &str, no_encrypt: &bool) {
                 runtime
                     .block_on(drive::g_create_folder(
                         &user_token,
-                        Some(&PathBuf::from(path_info.name.clone())),
+                        Some(&PathBuf::from(&path_info.name)),
                         &crypt_folder,
                     ))
                     .expect("Could not create directory in google drive"),
@@ -170,7 +170,7 @@ pub fn google_upload(path: &str, no_encrypt: &bool) {
                         runtime
                             .block_on(drive::g_create_folder(
                                 &user_token,
-                                Some(&PathBuf::from(path.name.clone())),
+                                Some(&PathBuf::from(&path.name)),
                                 &parent_id,
                             ))
                             .expect("Could not create directory in google drive"),
@@ -198,7 +198,7 @@ pub fn google_upload(path: &str, no_encrypt: &bool) {
                         &user_token,
                         &path.full_path.display().to_string(),
                         &parent_id,
-                        no_encrypt,
+                        &no_encrypt,
                     ));
                     //Update the FileCrypt's drive_id
                     if path.name.contains(".crypt") {
@@ -215,7 +215,7 @@ pub fn google_upload(path: &str, no_encrypt: &bool) {
                 &user_token,
                 &path_info.full_path.display().to_string(),
                 &crypt_folder,
-                no_encrypt,
+                &no_encrypt,
             ));
             //Update the FileCrypt's drive_id
             if path_info.name.contains(".crypt") {
