@@ -296,7 +296,6 @@ pub fn write_contents_to_file(file: &str, contents: Vec<u8>) -> Result<()> {
     Ok(f.flush()?)
 }
 
-
 pub fn get_crypt_folder() -> PathBuf {
     let output = if cfg!(target_os = "windows") {
         Command::new("cmd")

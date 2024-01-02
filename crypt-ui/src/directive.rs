@@ -8,10 +8,10 @@ use crypt_cloud::crypt_core::{
     },
     config::{self, Config, ConfigTask, ItemsTask},
     db::{
-        self, delete_keeper, query_crypt, export_keeper, 
-        query_keeper_crypt, query_keeper_by_file_name
+        self, delete_keeper, export_keeper, query_crypt, query_keeper_by_file_name,
+        query_keeper_crypt,
     },
-    filecrypt::{decrypt_file, encrypt_file, get_uuid, FileCrypt, decrypt_contents},
+    filecrypt::{decrypt_contents, decrypt_file, encrypt_file, get_uuid, FileCrypt},
     token::{purge_tokens, UserToken},
 };
 use crypt_cloud::drive;
@@ -258,7 +258,7 @@ pub fn google_download(path: &String) {
 
     // `path` that we are getting from the user is the filename (should not have ext, but might)
     // so we can query for that from the db.
-    
+
     // Step 1: get path from the user and verify it exists in our database.
     println!("path {}", path);
     let fc = query_keeper_by_file_name(path).unwrap();
