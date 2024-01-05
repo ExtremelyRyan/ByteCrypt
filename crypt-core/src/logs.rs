@@ -22,7 +22,8 @@ lazy_static! {
     };
 }
 
-pub fn log(message: &str) {
+
+pub fn log_to_file(level: &str, message: &str) {
     let now = Local::now();
     let time = now.format("%d %H:%M:%S").to_string();
 
@@ -32,18 +33,23 @@ pub fn log(message: &str) {
         .open(LOG_PATH.as_str())
         .unwrap();
 
-    writeln!(file, "[{}] INFO: {}", time, message).unwrap();
+    writeln!(file, "[{}] {}: {}", time, level, message).unwrap();
 }
 
-pub fn error(message: &str) {
-    let now = Local::now();
-    let time = now.format("%d %H:%M:%S").to_string();
-
-    let mut file = std::fs::OpenOptions::new()
-        .append(true)
-        .create(true)
-        .open(LOG_PATH.as_str())
-        .unwrap();
-
-    writeln!(file, "[{}] ERROR: {}", time, message).unwrap();
+#[macro_export]
+macro_rules! log {
+    ($message:expr) => {
+        crate::cli::logs::log_to_file("INFO", $message);
+    };
 }
+
+#[macro_export]
+macro_rules! error {
+    ($message:expr) => {
+        crate::cli::logs::log_to_file("ERROR", $message);
+    };
+}
+
+pub use log;
+pub use error;
+
