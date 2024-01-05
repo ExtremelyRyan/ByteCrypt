@@ -24,6 +24,25 @@ lazy_static! {
             Err(err) => panic!("Failed to load config: {}", err),
         }
     });
+
+    static ref INTERFACE: RwLock<Interface> = RwLock::new(Interface::None);
+}
+
+#[derive(Clone)]
+pub enum Interface {
+    None,
+    CLI,
+    TUI,
+    GUI,
+}
+
+pub fn get_interface() -> Interface {
+    INTERFACE.read().expect("Cannot read interface type").clone()
+}
+
+pub fn set_interface(interface_type: Interface) {
+    let mut interface = INTERFACE.write().expect("Cannot write interface type");
+    *interface = interface_type;
 }
 
 pub fn get_config() -> Config {

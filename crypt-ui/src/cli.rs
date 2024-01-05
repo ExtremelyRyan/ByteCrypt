@@ -249,10 +249,13 @@ impl KeeperCommand {
 
 /// Runs the CLI and returns a directive to be processed
 pub fn load_cli() {
-    println!("{}", module_path!());
+    config::set_interface(config::Interface::CLI);
+
     logs::info!("this is info");
     logs::warning!("this is a warning");
     logs::error!("this is maybe an error message possibly");
+    logs::critical!("this is a critical message");
+
     // Run the cli and get responses
     let cli = CommandLineArgs::parse();
 

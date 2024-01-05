@@ -1,4 +1,4 @@
-use crate::common;
+use crate::{common, config};
 use chrono::prelude::*;
 use lazy_static::lazy_static;
 use ansi_term::Color;
@@ -16,17 +16,29 @@ lazy_static! {
 
         let date = Local::now();
 
-        let current_date = format!("{}-{}", date.year(), date.month());
+        let current_date = format!("{}-{}.txt", date.year(), date.month());
         
         path.push(current_date);
         format!("{}", path.display())
     };
 }
 
+/// The type of information being parsed
+/// # Types:
+///```no_run
+/// Info
+/// Warning
+/// Error
+///```
 pub enum Level {
+    /// Messages sent or stored for relaying basic information
     Info,
+    /// Messages sent or stored relaying warnings within the system
     Warning,
+    /// Messages sent or stored relaying errors within the system
     Error,
+    /// Messages sent or stored relaying catastrophic errors within the system
+    Critical,
 }
 
 impl ToString for Level {
@@ -35,13 +47,14 @@ impl ToString for Level {
             Level::Info => String::from("INFO"),
             Level::Warning => String::from("WARNING"),
             Level::Error => String::from("ERROR"),
+            Level::Critical => String::from("CRITICAL"),
         }
     }
 }
 
-pub fn log_to_file(level: Level, path: &str, message: &str) {
+pub fn log(level: Level, path: &str, message: &str) {
     let now = Local::now();
-    let time = now.format("%d %H:%M:%S").to_string();
+    let time = now.format("%Y-%m-%d %H:%M:%S").to_string();
 
     let mut file = std::fs::OpenOptions::new()
         .append(true)
@@ -51,37 +64,56 @@ pub fn log_to_file(level: Level, path: &str, message: &str) {
 
     writeln!(file, "[{} {}] {}: {}", time, path, level.to_string(), message).unwrap();
 
-    let level_color = match level {
-        Level::Info => Color::Green.bold(),
-        Level::Warning => Color::Yellow.bold(),
-        Level::Error => Color::Red.bold(),
-    };
+    match config::get_interface() {
+        config::Interface::CLI => {
+            let level_color = match level {
+                Level::Info => Color::Green.bold(),
+                Level::Warning => Color::Yellow.bold(),
+                Level::Error => Color::Red.bold(),
+                Level::Critical => Color::Cyan.bold(),
+            };
 
-    println!("[{} {}] {}: {}", time, path, level_color.paint(level.to_string()).to_string(), message);
+            println!("[{} {}] {}: {}", 
+                time, 
+                path, 
+                level_color.paint(level.to_string()).to_string(), 
+                message
+            );
+        },
+        _ => (),
+    }
 }
 
 #[macro_export]
 macro_rules! info {
     ($message:expr) => {
-        crate::cli::logs::log_to_file(crate::cli::logs::Level::Info, module_path!(), $message);
+        crate::cli::logs::log(crate::cli::logs::Level::Info, module_path!(), $message);
     };
 }
 
 #[macro_export]
 macro_rules! warning {
     ($message:expr) => {
-        crate::cli::logs::log_to_file(crate::cli::logs::Level::Warning, module_path!(), $message);
+        crate::cli::logs::log(crate::cli::logs::Level::Warning, module_path!(), $message);
     };
 }
 
 #[macro_export]
 macro_rules! error {
     ($message:expr) => {
-        crate::cli::logs::log_to_file(crate::cli::logs::Level::Error, module_path!(), $message);
+        crate::cli::logs::log(crate::cli::logs::Level::Error, module_path!(), $message);
+    };
+}
+
+#[macro_export]
+macro_rules! critical {
+    ($message:expr) => {
+        crate::cli::logs::log(crate::cli::logs::Level::Critical, module_path!(), $message);
     };
 }
 
 pub use info;
 pub use warning;
 pub use error;
+pub use critical;
 
