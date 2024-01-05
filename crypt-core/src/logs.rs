@@ -29,6 +29,7 @@ lazy_static! {
 /// Info
 /// Warning
 /// Error
+/// Critical
 ///```
 pub enum Level {
     /// Messages sent or stored for relaying basic information
@@ -67,10 +68,10 @@ pub fn log(level: Level, path: &str, message: &str) {
     match config::get_interface() {
         config::Interface::CLI => {
             let level_color = match level {
-                Level::Info => Color::Green.bold(),
-                Level::Warning => Color::Yellow.bold(),
-                Level::Error => Color::Red.bold(),
-                Level::Critical => Color::Cyan.bold(),
+                Level::Info => Color::Green.normal(),
+                Level::Warning => Color::Yellow.normal(),
+                Level::Error => Color::Red.normal(),
+                Level::Critical => Color::Red.bold(),
             };
 
             println!("[{} {}] {}: {}", 

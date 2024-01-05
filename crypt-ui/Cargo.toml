@@ -23,7 +23,7 @@ clap-markdown = "0.1.3"
 
 # Logging
 # env_logger = "0.10.1"
-log = "0.4.20"
+# log = "0.4.20"
 
 crypt-cloud = { path = "../crypt-cloud" }
 crypt-core = { path = "../crypt-core" }
