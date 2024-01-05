@@ -1,5 +1,5 @@
 use crate::{
-    logs::{info, warning, self},
+    logs::*,
     common::{self, send_information}
 };
 use lazy_static::lazy_static;

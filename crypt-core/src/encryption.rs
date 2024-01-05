@@ -5,7 +5,7 @@ use chacha20poly1305::{
     ChaCha20Poly1305, Key, Nonce,
 };
 use crate::{
-    logs::{self, info},
+    logs::*,
     filecrypt::FileCrypt,
 };
 

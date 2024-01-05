@@ -6,7 +6,7 @@ use crate::{
     encryption::{
         compress, compute_hash, decompress, decrypt, encrypt, generate_seeds, KEY_SIZE, NONCE_SIZE,
     },
-    logs::{self, info},
+    logs::*,
 };
 use anyhow::Result;
 use rand::RngCore;

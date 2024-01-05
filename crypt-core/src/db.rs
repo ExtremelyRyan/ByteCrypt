@@ -1,7 +1,7 @@
 use anyhow::{anyhow, Result};
 use csv::*;
 use lazy_static::lazy_static;
-use crate::logs::{self, info, error};
+use crate::logs::*;
 use r2d2::Pool;
 use r2d2_sqlite::SqliteConnectionManager;
 use rusqlite::{params, Connection, Error as rusqliteError};
