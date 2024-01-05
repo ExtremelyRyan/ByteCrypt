@@ -3,7 +3,7 @@ use crypt_cloud::crypt_core::{
     common::send_information,
     config::{self, ConfigTask, ItemsTask},
     db::import_keeper,
-    logs::{log, error},
+    logs,
 };
 
 use crate::directive::{
@@ -249,6 +249,8 @@ impl KeeperCommand {
 
 /// Runs the CLI and returns a directive to be processed
 pub fn load_cli() {
+    logs::log!("testeroni");
+    logs::error!("this is maybe an error message possibly");
     // Run the cli and get responses
     let cli = CommandLineArgs::parse();
 
