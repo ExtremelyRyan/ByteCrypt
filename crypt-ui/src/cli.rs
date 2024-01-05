@@ -3,7 +3,6 @@ use crypt_cloud::crypt_core::{
     common::send_information,
     config::{self, ConfigTask, ItemsTask},
     db::import_keeper,
-    logs,
 };
 
 use crate::directive::{
@@ -250,11 +249,6 @@ impl KeeperCommand {
 /// Runs the CLI and returns a directive to be processed
 pub fn load_cli() {
     config::set_interface(config::Interface::CLI);
-
-    logs::info!("this is info");
-    logs::warning!("this is a warning");
-    logs::error!("this is maybe an error message possibly");
-    logs::critical!("this is a critical message");
 
     // Run the cli and get responses
     let cli = CommandLineArgs::parse();

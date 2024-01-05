@@ -87,28 +87,28 @@ pub fn log(level: Level, path: &str, message: &str) {
 #[macro_export]
 macro_rules! info {
     ($message:expr) => {
-        crate::cli::logs::log(crate::cli::logs::Level::Info, module_path!(), $message);
+        logs::log(logs::Level::Info, module_path!(), $message);
     };
 }
 
 #[macro_export]
 macro_rules! warning {
     ($message:expr) => {
-        crate::cli::logs::log(crate::cli::logs::Level::Warning, module_path!(), $message);
+        logs::log(logs::Level::Warning, module_path!(), $message);
     };
 }
 
 #[macro_export]
 macro_rules! error {
     ($message:expr) => {
-        crate::cli::logs::log(crate::cli::logs::Level::Error, module_path!(), $message);
+        logs::log(logs::Level::Error, module_path!(), $message);
     };
 }
 
 #[macro_export]
 macro_rules! critical {
     ($message:expr) => {
-        crate::cli::logs::log(crate::cli::logs::Level::Critical, module_path!(), $message);
+        logs::log(logs::Level::Critical, module_path!(), $message);
     };
 }
 

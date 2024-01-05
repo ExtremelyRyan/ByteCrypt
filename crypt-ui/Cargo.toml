@@ -26,5 +26,5 @@ clap-markdown = "0.1.3"
 log = "0.4.20"
 
 crypt-cloud = { path = "../crypt-cloud" }
-# crypt-core = { path = "../crypt-core" }
+crypt-core = { path = "../crypt-core" }
  

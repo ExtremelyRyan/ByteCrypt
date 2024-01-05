@@ -1,7 +1,7 @@
 use anyhow::{anyhow, Result};
 use csv::*;
 use lazy_static::lazy_static;
-use log::*;
+use crate::logs::{self, info, error};
 use r2d2::Pool;
 use r2d2_sqlite::SqliteConnectionManager;
 use rusqlite::{params, Connection, Error as rusqliteError};
@@ -83,7 +83,7 @@ pub fn export_keeper(alt_path: Option<&str>) -> Result<()> {
     let mut path = get_crypt_folder();
     path.push("crypt_export.csv");
 
-    info!("writing export to {}", &path.display());
+    info!(&format!("writing export to {}", &path.display()));
     match alt_path.is_some() {
         true => write_contents_to_file(alt_path.unwrap(), data.into_bytes()),
         false => write_contents_to_file(path.to_str().unwrap(), data.into_bytes()),
@@ -100,14 +100,14 @@ pub fn import_keeper(path: &String) -> Result<()> {
         let record: StringRecord = match result {
             Ok(it) => it,
             Err(err) => {
-                error!("Failed to convert csv to StringRecord!: {err}");
+                error!(&format!("Failed to convert csv to StringRecord!: {}", err));
                 continue;
             } // TODO: Fix with more elegant handling.
         };
         let fc: FileCrypt = match record.deserialize(None) {
             Ok(it) => it,
             Err(err) => {
-                error!("Failed to convert StringRecord to FileCrypt!: {err}");
+                error!(&format!("Failed to convert StringRecord to FileCrypt!: {}", err));
                 FileCrypt::default()
             } // TODO: Fix with more elegant handling.
         };

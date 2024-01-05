@@ -6,9 +6,9 @@ use crate::{
     encryption::{
         compress, compute_hash, decompress, decrypt, encrypt, generate_seeds, KEY_SIZE, NONCE_SIZE,
     },
+    logs::{self, info},
 };
 use anyhow::Result;
-use log::*;
 use rand::RngCore;
 use serde::{Deserialize, Serialize};
 use std::{

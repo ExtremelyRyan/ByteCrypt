@@ -4,9 +4,10 @@ use chacha20poly1305::{
     aead::{Aead, AeadCore, KeyInit, OsRng},
     ChaCha20Poly1305, Key, Nonce,
 };
-use log::*;
-
-use super::filecrypt::FileCrypt;
+use crate::{
+    logs::{self, info},
+    filecrypt::FileCrypt,
+};
 
 pub const KEY_SIZE: usize = 32;
 pub const NONCE_SIZE: usize = 12;

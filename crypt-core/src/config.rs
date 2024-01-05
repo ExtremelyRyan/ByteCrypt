@@ -1,6 +1,8 @@
-use crate::common::{self, send_information};
+use crate::{
+    logs::{info, warning, self},
+    common::{self, send_information}
+};
 use lazy_static::lazy_static;
-use log::*;
 use serde::{Deserialize, Serialize};
 use std::{fs, path::Path, sync::RwLock};
 
@@ -312,7 +314,7 @@ pub fn load_config() -> anyhow::Result<Config> {
 
     //If the file doesn't exist, re-create and load defaults
     if !Path::new(CONFIG_PATH.as_str()).exists() {
-        warn!("No configuration found, reloading with defaults!");
+        warning!("No configuration found, reloading with defaults!");
         save_config(&config)?;
         return Ok(config);
     }
