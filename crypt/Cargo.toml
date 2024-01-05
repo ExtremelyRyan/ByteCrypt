@@ -12,5 +12,5 @@ crypt-ui = { path = "../crypt-ui" }
 anyhow = "1"
 
 # Logging
-env_logger = "0.10.1"
-log = "0.4.20"
+# env_logger = "0.10.1"
+# log = "0.4.20"
