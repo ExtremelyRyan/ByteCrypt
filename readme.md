@@ -1,5 +1,5 @@
 <p align="center">
-<img src=images/ByteCrypt.png align="center" />
+<img src=images/ByteCrypt-hr.png align="center"  />
 <h1 align="center">ByteCrypt</h1>
 </p>
 <br/>

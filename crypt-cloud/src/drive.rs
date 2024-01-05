@@ -11,7 +11,7 @@ use reqwest::{
     Client, Response,
 };
 use serde_json::Value;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use tokio::{fs::File, io::AsyncReadExt};
 
 const GOOGLE_FOLDER: &str = "Crypt";
@@ -191,19 +191,11 @@ pub async fn g_upload(
     // dbg!(&no_encrypt);
     let mut file = File::open(path).await?;
     let mut tmp; // to appease the compiler gods
-    let mut file_name = std::path::Path::new(path)
-        .file_name()
-        .unwrap()
-        .to_str()
-        .unwrap();
+    let mut file_name = Path::new(path).file_name().unwrap().to_str().unwrap();
 
     // if we are encrypting the file, get just the filename and append ".crypt"
     if !no_encrypt {
-        file_name = std::path::Path::new(path)
-            .file_stem()
-            .unwrap()
-            .to_str()
-            .unwrap();
+        file_name = Path::new(path).file_stem().unwrap().to_str().unwrap();
         tmp = String::from(file_name);
         tmp.push_str(".crypt");
         file_name = &tmp;
@@ -456,7 +448,6 @@ pub async fn google_query_file(user_token: &UserToken, file_id: &str) -> Result<
     );
     //Send the url and get the response
     let response = request_url(&url, &user_token).await?;
-
 
     //If drive query failed, break out and print error
     if !response.status().is_success() {

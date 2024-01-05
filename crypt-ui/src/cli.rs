@@ -10,7 +10,7 @@ use crate::directive::{
     self, dropbox_download, dropbox_upload, dropbox_view, google_download, google_upload,
     google_view,
 };
-use crate::tui::load_tui;
+// use crate::tui::load_tui;
 
 ///CLI arguments
 #[derive(Parser, Debug)]
@@ -266,7 +266,7 @@ pub fn load_cli() {
 
     // Call TUI if flag was passed
     if cli.tui {
-        load_tui().expect("failed to load TUI");
+        // load_tui().expect("failed to load TUI");
     }
 
     // Process the command passed by the user

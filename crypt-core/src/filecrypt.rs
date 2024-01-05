@@ -13,7 +13,8 @@ use rand::RngCore;
 use serde::{Deserialize, Serialize};
 use std::{
     fs::read,
-    path::{Path, PathBuf}, time::Duration,
+    path::{Path, PathBuf},
+    time::Duration,
 };
 
 /// Represents various errors that can occur during file decryption.
@@ -68,36 +69,35 @@ impl From<String> for FcError {
     }
 }
 
-
 /// Represents cryptographic information associated with an encrypted file.
 ///
 /// The `FileCrypt` struct contains details such as the UUID, filename, extension, drive ID,
 /// full path, encryption key, nonce, and hash of an encrypted file.
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct FileCrypt {
-  /// The UUID associated with the encrypted file.
-  pub uuid: String,
-    
-  /// The filename of the encrypted file.
-  pub filename: String,
-  
-  /// The extension of the encrypted file.
-  pub ext: String,
-  
-  /// The drive ID associated with the encrypted file.
-  pub drive_id: String,
-  
-  /// The full path of the encrypted file.
-  pub full_path: PathBuf,
-  
-  /// The encryption key used to encrypt the file.
-  pub key: [u8; KEY_SIZE],
-  
-  /// The nonce used in the encryption process.
-  pub nonce: [u8; NONCE_SIZE],
-  
-  /// The hash of the encrypted file.
-  pub hash: [u8; KEY_SIZE],
+    /// The UUID associated with the encrypted file.
+    pub uuid: String,
+
+    /// The filename of the encrypted file.
+    pub filename: String,
+
+    /// The extension of the encrypted file.
+    pub ext: String,
+
+    /// The drive ID associated with the encrypted file.
+    pub drive_id: String,
+
+    /// The full path of the encrypted file.
+    pub full_path: PathBuf,
+
+    /// The encryption key used to encrypt the file.
+    pub key: [u8; KEY_SIZE],
+
+    /// The nonce used in the encryption process.
+    pub nonce: [u8; NONCE_SIZE],
+
+    /// The hash of the encrypted file.
+    pub hash: [u8; KEY_SIZE],
 }
 
 impl FileCrypt {
@@ -175,12 +175,9 @@ impl FileCrypt {
 /// This function may panic in case of critical errors, but most errors are returned in the `Result`.
 pub fn decrypt_file(path: &str, output: Option<String>) -> Result<(), FcError> {
     let conf = get_config();
-    
+
     let fp = get_full_file_path(path);
-    let parent_dir = &fp
-        .parent()
-        .ok_or(FcError::InvalidFilePath)?
-        .to_owned();
+    let parent_dir = &fp.parent().ok_or(FcError::InvalidFilePath)?.to_owned();
 
     let content = read(path).map_err(|e| FcError::FileError(e.to_string()))?;
 
@@ -195,8 +192,7 @@ pub fn decrypt_file(path: &str, output: Option<String>) -> Result<(), FcError> {
     let mut decrypted_content = decrypt(fc.clone(), &contents.to_vec())
         .map_err(|e| FcError::DecryptError(e.to_string()))?;
 
-    decrypted_content =
-        decompress(&decrypted_content).map_err(|_| FcError::DecompressionError)?;
+    decrypted_content = decompress(&decrypted_content).map_err(|_| FcError::DecompressionError)?;
 
     let hash = compute_hash(&decrypted_content);
 
@@ -213,8 +209,7 @@ pub fn decrypt_file(path: &str, output: Option<String>) -> Result<(), FcError> {
         .map_err(|e| FcError::FileError(e.to_string()))?;
 
     if !conf.retain {
-        std::fs::remove_file(path)
-            .map_err(|e| FcError::FileDeletionError(e, path.to_string()))?;
+        std::fs::remove_file(path).map_err(|e| FcError::FileDeletionError(e, path.to_string()))?;
     }
 
     Ok(())

@@ -57,7 +57,7 @@ pub fn compress(contents: &[u8], level: i32) -> Vec<u8> {
 ///
 /// # Returns
 /// A `Vec<u8>` containing the decompressed data.
-/// 
+///
 /// # Panics
 /// Panics if the decompression process fails.
 pub fn decompress(contents: &[u8]) -> Result<Vec<u8>, std::io::Error> {
@@ -86,7 +86,7 @@ pub fn generate_seeds() -> ([u8; KEY_SIZE], [u8; NONCE_SIZE]) {
 ///
 /// # Returns
 /// A `Result<Vec<u8>, chacha20poly1305::Error>` where the `Ok` variant contains the decrypted data on success.
-/// 
+///
 /// # Errors
 /// Returns a `chacha20poly1305::Error` if the decryption process fails.
 ///
@@ -119,4 +119,73 @@ pub fn encrypt(fc: &FileCrypt, contents: &[u8]) -> Result<Vec<u8>, chacha20poly1
     let k = Key::from_slice(&fc.key);
     let n = Nonce::from_slice(&fc.nonce);
     ChaCha20Poly1305::new(k).encrypt(n, contents)
+}
+
+// cargo nextest run
+#[cfg(test)]
+mod test { 
+    use std::path::PathBuf;
+
+    use super::*;
+
+    #[test]
+    fn test_hash() {
+        let contents = b"hello there";
+        let res = compute_hash(contents); 
+        let hash_contents: [u8; 32] = [
+            79, 124, 186, 26, 222, 68, 179, 58, 201, 141, 84, 168, 242, 8, 48, 130, 131, 223, 134,
+            150, 210, 132, 93, 249, 24, 62, 200, 173, 167, 129, 67, 242,
+        ];
+        assert_eq!(hash_contents, res);
+    }
+
+    #[test]
+    fn test_seeds() {
+        let (k , n) = generate_seeds();
+        assert_ne!(k, [0u8; KEY_SIZE]);
+        assert_ne!(n, [0u8; NONCE_SIZE]);
+    }
+
+    #[test]
+    fn test_compress_decompress() {
+        let contents = b"hello there";
+
+        let res = compress(contents, 3);
+
+        assert_ne!(contents, res.as_slice());
+
+        let dec = decompress(res.as_slice()).unwrap();
+
+        assert_eq!(dec.as_slice(), contents);
+    }
+
+    #[test]
+    fn test_encrypt() {
+        let fc = FileCrypt::new(
+            "".to_string(),
+            "".to_string(),
+            "".to_string(),
+            PathBuf::from(""),
+            [0u8; KEY_SIZE],
+        );
+        let contents = b"hello there";
+        let res = encrypt(&fc, contents).unwrap();
+        assert_ne!(contents, res.as_slice());
+    }
+    #[test]
+    fn test_decrypt() {
+        let fc = FileCrypt::new(
+            "".to_string(),
+            "".to_string(),
+            "".to_string(),
+            PathBuf::from(""),
+            [0u8; KEY_SIZE],
+        );
+        let contents = b"hello there";
+        let res = encrypt(&fc, &contents.clone()).unwrap();
+        assert_ne!(contents, res.as_slice());
+
+        let dec = decrypt(fc, &res).unwrap();
+        assert_eq!(contents, dec.as_slice());
+    }
 }
