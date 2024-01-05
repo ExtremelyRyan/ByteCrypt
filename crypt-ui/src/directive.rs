@@ -48,7 +48,7 @@ pub fn encrypt(path: &str, in_place: bool, _output: Option<String>) {
             Ok(d) => {
                 for p in d {
                     send_information(vec![format!("Encrypting file: {}", p.display())]);
-                    encrypt_file(p.display().to_string().as_str(), in_place)
+                    encrypt_file(&p.display().to_string(), in_place)
                 }
             }
             Err(_) => todo!(),
@@ -185,9 +185,9 @@ pub fn google_upload(path: &str, no_encrypt: &bool) {
                     .expect("Could not retrieve parent ID")
                     .to_string();
                 if path.name.contains(".crypt") {
-                    let drive_id = crypts.get(&path).unwrap().drive_id.as_str();
+                    let drive_id = &crypts.get(&path).unwrap().drive_id;
                     if !drive_id.is_empty() {
-                        let exists = runtime.block_on(drive::g_id_exists(&user_token, drive_id));
+                        let exists = runtime.block_on(drive::g_id_exists(&user_token, &drive_id));
 
                         println!("{:?}", exists);
                     }
@@ -446,4 +446,3 @@ pub fn keeper(kc: &KeeperCommand) {
         }
     }
 }
-// }

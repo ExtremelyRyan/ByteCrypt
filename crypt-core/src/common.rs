@@ -1,8 +1,10 @@
 use anyhow::{Ok, Result};
-use std::fmt::Display;
-use std::path::{Path, PathBuf};
-use std::process::Command;
-use std::{fs::OpenOptions, io::Write};
+use std::{
+    {fs::OpenOptions, io::Write},
+    fmt::Display,
+    path::{Path, PathBuf},
+    process::Command,
+};
 use walkdir::WalkDir;
 
 use crate::config;

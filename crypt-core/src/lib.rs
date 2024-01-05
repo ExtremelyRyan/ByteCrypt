@@ -6,3 +6,4 @@ pub mod encryption;
 pub mod filecrypt;
 pub mod token;
 pub mod ui_repo;
+pub mod logs;
