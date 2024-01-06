@@ -122,21 +122,28 @@ pub fn google_upload(path: &str, no_encrypt: &bool) {
 
     //Track all folder ids
     let mut folder_ids: HashMap<String, String> = HashMap::new();
+
     //Get walk path given and build a list of PathInfos
     let path_info = PathInfo::new(path);
-    let paths = walk_paths(path);
+    let paths: Vec<PathInfo> = walk_paths(path).into_iter()
+        .filter(|p| p.is_dir || p.name.contains(".crypt"))
+        .collect();
+    let (mut folders, files): (Vec<_>, Vec<_>) = paths.into_iter()
+        .partition(|p| p.is_dir);
+    folders.sort_by(|a, b| a.full_path.cmp(&b.full_path));
+
     //Create a hashmap relating PathInfo to FileCrypt for relevant .crypt files
     let mut crypts: HashMap<PathInfo, FileCrypt> = HashMap::new();
-    for file in paths.clone().iter() {
-        if !file.is_dir && file.name.contains(".crypt") {
-            let contents = &std::fs::read(file.full_path.display().to_string().as_str()).unwrap();
-            let (s, _) = get_uuid(contents).unwrap();
-            let fc = query_crypt(s).expect("Could not query keeper");
-            crypts.insert(file.to_owned(), fc);
-        }
+    for file in files.clone().iter() {
+        let contents = &std::fs::read(file.full_path.display().to_string().as_str()).unwrap();
+        let (uuid, _) = get_uuid(contents)
+            .expect("Could not retrieve UUID from the file");
+        let filecrypt = query_crypt(uuid).expect("Could not query keeper");
+        crypts.insert(file.to_owned(), filecrypt);
     }
+
     //Remove the root directory
-    let paths: Vec<PathInfo> = paths
+    let folders: Vec<PathInfo> = folders
         .into_iter()
         .filter(|p| p.name != path_info.name)
         .collect();
@@ -157,55 +164,52 @@ pub fn google_upload(path: &str, no_encrypt: &bool) {
                     .expect("Could not create directory in google drive"),
             );
             //Create all folders relative to the root directory
-            for path in paths.clone() {
-                let parent_path = path.parent.display().to_string();
+            for folder in folders {
+                let parent_path = folder.parent.display().to_string();
                 let parent_id = folder_ids
                     .get(&parent_path)
                     .expect("Could not retrieve parent ID")
                     .to_string();
 
-                if path.is_dir {
-                    folder_ids.insert(
-                        path.full_path.display().to_string(),
-                        runtime
-                            .block_on(drive::g_create_folder(
-                                &user_token,
-                                Some(&PathBuf::from(&path.name)),
-                                &parent_id,
-                            ))
-                            .expect("Could not create directory in google drive"),
-                    );
-                }
+                folder_ids.insert(
+                    folder.full_path.display().to_string(),
+                    runtime
+                        .block_on(drive::g_create_folder(
+                            &user_token,
+                            Some(&PathBuf::from(&folder.name)),
+                            &parent_id,
+                        ))
+                        .expect("Could not create directory in google drive"),
+                );
             }
             //Upload every file to their respective parent directory
-            for path in paths {
-                let parent_path = path.parent.display().to_string();
+            for file in files {
+                //Get the parent folder path
+                let parent_path = file.parent.display().to_string();
                 let parent_id = folder_ids
                     .get(&parent_path)
                     .expect("Could not retrieve parent ID")
                     .to_string();
-                if path.name.contains(".crypt") {
-                    let drive_id = &crypts.get(&path).unwrap().drive_id;
-                    if !drive_id.is_empty() {
-                        let exists = runtime.block_on(drive::g_id_exists(&user_token, &drive_id));
 
-                        println!("{:?}", exists);
-                    }
-                }
+                //Determine if the file already exists in the google drive
+                let drive_id = if !file.is_dir {&crypts.get(&file).unwrap().drive_id}
+                    else { "" };
+                let exists = if !drive_id.is_empty() {
+                    runtime.block_on(drive::g_id_exists(&user_token, &drive_id))
+                        .expect("Could not query Google Drive")
+                } else { false };
 
-                if !path.is_dir {
+                //Only if the file doesn't exist should it be uploaded
+                if !exists {
                     let file_id = runtime.block_on(drive::g_upload(
                         &user_token,
-                        &path.full_path.display().to_string(),
+                        &file.full_path.display().to_string(),
                         &parent_id,
                         &no_encrypt,
                     ));
                     //Update the FileCrypt's drive_id
-                    if path.name.contains(".crypt") {
-                        crypts
-                            .entry(path)
-                            .and_modify(|fc| fc.drive_id = file_id.unwrap());
-                    }
+                    crypts.entry(file.clone())
+                        .and_modify(|fc| fc.drive_id = file_id.unwrap());
                 }
             }
         }
@@ -228,6 +232,7 @@ pub fn google_upload(path: &str, no_encrypt: &bool) {
     //Update the keeper with any changes to FileCrypts
     for (_, value) in crypts {
         let _ = db::insert_crypt(&value);
+        println!("{:?}", value);
     }
 
     //TESTING PORPISES
