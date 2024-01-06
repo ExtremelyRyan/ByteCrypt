@@ -192,8 +192,7 @@ pub fn google_upload(path: &str, no_encrypt: &bool) {
                     .to_string();
 
                 //Determine if the file already exists in the google drive
-                let drive_id = if !file.is_dir {&crypts.get(&file).unwrap().drive_id}
-                    else { "" };
+                let drive_id = &crypts.get(&file).unwrap().drive_id;
                 let exists = if !drive_id.is_empty() {
                     runtime.block_on(drive::g_id_exists(&user_token, &drive_id))
                         .expect("Could not query Google Drive")
@@ -210,6 +209,8 @@ pub fn google_upload(path: &str, no_encrypt: &bool) {
                     //Update the FileCrypt's drive_id
                     crypts.entry(file.clone())
                         .and_modify(|fc| fc.drive_id = file_id.unwrap());
+                } else {
+                    //TODO: update the file
                 }
             }
         }

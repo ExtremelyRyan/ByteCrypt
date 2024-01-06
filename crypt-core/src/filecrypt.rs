@@ -317,7 +317,10 @@ pub fn encrypt_file(path: &str, in_place: bool) {
     insert_crypt(&fc).expect("failed to insert FileCrypt data into database!");
 }
 
-pub fn encrypt_contents(path: &str) -> Vec<u8> {
+pub fn encrypt_contents(path: &str) -> Option<Vec<u8>> {
+    if path.contains(".crypt") {
+        return None;
+    }
     let conf = get_config();
     // parse out file path
     let (fp, _, filename, extension) = get_file_info(path);
@@ -358,7 +361,7 @@ pub fn encrypt_contents(path: &str) -> Vec<u8> {
     // TODO: of the file, not the actual file itself.
     _ = insert_crypt(&fc);
 
-    encrypted_contents
+    Some(encrypted_contents)
 }
 
 /// Generates the output file path for decrypted content based on the provided parameters.
