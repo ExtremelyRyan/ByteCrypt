@@ -1,10 +1,9 @@
-use crate::{
-    logs::*,
-    common::{self, send_information}
-};
-use lazy_static::lazy_static;
-use serde::{Deserialize, Serialize};
+use crate::common::{self, send_information};
 use std::{fs, path::Path, sync::RwLock};
+use serde::{Deserialize, Serialize};
+use lazy_static::lazy_static;
+use chrono::prelude::*;
+use logfather::*;
 
 lazy_static! {
     ///Config path pointing to default home
@@ -28,6 +27,35 @@ lazy_static! {
     });
 
     static ref INTERFACE: RwLock<Interface> = RwLock::new(Interface::None);
+
+    pub static ref LOG_PATH: String = {
+        let mut path = common::get_crypt_folder();
+        path.push("logs");
+
+        if !path.exists() {
+            _ = std::fs::create_dir(&path);
+        }
+
+        let date = Local::now();
+
+        let current_date = format!("{}-{}.txt", date.year(), date.month());
+        
+        path.push(current_date);
+        format!("{}", path.display())
+    };
+}
+
+pub fn init(interface: Interface) {
+    set_interface(&interface);
+    _ = get_config();
+    load_logger(&interface);
+}
+
+fn load_logger(interface: &Interface) {
+    match interface {
+        Interface::CLI => _ = Logger::new().file(true).path(LOG_PATH.as_str()),
+        _ => _ = Logger::new().file(true).path(LOG_PATH.as_str()).terminal(false),
+    }
 }
 
 #[derive(Clone)]
@@ -42,9 +70,9 @@ pub fn get_interface() -> Interface {
     INTERFACE.read().expect("Cannot read interface type").clone()
 }
 
-pub fn set_interface(interface_type: Interface) {
+pub fn set_interface(interface_type: &Interface) {
     let mut interface = INTERFACE.write().expect("Cannot write interface type");
-    *interface = interface_type;
+    *interface = interface_type.clone();
 }
 
 pub fn get_config() -> Config {
@@ -338,6 +366,7 @@ pub fn load_config() -> anyhow::Result<Config> {
 
     Ok(config)
 }
+
 
 ///Saves the configuration file
 pub fn save_config(config: &Config) -> anyhow::Result<()> {

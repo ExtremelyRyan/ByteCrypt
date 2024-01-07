@@ -6,8 +6,8 @@ use crate::{
     encryption::{
         compress, compute_hash, decompress, decrypt, encrypt, generate_seeds, KEY_SIZE, NONCE_SIZE,
     },
-    logs::*,
 };
+use logfather::*;
 use anyhow::Result;
 use rand::RngCore;
 use serde::{Deserialize, Serialize};

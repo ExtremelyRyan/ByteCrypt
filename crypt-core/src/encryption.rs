@@ -5,9 +5,10 @@ use chacha20poly1305::{
     ChaCha20Poly1305, Key, Nonce,
 };
 use crate::{
-    logs::*,
+    // logs::*,
     filecrypt::FileCrypt,
 };
+use logfather::*;
 
 pub const KEY_SIZE: usize = 32;
 pub const NONCE_SIZE: usize = 12;
