@@ -210,7 +210,11 @@ pub fn google_upload(path: &str, no_encrypt: &bool) {
                     crypts.entry(file.clone())
                         .and_modify(|fc| fc.drive_id = file_id.unwrap());
                 } else {
-                    //TODO: update the file
+                    let _ = runtime.block_on(drive::g_update(
+                        &user_token,
+                        &drive_id,
+                        &file.full_path.display().to_string()
+                    ));
                 }
             }
         }
