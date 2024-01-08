@@ -47,14 +47,16 @@ lazy_static! {
 
 pub fn init(interface: Interface) {
     set_interface(&interface);
-    _ = get_config();
     load_logger(&interface);
+    _ = get_config();
 }
 
 fn load_logger(interface: &Interface) {
+    let mut logger = Logger::new().file(true).path(LOG_PATH.as_str());
+
     match interface {
-        Interface::CLI => _ = Logger::new().file(true).path(LOG_PATH.as_str()),
-        _ => _ = Logger::new().file(true).path(LOG_PATH.as_str()).terminal(false),
+        Interface::CLI => (),
+        _ => { logger.terminal(false); },
     }
 }
 
