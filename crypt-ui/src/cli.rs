@@ -248,7 +248,7 @@ impl KeeperCommand {
 
 /// Runs the CLI and returns a directive to be processed
 pub fn load_cli() {
-    config::set_interface(config::Interface::CLI);
+    config::init(config::Interface::CLI);
 
     // Run the cli and get responses
     let cli = CommandLineArgs::parse();
