@@ -1,4 +1,4 @@
-use crate::common::{self, send_information};
+use crate::{db, common::{self, send_information}};
 use std::{fs, path::Path, sync::RwLock};
 use serde::{Deserialize, Serialize};
 use lazy_static::lazy_static;
@@ -49,10 +49,14 @@ pub fn init(interface: Interface) {
     set_interface(&interface);
     load_logger(&interface);
     _ = get_config();
+    _ = db::get_keeper();
 }
 
 fn load_logger(interface: &Interface) {
     let mut logger = Logger::new().file(true).path(LOG_PATH.as_str());
+    logger.log_format("[{timestamp} {level}] {module_path}: {message}");
+    // logger.log_format("[{timestamp} {level}] <cyan>{module_path}</cyan>: {message}");
+    logger.timezone(logfather::TimeZone::Utc);
 
     match interface {
         Interface::CLI => (),
