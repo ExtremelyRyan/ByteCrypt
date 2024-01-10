@@ -1,5 +1,4 @@
 use crate::{db, common::{self, send_information}};
-use crate::common::{self, send_information};
 use std::{fs, path::Path, sync::RwLock};
 use serde::{Deserialize, Serialize};
 use lazy_static::lazy_static;
