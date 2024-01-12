@@ -17,6 +17,7 @@ use crypt_cloud::crypt_core::{
 use crypt_cloud::drive;
 use std::{collections::HashMap, path::PathBuf};
 use tokio::runtime::Runtime;
+use logfather::*;
 
 #[derive(Debug)]
 enum CloudError {
@@ -38,6 +39,7 @@ enum CloudError {
 ///```
 ///TODO: implement output
 pub fn encrypt(path: &str, in_place: bool, _output: Option<String>) {
+    info!("lolobolli");
     let buf = PathBuf::from(path);
     //Determine if file or directory
     if buf.is_dir() {
