@@ -30,7 +30,7 @@ lazy_static! {
     static ref INTERFACE: RwLock<Interface> = RwLock::new(Interface::None);
 
     pub static ref LOG_PATH: String = {
-        let mut path = common::get_crypt_folder();
+        let mut path = common::get_config_folder();
         path.push("logs");
 
         if !path.exists() {
