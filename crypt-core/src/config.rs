@@ -1,16 +1,19 @@
-use crate::{db, common::{self, send_information}};
-use std::{fs, path::Path, sync::RwLock};
-use serde::{Deserialize, Serialize};
-use lazy_static::lazy_static;
+use crate::{
+    common::{self, send_information},
+    db,
+};
 use chrono::prelude::*;
+use lazy_static::lazy_static;
 use logfather::*;
+use serde::{Deserialize, Serialize};
+use std::{fs, path::Path, sync::RwLock};
 
 lazy_static! {
     ///Config path pointing to default home
     pub static ref CONFIG_PATH: String = {
         let mut path = common::get_config_folder();
         path.push(".config");
-        
+
 
         if !path.exists() {
             _ = std::fs::create_dir(&path);
@@ -49,7 +52,7 @@ lazy_static! {
         let date = Local::now();
 
         let current_date = format!("{}-{}.txt", date.year(), date.month());
-        
+
         path.push(current_date);
         format!("{}", path.display())
     };
@@ -70,7 +73,9 @@ fn load_logger(interface: &Interface) {
 
     match interface {
         Interface::CLI => (),
-        _ => { logger.terminal(false); },
+        _ => {
+            logger.terminal(false);
+        }
     }
 }
 
@@ -83,7 +88,10 @@ pub enum Interface {
 }
 
 pub fn get_interface() -> Interface {
-    INTERFACE.read().expect("Cannot read interface type").clone()
+    INTERFACE
+        .read()
+        .expect("Cannot read interface type")
+        .clone()
 }
 
 pub fn set_interface(interface_type: &Interface) {
@@ -157,7 +165,7 @@ impl ToString for ConfigOptions {
             Self::IgnoreItems => "ignore_items".to_string(),
             Self::Retain => "retain".to_string(),
             Self::Backup => "backup".to_string(),
-            Self::ZstdLevel => "zstd_level".to_string(), 
+            Self::ZstdLevel => "zstd_level".to_string(),
             Self::CryptPath => "crypt_path".to_string(),
         }
     }
@@ -400,7 +408,6 @@ pub fn load_config() -> anyhow::Result<Config> {
 
     Ok(config)
 }
-
 
 ///Saves the configuration file
 pub fn save_config(config: &Config) -> anyhow::Result<()> {

@@ -1,12 +1,12 @@
+use crate::{
+    // logs::*,
+    filecrypt::FileCrypt,
+};
 use anyhow::Result;
 use blake2::{Blake2s256, Digest, *};
 use chacha20poly1305::{
     aead::{Aead, AeadCore, KeyInit, OsRng},
     ChaCha20Poly1305, Key, Nonce,
-};
-use crate::{
-    // logs::*,
-    filecrypt::FileCrypt,
 };
 use logfather::*;
 
@@ -125,7 +125,7 @@ pub fn encrypt(fc: &FileCrypt, contents: &[u8]) -> Result<Vec<u8>, chacha20poly1
 
 // cargo nextest run
 #[cfg(test)]
-mod test { 
+mod test {
     use std::path::PathBuf;
 
     use super::*;
@@ -133,7 +133,7 @@ mod test {
     #[test]
     fn test_hash() {
         let contents = b"hello there";
-        let res = compute_hash(contents); 
+        let res = compute_hash(contents);
         let hash_contents: [u8; 32] = [
             79, 124, 186, 26, 222, 68, 179, 58, 201, 141, 84, 168, 242, 8, 48, 130, 131, 223, 134,
             150, 210, 132, 93, 249, 24, 62, 200, 173, 167, 129, 67, 242,
@@ -143,7 +143,7 @@ mod test {
 
     #[test]
     fn test_seeds() {
-        let (k , n) = generate_seeds();
+        let (k, n) = generate_seeds();
         assert_ne!(k, [0u8; KEY_SIZE]);
         assert_ne!(n, [0u8; NONCE_SIZE]);
     }

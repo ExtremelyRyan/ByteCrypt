@@ -7,8 +7,8 @@ use crate::{
         compress, compute_hash, decompress, decrypt, encrypt, generate_seeds, KEY_SIZE, NONCE_SIZE,
     },
 };
-use logfather::*;
 use anyhow::Result;
+use logfather::*;
 use rand::RngCore;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -176,8 +176,8 @@ impl FileCrypt {
 pub fn decrypt_file(path: &str, output: Option<String>) -> Result<(), FcError> {
     let conf = get_config();
 
-    let fp = get_full_file_path(path);
-    let parent_dir = &fp.parent().ok_or(FcError::InvalidFilePath)?.to_owned();
+    // let fp = get_full_file_path(path);
+    // let parent_dir = &fp.parent().ok_or(FcError::InvalidFilePath)?.to_owned();
 
     let content = read(path).map_err(|e| FcError::FileError(e.to_string()))?;
 
@@ -187,7 +187,11 @@ pub fn decrypt_file(path: &str, output: Option<String>) -> Result<(), FcError> {
 
     let fc_hash: [u8; 32] = fc.hash.to_owned();
 
-    let file = generate_output_file(&fc, output, parent_dir);
+    // get location of crypt folder and append "decrypted" path
+    let mut crypt_folder = get_crypt_folder();
+    crypt_folder.push("decrypted");
+
+    let file = generate_output_file(&fc, output, &crypt_folder);
 
     let mut decrypted_content = decrypt(fc.clone(), &contents.to_vec())
         .map_err(|e| FcError::DecryptError(e.to_string()))?;
@@ -218,8 +222,12 @@ pub fn decrypt_file(path: &str, output: Option<String>) -> Result<(), FcError> {
 pub fn decrypt_contents(fc: FileCrypt, contents: Vec<u8>) -> Result<(), FcError> {
     let fc_hash: [u8; 32] = fc.hash.to_owned();
 
+    // get location of crypt folder and append "decrypted" path
+    let mut crypt_folder = get_crypt_folder();
+    crypt_folder.push("decrypted");
+
     // get output file
-    let file = generate_output_file(&fc, None, Path::new("."));
+    let file = generate_output_file(&fc, None, Path::new(&crypt_folder));
 
     let (_uuid, stripped_contents) = get_uuid(&contents)?;
 
@@ -269,10 +277,10 @@ pub fn decrypt_contents(fc: FileCrypt, contents: Vec<u8>) -> Result<(), FcError>
 /// let path = "/path/to/your/file.txt";
 /// encrypt_file(&conf, path, false);
 /// ```
-pub fn encrypt_file(path: &str, in_place: bool) {
+pub fn encrypt_file(path: &str) {
     let conf = get_config();
     // parse out file path
-    let (fp, parent_dir, filename, extension) = get_file_info(path);
+    let (fp, _, filename, extension) = get_file_info(path);
 
     // get contents of file
     let binding = get_file_bytes(path);
@@ -295,26 +303,15 @@ pub fn encrypt_file(path: &str, in_place: bool) {
     // prepend uuid to contents
     encrypted_contents = prepend_uuid(&fc.uuid, &mut encrypted_contents);
 
-    let crypt_file = match in_place || !conf.retain {
-        true => format!("{}/{}{}", parent_dir.display(), fc.filename, fc.ext),
-        false => format!("{}/{}.crypt", &parent_dir.display(), fc.filename),
-    };
-    // if we are backing up crypt files, then do so.
-    if conf.backup {
-        let mut path = get_crypt_folder();
-        // make sure we append the filename, dummy.
-        path.push(format!("{}{}", fc.filename, ".crypt"));
-
-        write_contents_to_file(path.to_str().unwrap(), encrypted_contents.clone())
-            .expect("failed to write contents to backup!");
-    }
-
-    // write to file
-    write_contents_to_file(&crypt_file, encrypted_contents)
-        .expect("failed to write contents to file!");
+    let mut path = get_crypt_folder();
+    // make sure we append the filename, dummy.
+    path.push(format!("{}{}", fc.filename, ".crypt"));
 
     // write fc to crypt_keeper
     insert_crypt(&fc).expect("failed to insert FileCrypt data into database!");
+
+    write_contents_to_file(path.to_str().unwrap(), encrypted_contents.clone())
+        .expect("failed to write contents to backup!");
 }
 
 pub fn encrypt_contents(path: &str) -> Option<Vec<u8>> {
@@ -346,20 +343,23 @@ pub fn encrypt_contents(path: &str) -> Option<Vec<u8>> {
     // prepend uuid to contents
     encrypted_contents = prepend_uuid(&fc.uuid, &mut encrypted_contents);
 
-    // if we are backing up crypt files, then do so.
-    if conf.backup {
-        let mut path = get_crypt_folder();
-        // make sure we append the filename, dummy.
-        path.push(format!("{}{}", fc.filename, ".crypt"));
+    // write crypt file to crypt folder
+    let mut path = get_crypt_folder();
+    // make sure we append the filename, dummy.
+    path.push(format!("{}{}", fc.filename, ".crypt"));
 
-        // TODO: fix this later. we do care if the backup file write fails, but not enough to crash the program.
-        _ = write_contents_to_file(path.to_str().unwrap(), encrypted_contents.clone());
+    // TODO: fix this later.
+    match write_contents_to_file(path.to_str().unwrap(), encrypted_contents.clone()) {
+        Ok(_) => (),
+        Err(_) => todo!(),
     }
 
+    // TODO: fix this later.
     // write fc to crypt_keeper
-    // TODO: also this. not sure how much we care at the moment, since this is only a *copy* of the contents
-    // TODO: of the file, not the actual file itself.
-    _ = insert_crypt(&fc);
+    match insert_crypt(&fc) {
+        Ok(_) => (),
+        Err(_) => todo!(),
+    }
 
     Some(encrypted_contents)
 }
@@ -382,6 +382,10 @@ pub fn encrypt_contents(path: &str) -> Option<Vec<u8>> {
 fn generate_output_file(fc: &FileCrypt, output: Option<String>, parent_dir: &Path) -> String {
     // default output case
     let mut file = format!("{}/{}{}", &parent_dir.display(), &fc.filename, &fc.ext);
+
+    if !Path::new(&parent_dir).exists() {
+        _ = std::fs::create_dir(parent_dir);
+    }
 
     if Path::new(&file).exists() {
         // for now, we are going to just append the
@@ -583,7 +587,7 @@ mod test {
     fn test_encrypt_decrypt_file() {
         let mut config = load_config().unwrap();
         config.retain = true;
-        encrypt_file("../dracula.txt", false);
+        encrypt_file("../dracula.txt");
         assert!(Path::new("../dracula.crypt").exists());
         thread::sleep(Duration::from_secs(1));
         _ = decrypt_file("../dracula.crypt", None);

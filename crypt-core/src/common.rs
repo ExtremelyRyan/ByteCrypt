@@ -1,9 +1,9 @@
 use anyhow::{Ok, Result};
 use std::{
-    {fs::OpenOptions, io::Write},
     fmt::Display,
     path::{Path, PathBuf},
     process::Command,
+    {fs::OpenOptions, io::Write},
 };
 use walkdir::WalkDir;
 
@@ -491,7 +491,7 @@ mod tests {
     use super::*;
 
     #[test]
-    // works locally, but for some reason fails in the CI test! 
+    // works locally, but for some reason fails in the CI test!
     #[ignore]
     fn test_walk_directory() {
         let path = ".";

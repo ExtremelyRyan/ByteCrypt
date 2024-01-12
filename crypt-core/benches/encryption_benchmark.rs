@@ -36,7 +36,7 @@ static SHAKESPEARE_DECRYPT: &str = "benches\\files\\Shakespeare-decrypted.txt";
 // encrypt test with 850kb file
 pub fn enc_benchmark(c: &mut Criterion) {
     c.bench_function("full file encryption (dracula.txt)", |b| {
-        b.iter(|| encrypt_file(DRACULA, false))
+        b.iter(|| encrypt_file(DRACULA))
     });
 }
 
@@ -71,7 +71,7 @@ pub fn shakespeare_content_encryption(c: &mut Criterion) {
 // encrypt test with 5mb file
 pub fn enc_benchmark_large(c: &mut Criterion) {
     c.bench_function("full file encryption (shakespeare)", |b| {
-        b.iter(|| encrypt_file(SHAKESPEARE, false))
+        b.iter(|| encrypt_file(SHAKESPEARE))
     });
 }
 

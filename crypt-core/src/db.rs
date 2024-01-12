@@ -11,7 +11,7 @@ use std::{
 };
 
 use crate::{
-    common::{write_contents_to_file, get_config_folder},
+    common::{get_config_folder, write_contents_to_file},
     config::get_config,
     encryption::{KEY_SIZE, NONCE_SIZE},
     filecrypt::FileCrypt,
@@ -107,7 +107,10 @@ pub fn import_keeper(path: &String) -> Result<()> {
         let fc: FileCrypt = match record.deserialize(None) {
             Ok(it) => it,
             Err(err) => {
-                error!(&format!("Failed to convert StringRecord to FileCrypt!: {}", err));
+                error!(&format!(
+                    "Failed to convert StringRecord to FileCrypt!: {}",
+                    err
+                ));
                 FileCrypt::default()
             } // TODO: Fix with more elegant handling.
         };
