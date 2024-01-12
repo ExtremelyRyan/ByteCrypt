@@ -11,7 +11,7 @@ use std::{
 };
 
 use crate::{
-    common::{get_crypt_folder, write_contents_to_file},
+    common::{write_contents_to_file, get_config_folder},
     config::get_config,
     encryption::{KEY_SIZE, NONCE_SIZE},
     filecrypt::FileCrypt,
@@ -79,8 +79,8 @@ pub fn export_keeper(alt_path: Option<&str>) -> Result<()> {
     }
     let data = String::from_utf8(wtr.into_inner()?)?;
 
-    // get crypt dir "C:\\users\\USER\\crypt"
-    let mut path = get_crypt_folder();
+    // get crypt dir "C:\\users\\USER\\crypt_config"
+    let mut path = get_config_folder();
     path.push("crypt_export.csv");
 
     info!(&format!("writing export to {}", &path.display()));

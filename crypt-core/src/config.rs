@@ -8,8 +8,9 @@ use logfather::*;
 lazy_static! {
     ///Config path pointing to default home
     pub static ref CONFIG_PATH: String = {
-        let mut path = common::get_crypt_folder();
+        let mut path = common::get_config_folder();
         path.push(".config");
+        
 
         if !path.exists() {
             _ = std::fs::create_dir(&path);
@@ -204,7 +205,7 @@ impl std::fmt::Display for Config {
 
 impl Default for Config {
     fn default() -> Self {
-        let mut database_path = common::get_crypt_folder();
+        let mut database_path = common::get_config_folder();
         database_path.push(".config/crypt_keeper.db");
 
         Config {

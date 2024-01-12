@@ -298,6 +298,31 @@ pub fn write_contents_to_file(file: &str, contents: Vec<u8>) -> Result<()> {
     Ok(f.flush()?)
 }
 
+pub fn get_config_folder() -> PathBuf {
+    let output = if cfg!(target_os = "windows") {
+        Command::new("cmd")
+            .args(["/C", "echo %userprofile%"])
+            .output()
+            .expect("failed to execute process")
+    } else {
+        Command::new("sh")
+            .arg("-c")
+            .arg("echo $HOME")
+            .output()
+            .expect("failed to execute process")
+    };
+
+    let stdout = output.stdout;
+    let mut path = PathBuf::from(String::from_utf8(stdout).expect("ERROR").trim());
+    path.push("crypt_config");
+
+    if !path.exists() {
+        _ = std::fs::create_dir(&path);
+    }
+
+    path
+}
+
 pub fn get_crypt_folder() -> PathBuf {
     let output = if cfg!(target_os = "windows") {
         Command::new("cmd")
