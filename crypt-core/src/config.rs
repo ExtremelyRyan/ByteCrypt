@@ -19,6 +19,15 @@ lazy_static! {
         format!("{}", path.display())
     };
 
+    ///Config path pointing to default home
+    pub static ref CRYPT_PATH: String = {
+        let path = common::get_crypt_folder();
+        if !path.exists() {
+            _ = std::fs::create_dir(&path);
+        }
+        format!("{}", path.display())
+    };
+
     ///Loads and holds config for session
     static ref CONFIG: RwLock<Config> = RwLock::new({
         match load_config() {
@@ -93,15 +102,16 @@ pub fn get_config_write() -> std::sync::RwLockWriteGuard<'static, Config> {
 #[derive(Deserialize, Serialize, Debug, Clone)]
 ///Holds the configuration for the program
 pub struct Config {
-    /// collection of cloud services currently holding crypt files.
-    /// pub cloud_services: Vec<String>,
     /// serves as the default location for the SQLite database path.
     pub database_path: String,
 
-    ///Whether to ignore hidden files (begin with .)
+    /// serves as the default location for the .crypt files path.
+    pub crypt_path: String,
+
+    ///boolean to ignore hidden files (begining with .)
     pub ignore_hidden: bool,
 
-    /// collection of any directories to ignore during folder encryption.
+    ///items added to ignore_hidden will be ignored from encryption and cloud services.
     pub ignore_items: Vec<String>,
 
     /// option to retain both the original file after encryption,
@@ -131,6 +141,7 @@ pub struct Config {
 ///```
 pub enum ConfigOptions {
     DatabasePath,
+    CryptPath,
     IgnoreHidden,
     IgnoreItems,
     Retain,
@@ -146,7 +157,8 @@ impl ToString for ConfigOptions {
             Self::IgnoreItems => "ignore_items".to_string(),
             Self::Retain => "retain".to_string(),
             Self::Backup => "backup".to_string(),
-            Self::ZstdLevel => "zstd_level".to_string(),
+            Self::ZstdLevel => "zstd_level".to_string(), 
+            Self::CryptPath => "crypt_path".to_string(),
         }
     }
 }
@@ -157,18 +169,20 @@ impl ToString for ConfigOptions {
 ///```ignore
 /// # use crypt_lib::util::directive::ConfigTask;
 /// ConfigTask::DatabasePath
+/// ConfigTask::CryptPath
 /// ConfigTask::IgnoreItems(ItemTask, String)
 /// ConfigTask::Retain(bool)
-/// ConfigTask::Backup(bool)
+// /// ConfigTask::Backup(bool)
 /// ConfigTask::ZstdLevel(i32)
 /// ConfigTask::LoadDefault
 ///```
 pub enum ConfigTask {
     DatabasePath,
+    CryptPath,
     IgnoreHidden(bool),
     IgnoreItems(ItemsTask, String),
     Retain(bool),
-    Backup(bool),
+    // Backup(bool),
     ZstdLevel(i32),
     LoadDefault,
 }
@@ -194,6 +208,7 @@ impl std::fmt::Display for Config {
         _ = writeln!(f, "Config:");
         // _ = writeln!(f, "cloud_services: {:?}", self.cloud_services);
         _ = writeln!(f, "  database_path: {}", self.database_path);
+        _ = writeln!(f, "  crypt_path: {}", self.crypt_path);
         _ = writeln!(f, "  ignore_hidden: {}", self.ignore_hidden);
         _ = writeln!(f, "  ignore_item: {:?}", self.ignore_items);
         _ = writeln!(f, "  retain: {}", self.retain);
@@ -207,9 +222,11 @@ impl Default for Config {
     fn default() -> Self {
         let mut database_path = common::get_config_folder();
         database_path.push(".config/crypt_keeper.db");
+        let crypt_path = common::get_crypt_folder();
 
         Config {
             database_path: format!("{}", database_path.display()),
+            crypt_path: format!("{}", crypt_path.display()),
             // cloud_services: Vec::new(),
             ignore_hidden: true,
             ignore_items: vec!["target".to_string()],
@@ -223,6 +240,7 @@ impl Default for Config {
 impl Config {
     fn _new(
         database_path: String,
+        crypt_path: String,
         // cloud_services: Vec<String>,
         ignore_hidden: bool,
         ignore_items: Vec<String>,
@@ -232,6 +250,7 @@ impl Config {
     ) -> Self {
         Self {
             database_path,
+            crypt_path,
             // cloud_services,
             ignore_hidden,
             ignore_items,
@@ -270,6 +289,14 @@ impl Config {
     }
     pub fn set_database_path(&mut self, path: &str) {
         self.database_path = path.to_owned();
+        _ = save_config(self);
+    }
+
+    pub fn get_crypt_path(&self) -> &str {
+        self.crypt_path.as_ref()
+    }
+    pub fn set_crypt_path(&mut self, path: &str) {
+        self.crypt_path = path.to_owned();
         _ = save_config(self);
     }
 

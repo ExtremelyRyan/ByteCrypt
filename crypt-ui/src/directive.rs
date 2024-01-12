@@ -360,10 +360,44 @@ pub fn config(path: &str, config_task: ConfigTask) {
                         config.set_database_path(path);
                     } else {
                         //TODO: create path
-                    }
-                    config.set_database_path(path);
+                    } 
                 }
             }
+        },
+
+        ConfigTask::CryptPath => {
+            match path.to_lowercase().as_str() {
+                "" => {
+                    let path = get_full_file_path(&config.crypt_path);
+                    send_information(vec![format!(
+                        "Current crypt Path:\n  {}",
+                        path.display()
+                    )]);
+                }
+                _ => {
+                    send_information(vec![format!(
+                        "{} {}",
+                        "WARNING: changing your crypt file path will desync existing crypt files in the cloud",
+                        "until you change the path back. ARE YOU SURE? (Y/N)"
+                    )]);
+    
+                    //TODO: Modify to properly handle tui/gui interactions
+                    let mut s = String::new();
+                    while s.to_lowercase() != *"y" || s.to_lowercase() != *"n" {
+                        std::io::stdin()
+                            .read_line(&mut s)
+                            .expect("Did not enter a correct string");
+                    }
+    
+                    if s.as_str() == "y" {
+                        if PathBuf::from(path).exists() {
+                            config.set_crypt_path(path);
+                        } else {
+                            //TODO: create path
+                        } 
+                    }
+                }
+            };
         },
 
         ConfigTask::IgnoreItems(option, item) => match option {
@@ -380,10 +414,11 @@ pub fn config(path: &str, config_task: ConfigTask) {
             false => send_information(vec![format!("Error occured, please verify parameters")]),
         },
 
-        ConfigTask::Backup(value) => match config.set_backup(value) {
-            true => send_information(vec![format!("Backup changed to {}", value)]),
-            false => send_information(vec![format!("Error occured, please verify parameters")]),
-        },
+        // No longer needed as crypt folder is default location for .crypt files now.
+        // ConfigTask::Backup(value) => match config.set_backup(value) {
+        //     true => send_information(vec![format!("Backup changed to {}", value)]),
+        //     false => send_information(vec![format!("Error occured, please verify parameters")]),
+        // },
 
         ConfigTask::ZstdLevel(level) => match config.set_zstd_level(level) {
             true => send_information(vec![format!("Zstd Level value changed to: {}", level)]),
@@ -396,7 +431,8 @@ pub fn config(path: &str, config_task: ConfigTask) {
                 "An error has occured attmepting to load defaults"
             )]),
         },
-        ConfigTask::IgnoreHidden(_) => todo!(),
+        ConfigTask::IgnoreHidden(_) => todo!(), 
+       
     };
 }
 

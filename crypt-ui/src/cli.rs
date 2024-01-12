@@ -149,6 +149,14 @@ pub enum ConfigCommand {
         path: String,
     },
 
+    /// View or update the crypt folder path
+    #[command(short_flag = 'c')]
+    CryptPath {
+        /// Database path; if empty, prints current path
+        #[arg(required = false, default_value_t = String::from(""))]
+        path: String,
+    },
+
     /// View or change which directories and/or filetypes are to be ignored
     #[command(short_flag = 'i')]
     IgnoreItems {
@@ -169,13 +177,13 @@ pub enum ConfigCommand {
         choice: String,
     },
 
-    /// Update whether to retain original files after encryption or decryption
-    #[command(short_flag = 'b')]
-    Backup {
-        /// Configure retaining original file: kept if true
-        #[arg(required = false, default_value_t = String::from(""))]
-        choice: String,
-    },
+    // /// Update whether to retain original files after encryption or decryption
+    // #[command(short_flag = 'b')]
+    // Backup {
+    //     /// Configure retaining original file: kept if true
+    //     #[arg(required = false, default_value_t = String::from(""))]
+    //     choice: String,
+    // },
 
     /// View or change the compression level (-7 to 22) -- higher is more compression
     #[command(short_flag = 'z')]
@@ -338,6 +346,10 @@ pub fn load_cli() {
                     directive::config(path, ConfigTask::DatabasePath);
                 }
 
+                Some(ConfigCommand::CryptPath { path }) => {
+                    directive::config(path, ConfigTask::CryptPath);
+                }
+
                 // IgnoreItems
                 Some(ConfigCommand::IgnoreItems { add_remove, item }) => {
                     let add_remove = match add_remove.to_lowercase().as_str() {
@@ -360,14 +372,14 @@ pub fn load_cli() {
                 }
 
                 // Backup
-                Some(ConfigCommand::Backup { choice }) => {
-                    let choice = match choice.to_lowercase().as_str() {
-                        "true" | "t" => true,
-                        "false" | "f" => false,
-                        _ => panic!("Unable to parse passed value"),
-                    };
-                    directive::config("", ConfigTask::Backup(choice));
-                }
+                // Some(ConfigCommand::Backup { choice }) => {
+                //     let choice = match choice.to_lowercase().as_str() {
+                //         "true" | "t" => true,
+                //         "false" | "f" => false,
+                //         _ => panic!("Unable to parse passed value"),
+                //     };
+                //     directive::config("", ConfigTask::Backup(choice));
+                // }
 
                 // ZstdLevel
                 Some(ConfigCommand::ZstdLevel { level }) => {
