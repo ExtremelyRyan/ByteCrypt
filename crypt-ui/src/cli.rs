@@ -184,6 +184,7 @@ pub enum ConfigCommand {
     //     #[arg(required = false, default_value_t = String::from(""))]
     //     choice: String,
     // },
+    
     /// View or change the compression level (-7 to 22) -- higher is more compression
     #[command(short_flag = 'z')]
     ZstdLevel {
