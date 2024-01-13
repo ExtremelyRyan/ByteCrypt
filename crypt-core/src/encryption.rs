@@ -1,7 +1,4 @@
-use crate::{
-    // logs::*,
-    filecrypt::FileCrypt,
-};
+use crate::filecrypt::FileCrypt;
 use anyhow::Result;
 use blake2::{Blake2s256, Digest, *};
 use chacha20poly1305::{

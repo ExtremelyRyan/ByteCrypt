@@ -170,12 +170,12 @@ pub enum ConfigCommand {
     },
 
     /// Update whether to retain original files after encryption or decryption
-    #[command(short_flag = 'r')]
-    Retain {
-        /// Configure retaining original file: kept if true
-        #[arg(required = false, default_value_t = String::from(""))]
-        choice: String,
-    },
+    // #[command(short_flag = 'r')]
+    // Retain {
+    //     /// Configure retaining original file: kept if true
+    //     #[arg(required = false, default_value_t = String::from(""))]
+    //     choice: String,
+    // },
 
     // /// Update whether to retain original files after encryption or decryption
     // #[command(short_flag = 'b')]
@@ -184,7 +184,7 @@ pub enum ConfigCommand {
     //     #[arg(required = false, default_value_t = String::from(""))]
     //     choice: String,
     // },
-    
+
     /// View or change the compression level (-7 to 22) -- higher is more compression
     #[command(short_flag = 'z')]
     ZstdLevel {
@@ -362,14 +362,14 @@ pub fn load_cli() {
                 }
 
                 // Retain
-                Some(ConfigCommand::Retain { choice }) => {
-                    let choice = match choice.to_lowercase().as_str() {
-                        "true" | "t" => true,
-                        "false" | "f" => false,
-                        _ => panic!("Unable to parse passed value"),
-                    };
-                    directive::config("", ConfigTask::Retain(choice));
-                }
+                // Some(ConfigCommand::Retain { choice }) => {
+                //     let choice = match choice.to_lowercase().as_str() {
+                //         "true" | "t" => true,
+                //         "false" | "f" => false,
+                //         _ => panic!("Unable to parse passed value"),
+                //     };
+                //     directive::config("", ConfigTask::Retain(choice));
+                // }
 
                 // Backup
                 // Some(ConfigCommand::Backup { choice }) => {

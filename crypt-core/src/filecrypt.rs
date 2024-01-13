@@ -1,6 +1,9 @@
 use crate::{
     common::get_full_file_path,
-    common::{get_crypt_folder, get_file_bytes, write_contents_to_file},
+    common::{
+        chooser, get_crypt_folder, get_file_bytes, walk_crypt_folder, walk_directory,
+        write_contents_to_file,
+    },
     config::get_config,
     db::{insert_crypt, query_crypt},
     encryption::{
@@ -51,6 +54,8 @@ use std::{
 ///     }
 /// }
 /// ```
+///
+#[derive(Debug)]
 pub enum FcError {
     HashFail(String),
     InvalidFilePath,
@@ -152,7 +157,7 @@ impl FileCrypt {
 ///
 /// # Arguments
 ///
-/// * `path` - The path to the encrypted file.
+/// * `filename` - filename of the .crypt file residing in the crypt folder.
 /// * `output` - An optional output path for the decrypted content.
 /// * `conf` - An optional configuration, if not provided, the default configuration is used.
 ///
@@ -173,30 +178,60 @@ impl FileCrypt {
 /// # Panics
 ///
 /// This function may panic in case of critical errors, but most errors are returned in the `Result`.
-pub fn decrypt_file(path: &str, output: Option<String>) -> Result<(), FcError> {
+pub fn decrypt_file(filename: &str, output: Option<String>) -> Result<(), FcError> {
     let conf = get_config();
-
-    // let fp = get_full_file_path(path);
-    // let parent_dir = &fp.parent().ok_or(FcError::InvalidFilePath)?.to_owned();
-
-    let content = read(path).map_err(|e| FcError::FileError(e.to_string()))?;
-
-    let (uuid, contents) = get_uuid(&content)?;
-
-    let fc = query_crypt(uuid).map_err(|_| FcError::CryptQueryError)?;
-
-    let fc_hash: [u8; 32] = fc.hash.to_owned();
 
     // get location of crypt folder and append "decrypted" path
     let mut crypt_folder = get_crypt_folder();
+
+    // walk along crypt folder and find all files.
+    let mut paths = match walk_crypt_folder(filename) {
+        Ok(p) => p,
+        Err(e) => panic!("{e}"),
+    };
+
+    let mut compared = paths.clone();
+
+    // compare files found to filename, and keep in compared those that match
+    for (i, p) in paths.iter().enumerate() {
+        if !(p.file_name().unwrap() == filename) {
+            _ = compared.remove(i);
+        }
+    }
+
+    let file_match: Option<PathBuf>;
+
+    // if we have more than one match, prompt user to choose which file they want.
+    let file_match = match compared.len() > 1 {
+        true => chooser(compared, filename),
+        false => compared[0].to_owned(),
+    };
+
+    let content = read(file_match).map_err(|e| FcError::FileError(e.to_string()))?;
+
+    let (uuid, contents) = get_uuid(&content)?;
+
+    let fc = match query_crypt(uuid) {
+        Ok(f) => f,
+        Err(e) => panic!("{}", e.to_string()),
+    };
+
+    let fc_hash: [u8; 32] = fc.hash.to_owned();
+
+    // make sure we put decrypted file in the "decrypted" folder, dummy.
     crypt_folder.push("decrypted");
-
     let file = generate_output_file(&fc, output, &crypt_folder);
+    dbg!(&file);
 
-    let mut decrypted_content = decrypt(fc.clone(), &contents.to_vec())
-        .map_err(|e| FcError::DecryptError(e.to_string()))?;
+    let mut decrypted_content = match decrypt(fc.clone(), &contents.to_vec()) {
+        Ok(d) => d,
+        Err(e) => return Err(FcError::DecryptError(e.to_string())),
+    };
 
-    decrypted_content = decompress(&decrypted_content).map_err(|_| FcError::DecompressionError)?;
+    decrypted_content = match decompress(&decrypted_content) {
+        Ok(d) => d,
+        Err(e) => return Err(FcError::DecompressionError),
+    };
 
     let hash = compute_hash(&decrypted_content);
 
@@ -211,10 +246,6 @@ pub fn decrypt_file(path: &str, output: Option<String>) -> Result<(), FcError> {
 
     write_contents_to_file(&file, decrypted_content)
         .map_err(|e| FcError::FileError(e.to_string()))?;
-
-    if !conf.retain {
-        std::fs::remove_file(path).map_err(|e| FcError::FileDeletionError(e, path.to_string()))?;
-    }
 
     Ok(())
 }
@@ -277,7 +308,7 @@ pub fn decrypt_contents(fc: FileCrypt, contents: Vec<u8>) -> Result<(), FcError>
 /// let path = "/path/to/your/file.txt";
 /// encrypt_file(&conf, path, false);
 /// ```
-pub fn encrypt_file(path: &str) {
+pub fn encrypt_file(path: &str, output: &Option<String>) {
     let conf = get_config();
     // parse out file path
     let (fp, _, filename, extension) = get_file_info(path);
@@ -304,14 +335,27 @@ pub fn encrypt_file(path: &str) {
     encrypted_contents = prepend_uuid(&fc.uuid, &mut encrypted_contents);
 
     let mut path = get_crypt_folder();
-    // make sure we append the filename, dummy.
-    path.push(format!("{}{}", fc.filename, ".crypt"));
+    match output {
+        Some(o) => {
+            let mut alt_path = path.clone();
+            alt_path.push(o);
+            dbg!(&alt_path, &o);
+            if !PathBuf::from(&alt_path).exists() {
+                match std::fs::create_dir_all(&alt_path) {
+                    Ok(_) => (),
+                    Err(e) => panic!("{}", e.to_string()),
+                }
+            }
+            path.push(format!(r#"{}\{}{}"#, o, fc.filename, ".crypt"));
+        }
+        None => path.push(format!("{}{}", fc.filename, ".crypt")),
+    }
 
     // write fc to crypt_keeper
     insert_crypt(&fc).expect("failed to insert FileCrypt data into database!");
 
     write_contents_to_file(path.to_str().unwrap(), encrypted_contents.clone())
-        .expect("failed to write contents to backup!");
+        .expect("failed to write contents to file!");
 }
 
 pub fn encrypt_contents(path: &str) -> Option<Vec<u8>> {
@@ -387,15 +431,24 @@ fn generate_output_file(fc: &FileCrypt, output: Option<String>, parent_dir: &Pat
         _ = std::fs::create_dir(parent_dir);
     }
 
+    // if we already have an existing file, we will loop and count up until we find a verison that is not there
     if Path::new(&file).exists() {
-        // for now, we are going to just append the
-        // filename with -decrypted to delineate between the two.
-        file = format!(
-            "{}/{}-decrypted{}",
-            &parent_dir.display(),
-            &fc.filename,
-            &fc.ext
-        );
+        let mut counter = 1;
+        // dont know if this is the right path at the moment, but works for now.
+        loop {
+            file = format!(
+                "{}/{}({}){}",
+                &parent_dir.display(),
+                &fc.filename,
+                counter,
+                &fc.ext
+            );
+            if Path::new(&file).exists() {
+                counter += 1;
+            } else {
+                break;
+            }
+        }
     }
 
     // if user passes in a alternative path and or filename for us to use, use it.
@@ -414,12 +467,21 @@ fn generate_output_file(fc: &FileCrypt, output: Option<String>, parent_dir: &Pat
                 let name = rel_path.file_name().unwrap().to_string_lossy().to_string(); // Convert to owned String
                 let index = name.find('.').unwrap();
                 let (filename, extension) = name.split_at(index);
-                file = format!(
-                    "{}/{}{}",
-                    rel_path.parent().unwrap().to_string_lossy(),
-                    filename,
-                    extension
-                );
+                if cfg!(target_os = "windows") {
+                    file = format!(
+                        "{}\\{}{}",
+                        rel_path.parent().unwrap().to_string_lossy(),
+                        filename,
+                        extension
+                    );
+                } else {
+                    file = format!(
+                        "{}/{}{}",
+                        rel_path.parent().unwrap().to_string_lossy(),
+                        filename,
+                        extension
+                    );
+                }
             }
             // 'tis a new directory
             false => {
@@ -431,8 +493,11 @@ fn generate_output_file(fc: &FileCrypt, output: Option<String>, parent_dir: &Pat
                     p.remove(p.len() - 1);
                 }
                 let fp: PathBuf = PathBuf::from(p);
-
-                file = format!("{}/{}{}", &fp.display(), &fc.filename, &fc.ext);
+                if cfg!(target_os = "windows") {
+                    file = format!("{}\\{}{}", &fp.display(), &fc.filename, &fc.ext);
+                } else {
+                    file = format!("{}/{}{}", &fp.display(), &fc.filename, &fc.ext);
+                }
             }
         };
     }
@@ -585,20 +650,22 @@ mod test {
 
     #[test]
     fn test_encrypt_decrypt_file() {
-        let mut config = load_config().unwrap();
-        config.retain = true;
-        encrypt_file("../dracula.txt");
-        assert!(Path::new("../dracula.crypt").exists());
+        encrypt_file("crypt-core/benches/files/dracula.txt", None);
+        let mut crypt = get_crypt_folder();
+        crypt.push("dracula.crypt");
+        assert!(crypt.exists());
+
         thread::sleep(Duration::from_secs(1));
-        _ = decrypt_file("../dracula.crypt", None);
-        match config.retain {
-            true => {
-                assert!(Path::new("../dracula-decrypted.txt").exists());
-                _ = std::fs::remove_file("../dracula.crypt");
-                _ = std::fs::remove_file("../dracula-decrypted.txt");
-            }
-            false => assert!(Path::new("../dracula.txt").exists()),
-        }
+
+        _ = decrypt_file(crypt.to_str().unwrap(), None);
+
+        let mut dracula_decypted = get_crypt_folder();
+        dracula_decypted.push("decrypted");
+        dracula_decypted.push("dracula.txt");
+
+        assert!(dracula_decypted.exists());
+        _ = std::fs::remove_file(crypt);
+        _ = std::fs::remove_file(dracula_decypted);
     }
 
     #[test]

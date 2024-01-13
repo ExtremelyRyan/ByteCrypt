@@ -1,8 +1,10 @@
 use anyhow::{Ok, Result};
 use std::{
     fmt::Display,
+    io,
     path::{Path, PathBuf},
     process::Command,
+    time::{SystemTime, UNIX_EPOCH},
     {fs::OpenOptions, io::Write},
 };
 use walkdir::WalkDir;
@@ -348,6 +350,56 @@ pub fn get_crypt_folder() -> PathBuf {
     path
 }
 
+/// chooser takes in a vector, and displays contents to the user with a number and last modified metadata.
+/// user will choose number, and return that item.\
+/// todo: rename this retarded function
+pub fn chooser(list: Vec<PathBuf>, item: &str) -> PathBuf {
+    let time = SystemTime::now();
+    let mut count = 1;
+
+    println!("\nmultiple values found for {item}");
+    println!("please choose from the following matches: (or 0 to abort)\n");
+
+    for item in &list {
+        let meta = item.metadata().unwrap();
+        
+        let found = item.display().to_string().find(r#"\crypt"#).unwrap();
+
+        let str_item = item.display().to_string();
+
+        let (left, right) = str_item.split_at(found);
+        println!(
+            "{}) {} {}",
+            count,
+            right,
+            get_sys_time_timestamp(meta.modified().unwrap())
+        );
+        count += 1;
+    }
+
+    // get input
+    loop {
+        let mut number = String::new();
+        let _n = io::stdin().read_line(&mut number).unwrap();
+
+        let num: usize = number.trim().parse().unwrap();
+
+        if num == 0 {
+            std::process::exit(0);
+        }
+
+        if num < list.len() {
+            return list.get(num - 1).unwrap().to_owned();
+        }
+    }
+}
+
+/// sub-optimal way of converting a `SystemTime` into a formatted "date : time" string.
+fn get_sys_time_timestamp(ts: SystemTime) -> String {
+    let dt: chrono::DateTime<chrono::Utc> = ts.into();
+    dt.format("%m/%d/%y %H:%M").to_string()
+}
+
 /// our hacky workarounds for converting pathbuf to string and str
 pub trait Convert {
     /// using display() to convert to a String. <b>Can lose non-unicode characters!</b>
@@ -433,11 +485,37 @@ pub fn walk_directory(path_in: &str) -> Result<Vec<PathBuf>> {
         true => std::env::current_dir()?,
         false => get_full_file_path(path_in),
     };
-    dbg!(&path);
     let walker = WalkDir::new(path).into_iter();
     let mut pathlist: Vec<PathBuf> = Vec::new();
 
     for entry in walker.filter_entry(|e| !is_hidden(e)) {
+        let entry = entry.unwrap();
+        // we only want to save paths that are towards a file.
+        if entry.path().display().to_string().find('.').is_some() {
+            pathlist.push(PathBuf::from(entry.path().display().to_string()));
+        }
+    }
+    Ok(pathlist)
+}
+
+/// takes in a path, and recursively walks the subdirectories and returns a vec<pathbuf>
+pub fn walk_crypt_folder(filename: &str) -> Result<Vec<PathBuf>> {
+    let crypt_folder = get_crypt_folder().to_str().unwrap().to_string();
+
+    // folders to avoid
+    let mut log_folder = PathBuf::from(crypt_folder.clone());
+    log_folder.push("logs");
+    let mut decrypted_folder = PathBuf::from(crypt_folder.clone());
+    decrypted_folder.push("decrypted");
+
+    let walker = WalkDir::new(crypt_folder).into_iter();
+    let mut pathlist: Vec<PathBuf> = Vec::new();
+
+    for entry in walker.filter_entry(|e| {
+        !is_hidden(e)
+            && !e.path().starts_with(log_folder.as_os_str())
+            && !e.path().starts_with(decrypted_folder.as_os_str())
+    }) {
         let entry = entry.unwrap();
         // we only want to save paths that are towards a file.
         if entry.path().display().to_string().find('.').is_some() {

@@ -38,8 +38,7 @@ enum CloudError {
 /// directive.encrypt(in_place, output);
 ///```
 ///TODO: implement output
-pub fn encrypt(path: &str, _in_place: bool, _output: Option<String>) {
-    info!("lolobolli");
+pub fn encrypt(path: &str, _in_place: bool, output: Option<String>) {
     let buf = PathBuf::from(path);
     //Determine if file or directory
     if buf.is_dir() {
@@ -50,13 +49,13 @@ pub fn encrypt(path: &str, _in_place: bool, _output: Option<String>) {
             Ok(d) => {
                 for p in d {
                     send_information(vec![format!("Encrypting file: {}", p.display())]);
-                    encrypt_file(&p.display().to_string())
+                    encrypt_file(&p.display().to_string(), &output)
                 }
             }
             Err(_) => todo!(),
         }
     } else if buf.is_file() {
-        encrypt_file(path);
+        encrypt_file(path, &output);
     }
 }
 
@@ -84,13 +83,15 @@ pub fn decrypt(path: &str, _in_place: bool, output: Option<String>) {
             for path in dir {
                 if path.extension().unwrap() == "crypt" {
                     send_information(vec![format!("Decrypting file: {}", path.display())]);
-                    let _ = decrypt_file(path.display().to_string().as_str(), output.to_owned());
+                    let res = decrypt_file(path.display().to_string().as_str(), output.to_owned());
+                    println!("{res:?}");
                 }
             }
         }
         //if file
         false => {
-            let _ = decrypt_file(path, output.to_owned());
+            let res = decrypt_file(path, output.to_owned());
+            println!("{res:?}");
         }
     };
 }
@@ -409,10 +410,10 @@ pub fn config(path: &str, config_task: ConfigTask) {
             }
         },
 
-        ConfigTask::Retain(value) => match config.set_retain(value) {
-            true => send_information(vec![format!("Retain changed to {}", value)]),
-            false => send_information(vec![format!("Error occured, please verify parameters")]),
-        },
+        // ConfigTask::Retain(value) => match config.set_retain(value) {
+        //     true => send_information(vec![format!("Retain changed to {}", value)]),
+        //     false => send_information(vec![format!("Error occured, please verify parameters")]),
+        // },
 
         // No longer needed as crypt folder is default location for .crypt files now.
         // ConfigTask::Backup(value) => match config.set_backup(value) {

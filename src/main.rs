@@ -1,4 +1,6 @@
+use chrono;
 use crypt_ui::cli::load_cli;
+use std::time::UNIX_EPOCH;
 // use env_logger::Builder;
 // use log::LevelFilter;
 
@@ -7,9 +9,6 @@ fn main() -> anyhow::Result<()> {
     // Builder::new().filter_level(LevelFilter::Trace).init();
 
     load_cli();
-
-    // println!("printing out crypts with drive ID");
-    // crypt_ui::cli::test();
 
     Ok(())
 }

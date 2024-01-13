@@ -126,12 +126,12 @@ pub struct Config {
     /// as well as the .crypt file after decryption.
     /// if true, retains original file and encrypted file.
     /// if false, deletes files after encryption / decryption.
-    pub retain: bool,
+    // pub retain: bool,
 
-    /// option to retain a backup copy of all `*.crypt` files into a backup folder for
-    /// redundant storage. This only keeps the LATEST version, to not take up too much
-    /// space.
-    pub backup: bool,
+    // /// option to retain a backup copy of all `*.crypt` files into a backup folder for
+    // /// redundant storage. This only keeps the LATEST version, to not take up too much
+    // /// space.
+    // pub backup: bool,
 
     /// zstd level is for file compression, from [fastest, least compression]
     /// to [slowest, highest compression] `-7 to 22`. Default compression level is 3.
@@ -152,8 +152,8 @@ pub enum ConfigOptions {
     CryptPath,
     IgnoreHidden,
     IgnoreItems,
-    Retain,
-    Backup,
+    // Retain,
+    // Backup,
     ZstdLevel,
 }
 
@@ -163,8 +163,8 @@ impl ToString for ConfigOptions {
             Self::DatabasePath => "database_path".to_string(),
             Self::IgnoreHidden => "ignore_hidden".to_string(),
             Self::IgnoreItems => "ignore_items".to_string(),
-            Self::Retain => "retain".to_string(),
-            Self::Backup => "backup".to_string(),
+            // Self::Retain => "retain".to_string(),
+            // Self::Backup => "backup".to_string(),
             Self::ZstdLevel => "zstd_level".to_string(),
             Self::CryptPath => "crypt_path".to_string(),
         }
@@ -179,7 +179,7 @@ impl ToString for ConfigOptions {
 /// ConfigTask::DatabasePath
 /// ConfigTask::CryptPath
 /// ConfigTask::IgnoreItems(ItemTask, String)
-/// ConfigTask::Retain(bool)
+// /// ConfigTask::Retain(bool)
 // /// ConfigTask::Backup(bool)
 /// ConfigTask::ZstdLevel(i32)
 /// ConfigTask::LoadDefault
@@ -189,7 +189,7 @@ pub enum ConfigTask {
     CryptPath,
     IgnoreHidden(bool),
     IgnoreItems(ItemsTask, String),
-    Retain(bool),
+    // Retain(bool),
     // Backup(bool),
     ZstdLevel(i32),
     LoadDefault,
@@ -219,8 +219,8 @@ impl std::fmt::Display for Config {
         _ = writeln!(f, "  crypt_path: {}", self.crypt_path);
         _ = writeln!(f, "  ignore_hidden: {}", self.ignore_hidden);
         _ = writeln!(f, "  ignore_item: {:?}", self.ignore_items);
-        _ = writeln!(f, "  retain: {}", self.retain);
-        _ = writeln!(f, "  backup: {}", self.backup);
+        // _ = writeln!(f, "  retain: {}", self.retain);
+        // _ = writeln!(f, "  backup: {}", self.backup);
         _ = writeln!(f, "  zstd_level: {}", self.zstd_level);
         std::fmt::Result::Ok(())
     }
@@ -238,8 +238,8 @@ impl Default for Config {
             // cloud_services: Vec::new(),
             ignore_hidden: true,
             ignore_items: vec!["target".to_string()],
-            retain: true,
-            backup: true,
+            // retain: true,
+            // backup: true,
             zstd_level: 3,
         }
     }
@@ -252,8 +252,8 @@ impl Config {
         // cloud_services: Vec<String>,
         ignore_hidden: bool,
         ignore_items: Vec<String>,
-        retain: bool,
-        backup: bool,
+        // retain: bool,
+        // backup: bool,
         zstd_level: i32,
     ) -> Self {
         Self {
@@ -262,8 +262,8 @@ impl Config {
             // cloud_services,
             ignore_hidden,
             ignore_items,
-            retain,
-            backup,
+            // retain,
+            // backup,
             zstd_level,
         }
     }
@@ -312,29 +312,29 @@ impl Config {
         self.ignore_hidden = choice;
     }
 
-    pub fn backup(&self) -> bool {
-        self.backup
-    }
+    // pub fn backup(&self) -> bool {
+    //     self.backup
+    // }
 
-    pub fn set_backup(&mut self, backup: bool) -> bool {
-        self.backup = backup;
-        if save_config(self).is_err() {
-            return false;
-        }
-        true
-    }
+    // pub fn set_backup(&mut self, backup: bool) -> bool {
+    //     self.backup = backup;
+    //     if save_config(self).is_err() {
+    //         return false;
+    //     }
+    //     true
+    // }
 
-    pub fn retain(&self) -> bool {
-        self.retain
-    }
+    // pub fn retain(&self) -> bool {
+    //     self.retain
+    // }
 
-    pub fn set_retain(&mut self, retain: bool) -> bool {
-        self.retain = retain;
-        if save_config(self).is_err() {
-            return false;
-        }
-        true
-    }
+    // pub fn set_retain(&mut self, retain: bool) -> bool {
+    //     self.retain = retain;
+    //     if save_config(self).is_err() {
+    //         return false;
+    //     }
+    //     true
+    // }
 
     pub fn get_ignore_items(&self) -> &[String] {
         self.ignore_items.as_ref()
