@@ -193,8 +193,8 @@ pub fn decrypt_file(filename: &str, output: Option<String>) -> Result<(), FcErro
 
     // compare files found to filename, and keep in compared those that match
     for (i, p) in paths.iter().enumerate() {
-        // dbg!(&i, &p);
-        if !(p.file_name().unwrap() == filename) {
+        // file may or may not include extension, so check for both
+        if !(p.file_stem().unwrap() == filename || p.file_name().unwrap() == filename) {
             // likely a better way to do this, but brain big dumb.
             _ = compared.remove(i);
         }

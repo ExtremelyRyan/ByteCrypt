@@ -436,7 +436,7 @@ pub fn chooser(list: Vec<PathBuf>, item: &str) -> PathBuf {
             std::process::exit(0);
         }
 
-        if num < list.len() {
+        if num <= list.len() {
             return list.get(num - 1).unwrap().to_owned();
         }
     }
