@@ -4,7 +4,7 @@ use crate::cli::{
 };
 use crypt_cloud::crypt_core::{
     common::{
-        build_tree, get_full_file_path, send_information, walk_directory, walk_paths, PathInfo,
+        build_tree, get_full_file_path, send_information, walk_directory, walk_paths, PathInfo, get_crypt_folder,
     },
     config::{self, Config, ConfigTask, ItemsTask},
     db::{
@@ -12,7 +12,7 @@ use crypt_cloud::crypt_core::{
         query_keeper_crypt,
     },
     filecrypt::{decrypt_contents, decrypt_file, encrypt_file, get_uuid, FileCrypt},
-    token::{purge_tokens, UserToken},
+    token::{purge_tokens, UserToken}, filetree::{treeprint::print_tree, filetree::{is_not_hidden, sort_by_name, dir_walk, Directory}},
 };
 use crypt_cloud::drive;
 use logfather::*;
@@ -410,16 +410,6 @@ pub fn config(path: &str, config_task: ConfigTask) {
             }
         },
 
-        // ConfigTask::Retain(value) => match config.set_retain(value) {
-        //     true => send_information(vec![format!("Retain changed to {}", value)]),
-        //     false => send_information(vec![format!("Error occured, please verify parameters")]),
-        // },
-
-        // No longer needed as crypt folder is default location for .crypt files now.
-        // ConfigTask::Backup(value) => match config.set_backup(value) {
-        //     true => send_information(vec![format!("Backup changed to {}", value)]),
-        //     false => send_information(vec![format!("Error occured, please verify parameters")]),
-        // },
         ConfigTask::ZstdLevel(level) => match config.set_zstd_level(level) {
             true => send_information(vec![format!("Zstd Level value changed to: {}", level)]),
             false => send_information(vec![format!("Error occured, please verify parameters")]),
@@ -486,7 +476,7 @@ pub fn keeper(kc: &KeeperCommand) {
             }
             None => send_information(vec![format!("invalid entry entered.")]),
         },
-        //
+        //List
         KeeperCommand::List {} => {
             let fc = query_keeper_crypt().unwrap();
             for crypt in fc {
@@ -500,4 +490,20 @@ pub fn keeper(kc: &KeeperCommand) {
             }
         }
     }
+}
+
+pub fn ls(local: &bool, cloud: &bool) {
+
+    let crypt_root = get_crypt_folder();
+ 
+    let dir: Directory = dir_walk(&crypt_root.clone(), is_not_hidden, sort_by_name).unwrap();
+
+    match (local, cloud) {
+        // display both
+        (true, true) => todo!(),
+        // display local only
+        (_, false) => print_tree(crypt_root.to_str().unwrap(),&dir),
+        // display cloud only
+        (_, true) => google_view("Crypt"), 
+    };
 }

@@ -86,6 +86,17 @@ enum Commands {
         #[command(subcommand)]
         category: Option<KeeperCommand>,
     },
+
+    /// show local / cloud crypt folder
+    Ls {
+        ///Show all files contained in the local crypt folder
+        #[arg(short = 'l', long, default_value_t = false)]
+        local: bool,
+
+        ///Show all files contained in the cloud folder
+        #[arg(short = 'c', long, default_value_t = false)]
+        cloud: bool,
+    }
 }
 
 ///Subcommands for Upload
@@ -281,6 +292,11 @@ pub fn load_cli() {
         // Nothing passed (Help screen printed)
         None => (),
 
+        // ls
+        Some(Commands::Ls { local, cloud }) => {
+            directive::ls(local, cloud);
+        }
+
         // Encryption
         Some(Commands::Encrypt {
             path,
@@ -300,7 +316,6 @@ pub fn load_cli() {
         }
 
         // Cloud
-
         // TODO: This needs to be torn apart. Each command needs to be called to a seperate function
         // TODO: Trying to add the no_ecrypt flag pretty much breaks this entirely.
         Some(Commands::Cloud { category }) => match category {
