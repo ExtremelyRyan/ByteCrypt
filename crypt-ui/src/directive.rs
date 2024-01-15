@@ -432,6 +432,14 @@ pub fn config(path: &str, config_task: ConfigTask) {
             )]),
         },
         ConfigTask::IgnoreHidden(_) => todo!(),
+        ConfigTask::Hwid => {
+            if path.is_empty() {
+                send_information(vec![format!("{}", config.get_system_name())]);
+            } else {
+                send_information(vec![format!("changing system name to: {}", path)]); 
+            }
+            config.set_system_name(path);
+        }
     };
 }
 

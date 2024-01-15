@@ -1,6 +1,6 @@
 use crate::{
-    common::{self, send_information},
-    db,
+    common::{self, send_information, get_machine_name},
+    db::{self, get_keeper},
 };
 use chrono::prelude::*;
 use lazy_static::lazy_static;
@@ -122,6 +122,9 @@ pub struct Config {
     ///items added to ignore_hidden will be ignored from encryption and cloud services.
     pub ignore_items: Vec<String>,
 
+    /// PC name for current computer
+    pub hwid: String,
+
     /// option to retain both the original file after encryption,
     /// as well as the .crypt file after decryption.
     /// if true, retains original file and encrypted file.
@@ -152,8 +155,7 @@ pub enum ConfigOptions {
     CryptPath,
     IgnoreHidden,
     IgnoreItems,
-    // Retain,
-    // Backup,
+    Hwid,
     ZstdLevel,
 }
 
@@ -163,6 +165,7 @@ impl ToString for ConfigOptions {
             Self::DatabasePath => "database_path".to_string(),
             Self::IgnoreHidden => "ignore_hidden".to_string(),
             Self::IgnoreItems => "ignore_items".to_string(),
+            Self::Hwid        => "hwid".to_string(),
             // Self::Retain => "retain".to_string(),
             // Self::Backup => "backup".to_string(),
             Self::ZstdLevel => "zstd_level".to_string(),
@@ -189,6 +192,7 @@ pub enum ConfigTask {
     CryptPath,
     IgnoreHidden(bool),
     IgnoreItems(ItemsTask, String),
+    Hwid,
     // Retain(bool),
     // Backup(bool),
     ZstdLevel(i32),
@@ -219,6 +223,7 @@ impl std::fmt::Display for Config {
         _ = writeln!(f, "  crypt_path: {}", self.crypt_path);
         _ = writeln!(f, "  ignore_hidden: {}", self.ignore_hidden);
         _ = writeln!(f, "  ignore_item: {:?}", self.ignore_items);
+        _ = writeln!(f, "  hwid: {:?}", self.hwid);
         // _ = writeln!(f, "  retain: {}", self.retain);
         // _ = writeln!(f, "  backup: {}", self.backup);
         _ = writeln!(f, "  zstd_level: {}", self.zstd_level);
@@ -231,6 +236,7 @@ impl Default for Config {
         let mut database_path = common::get_config_folder();
         database_path.push(".config/crypt_keeper.db");
         let crypt_path = common::get_crypt_folder();
+        let hwid = get_machine_name();
 
         Config {
             database_path: format!("{}", database_path.display()),
@@ -238,6 +244,7 @@ impl Default for Config {
             // cloud_services: Vec::new(),
             ignore_hidden: true,
             ignore_items: vec!["target".to_string()],
+            hwid,
             // retain: true,
             // backup: true,
             zstd_level: 3,
@@ -252,6 +259,7 @@ impl Config {
         // cloud_services: Vec<String>,
         ignore_hidden: bool,
         ignore_items: Vec<String>,
+        hwid: String,
         // retain: bool,
         // backup: bool,
         zstd_level: i32,
@@ -262,6 +270,7 @@ impl Config {
             // cloud_services,
             ignore_hidden,
             ignore_items,
+            hwid,
             // retain,
             // backup,
             zstd_level,
@@ -305,6 +314,14 @@ impl Config {
     }
     pub fn set_crypt_path(&mut self, path: &str) {
         self.crypt_path = path.to_owned();
+        _ = save_config(self);
+    }
+
+    pub fn get_system_name(&self) -> &str {
+        self.hwid.as_str()
+    }
+    pub fn set_system_name(&mut self, name: &str) {
+        self.hwid = name.to_owned();
         _ = save_config(self);
     }
 

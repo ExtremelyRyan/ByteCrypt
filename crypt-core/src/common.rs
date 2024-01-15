@@ -300,6 +300,9 @@ pub fn write_contents_to_file(file: &str, contents: Vec<u8>) -> Result<()> {
     Ok(f.flush()?)
 }
 
+/// Performs a system command to get user home path.
+/// if system is a windows machine, performs a powershell call. Otherwise, we assume it is linux
+/// and
 pub fn get_config_folder() -> PathBuf {
     let output = if cfg!(target_os = "windows") {
         Command::new("cmd")
@@ -325,6 +328,24 @@ pub fn get_config_folder() -> PathBuf {
     path
 }
 
+/// performs a process command to query user profile.
+/// if on windows, we use `cmd`. If on Linux, we use `sh`
+/// returns a `PathBuf` of the home path with "crypt" 
+/// appended to the end of the path if query was sucessful.
+/// 
+/// # Example
+/// assuming user profile name is ryan
+/// ```rust ignore
+/// let path = get_crypt_folder();
+/// // for windows
+/// assert_eq(path, "C:\\users\\ryan\\crypt");
+/// // for linux
+/// assert_eq(path, "~/home/ryan/crypt");
+/// ```
+/// # Panics
+///
+/// function can panic if either the process fails, 
+/// or the conversion from Vec<u8> to String fails.
 pub fn get_crypt_folder() -> PathBuf {
     let output = if cfg!(target_os = "windows") {
         Command::new("cmd")
@@ -350,6 +371,33 @@ pub fn get_crypt_folder() -> PathBuf {
     path
 }
 
+/// performs a process command to query device hostname
+/// if on windows, we use the command prompt, otherwise, we use `sh`
+/// returns a String if query was sucessful.
+///
+/// # Panics
+///
+/// function can panic if either the process fails, or the conversion from Vec<u8> to String fails.
+pub fn get_machine_name() -> String {
+    let name = if cfg!(target_os = "windows") {
+        Command::new("cmd")
+            .args(["/C", "hostname"])
+            .output()
+            .expect("failed to get hostname")
+    } else {
+        Command::new("sh")
+            .arg("-c")
+            .arg("hostname")
+            .output()
+            .expect("failed to get pc name")
+    };
+
+    String::from_utf8(name.stdout)
+        .expect("converting stdout failed")
+        .trim()
+        .to_string()
+}
+
 /// chooser takes in a vector, and displays contents to the user with a number and last modified metadata.
 /// user will choose number, and return that item.\
 /// todo: rename this retarded function
@@ -362,7 +410,7 @@ pub fn chooser(list: Vec<PathBuf>, item: &str) -> PathBuf {
 
     for item in &list {
         let meta = item.metadata().unwrap();
-        
+
         let found = item.display().to_string().find(r#"\crypt"#).unwrap();
 
         let str_item = item.display().to_string();

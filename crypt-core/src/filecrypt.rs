@@ -178,14 +178,13 @@ impl FileCrypt {
 /// # Panics
 ///
 /// This function may panic in case of critical errors, but most errors are returned in the `Result`.
-pub fn decrypt_file(filename: &str, output: Option<String>) -> Result<(), FcError> {
-    let conf = get_config();
+pub fn decrypt_file(filename: &str, output: Option<String>) -> Result<(), FcError> { 
 
     // get location of crypt folder and append "decrypted" path
     let mut crypt_folder = get_crypt_folder();
 
     // walk along crypt folder and find all files.
-    let mut paths = match walk_crypt_folder(filename) {
+    let paths = match walk_crypt_folder(filename) {
         Ok(p) => p,
         Err(e) => panic!("{e}"),
     };
@@ -194,12 +193,12 @@ pub fn decrypt_file(filename: &str, output: Option<String>) -> Result<(), FcErro
 
     // compare files found to filename, and keep in compared those that match
     for (i, p) in paths.iter().enumerate() {
+        // dbg!(&i, &p);
         if !(p.file_name().unwrap() == filename) {
+            // likely a better way to do this, but brain big dumb.
             _ = compared.remove(i);
         }
     }
-
-    let file_match: Option<PathBuf>;
 
     // if we have more than one match, prompt user to choose which file they want.
     let file_match = match compared.len() > 1 {
@@ -642,7 +641,6 @@ pub fn get_file_info(path: &str) -> (PathBuf, PathBuf, String, String) {
 // cargo nextest run
 #[cfg(test)]
 mod test {
-    use crate::config::load_config;
     use std::thread;
     use std::time::Duration;
 
@@ -650,7 +648,7 @@ mod test {
 
     #[test]
     fn test_encrypt_decrypt_file() {
-        encrypt_file("crypt-core/benches/files/dracula.txt", None);
+        encrypt_file("crypt-core/benches/files/dracula.txt", &None);
         let mut crypt = get_crypt_folder();
         crypt.push("dracula.crypt");
         assert!(crypt.exists());
