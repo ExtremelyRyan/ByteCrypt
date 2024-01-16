@@ -1,7 +1,7 @@
 use clap::{Parser, Subcommand};
 use crypt_cloud::crypt_core::{
-    common::send_information,
-    config::{self, ConfigTask, ItemsTask},
+    common::{send_information, get_machine_name},
+    config::{self, ConfigTask, ItemsTask, Config},
     db::import_keeper,
 };
 
@@ -180,21 +180,11 @@ pub enum ConfigCommand {
         item: String,
     },
 
-    /// Update whether to retain original files after encryption or decryption
-    // #[command(short_flag = 'r')]
-    // Retain {
-    //     /// Configure retaining original file: kept if true
-    //     #[arg(required = false, default_value_t = String::from(""))]
-    //     choice: String,
-    // },
-
-    // /// Update whether to retain original files after encryption or decryption
-    // #[command(short_flag = 'b')]
-    // Backup {
-    //     /// Configure retaining original file: kept if true
-    //     #[arg(required = false, default_value_t = String::from(""))]
-    //     choice: String,
-    // },
+    /// View or change current pc name associated with the cloud.
+    #[command()]
+    Hwid {
+        
+    },
 
     /// View or change the compression level (-7 to 22) -- higher is more compression
     #[command(short_flag = 'z')]
@@ -315,10 +305,10 @@ pub fn load_cli() {
             directive::decrypt(path, in_place.to_owned(), output.to_owned());
         }
 
-        // Cloud
-        // TODO: This needs to be torn apart. Each command needs to be called to a seperate function
-        // TODO: Trying to add the no_ecrypt flag pretty much breaks this entirely.
+        // Cloud commands - upload | download | view for Google Drive and TODO: Dropbox
         Some(Commands::Cloud { category }) => match category {
+            
+            // Google
             Some(CloudCommand::Google { task }) => {
                 match task {
                     Some(DriveCommand::Upload { path, no_encrypt }) => {
@@ -344,9 +334,7 @@ pub fn load_cli() {
                 };
             }
 
-            None => {
-                todo!();
-            }
+            None => { }
         },
         // Keeper
         Some(Commands::Keeper { category }) => {
@@ -376,30 +364,15 @@ pub fn load_cli() {
                     directive::config("", ConfigTask::IgnoreItems(add_remove, item.to_owned()));
                 }
 
-                // Retain
-                // Some(ConfigCommand::Retain { choice }) => {
-                //     let choice = match choice.to_lowercase().as_str() {
-                //         "true" | "t" => true,
-                //         "false" | "f" => false,
-                //         _ => panic!("Unable to parse passed value"),
-                //     };
-                //     directive::config("", ConfigTask::Retain(choice));
-                // }
-
-                // Backup
-                // Some(ConfigCommand::Backup { choice }) => {
-                //     let choice = match choice.to_lowercase().as_str() {
-                //         "true" | "t" => true,
-                //         "false" | "f" => false,
-                //         _ => panic!("Unable to parse passed value"),
-                //     };
-                //     directive::config("", ConfigTask::Backup(choice));
-                // }
-
                 // ZstdLevel
                 Some(ConfigCommand::ZstdLevel { level }) => {
                     let level: i32 = level.parse().expect("Could not interpret passed value");
                     directive::config("", ConfigTask::ZstdLevel(level));
+                }
+
+                //Hwid
+                Some(ConfigCommand::Hwid {}) => {
+                    send_information(vec![format!("machine name: {}", get_machine_name())]);
                 }
 
                 // LoadDefault
@@ -409,8 +382,8 @@ pub fn load_cli() {
 
                 None => (),
             }
-            let config = config::get_config();
-            println!("{}", config);
+            // let config = config::get_config();
+            // println!("{}", config);
         }
     }
 }

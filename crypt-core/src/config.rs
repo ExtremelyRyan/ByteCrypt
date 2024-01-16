@@ -1,6 +1,6 @@
 use crate::{
     common::{self, send_information, get_machine_name},
-    db::{self, get_keeper},
+    db::{self},
 };
 use chrono::prelude::*;
 use lazy_static::lazy_static;
@@ -166,8 +166,6 @@ impl ToString for ConfigOptions {
             Self::IgnoreHidden => "ignore_hidden".to_string(),
             Self::IgnoreItems => "ignore_items".to_string(),
             Self::Hwid        => "hwid".to_string(),
-            // Self::Retain => "retain".to_string(),
-            // Self::Backup => "backup".to_string(),
             Self::ZstdLevel => "zstd_level".to_string(),
             Self::CryptPath => "crypt_path".to_string(),
         }
@@ -182,8 +180,6 @@ impl ToString for ConfigOptions {
 /// ConfigTask::DatabasePath
 /// ConfigTask::CryptPath
 /// ConfigTask::IgnoreItems(ItemTask, String)
-// /// ConfigTask::Retain(bool)
-// /// ConfigTask::Backup(bool)
 /// ConfigTask::ZstdLevel(i32)
 /// ConfigTask::LoadDefault
 ///```
@@ -193,8 +189,6 @@ pub enum ConfigTask {
     IgnoreHidden(bool),
     IgnoreItems(ItemsTask, String),
     Hwid,
-    // Retain(bool),
-    // Backup(bool),
     ZstdLevel(i32),
     LoadDefault,
 }
@@ -224,8 +218,6 @@ impl std::fmt::Display for Config {
         _ = writeln!(f, "  ignore_hidden: {}", self.ignore_hidden);
         _ = writeln!(f, "  ignore_item: {:?}", self.ignore_items);
         _ = writeln!(f, "  hwid: {:?}", self.hwid);
-        // _ = writeln!(f, "  retain: {}", self.retain);
-        // _ = writeln!(f, "  backup: {}", self.backup);
         _ = writeln!(f, "  zstd_level: {}", self.zstd_level);
         std::fmt::Result::Ok(())
     }
@@ -241,12 +233,9 @@ impl Default for Config {
         Config {
             database_path: format!("{}", database_path.display()),
             crypt_path: format!("{}", crypt_path.display()),
-            // cloud_services: Vec::new(),
             ignore_hidden: true,
             ignore_items: vec!["target".to_string()],
             hwid,
-            // retain: true,
-            // backup: true,
             zstd_level: 3,
         }
     }
@@ -256,23 +245,17 @@ impl Config {
     fn _new(
         database_path: String,
         crypt_path: String,
-        // cloud_services: Vec<String>,
         ignore_hidden: bool,
         ignore_items: Vec<String>,
         hwid: String,
-        // retain: bool,
-        // backup: bool,
         zstd_level: i32,
     ) -> Self {
         Self {
             database_path,
             crypt_path,
-            // cloud_services,
             ignore_hidden,
             ignore_items,
             hwid,
-            // retain,
-            // backup,
             zstd_level,
         }
     }
@@ -290,16 +273,6 @@ impl Config {
     pub fn change_db_path(&mut self, path: String) {
         self.database_path = path;
     }
-
-    ///Adds a cloud service to the list
-    // pub fn add_cloud_service(&mut self, service: String) {
-    //     self.cloud_services.push(service);
-    // }
-
-    ///Removes a cloud service from the list
-    // pub fn remove_cloud_service(&mut self, service: String) {
-    //     self.cloud_services.retain(|s| s != &service);
-    // }
 
     pub fn get_database_path(&self) -> &str {
         self.database_path.as_ref()
@@ -328,30 +301,6 @@ impl Config {
     pub fn set_ignore_hidden(&mut self, choice: bool) {
         self.ignore_hidden = choice;
     }
-
-    // pub fn backup(&self) -> bool {
-    //     self.backup
-    // }
-
-    // pub fn set_backup(&mut self, backup: bool) -> bool {
-    //     self.backup = backup;
-    //     if save_config(self).is_err() {
-    //         return false;
-    //     }
-    //     true
-    // }
-
-    // pub fn retain(&self) -> bool {
-    //     self.retain
-    // }
-
-    // pub fn set_retain(&mut self, retain: bool) -> bool {
-    //     self.retain = retain;
-    //     if save_config(self).is_err() {
-    //         return false;
-    //     }
-    //     true
-    // }
 
     pub fn get_ignore_items(&self) -> &[String] {
         self.ignore_items.as_ref()
