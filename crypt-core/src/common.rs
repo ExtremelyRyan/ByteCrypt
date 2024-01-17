@@ -4,7 +4,7 @@ use std::{
     io,
     path::{Path, PathBuf},
     process::Command,
-    time::{SystemTime, UNIX_EPOCH},
+    time::SystemTime,
     {fs::OpenOptions, io::Write},
 };
 use walkdir::WalkDir;

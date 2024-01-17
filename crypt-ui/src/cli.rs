@@ -1,7 +1,7 @@
 use clap::{Parser, Subcommand};
 use crypt_cloud::crypt_core::{
     common::{send_information, get_machine_name},
-    config::{self, ConfigTask, ItemsTask, Config},
+    config::{self, ConfigTask, ItemsTask},
     db::import_keeper,
 };
 

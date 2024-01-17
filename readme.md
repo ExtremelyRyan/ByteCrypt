@@ -29,13 +29,25 @@ by default, we store a backup `.crypt` when encrypting, so you can be sure to al
 
 ## Getting Started
 
+### Getting Google Service Account
+
+Becuase this is a public source repository, we are unable to place our `client ID` and `client secret` in the repo. because of this, you will have to go out and create a service account (free) to enable ByteCrypt access to use your Google Drive. 
+
+[service account instructions](https://developers.google.com/identity/protocols/oauth2/service-account#creatinganaccount)
+
+after following the instructions, please download the json file (named `google.json` !) to: <br>
+
+Windows: `C:/Users/USER/crypt_config/.config/google.json` <br>
+
+Linux: `~/home/USER/crypt_config/.config/google.json`
+
 ### Dependencies
 
 currently being tested on windows 10,11, wsl(ubuntu), and Arch linux.
 requires minimum Rust version > 1.70.
 
 ### Installing
-
+* go to our [release](https://github.com/ExtremelyRyan/ByteCrypt/releases) page and download the latest 
 * Clone the repository, and go to the root project directory. Run `cargo install --path .`
 
 
