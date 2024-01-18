@@ -9,23 +9,13 @@ workspace = "../"
 
 [dependencies]
 #General 
-anyhow = "1.0.75"
+anyhow = { workspace = true }
+logfather = { workspace = true }
 tokio = { version = "1", features = ["full"] } # Async Runtime 
 
 # CLI
 clap = { version = "4.4.11", features = ["derive", "cargo"] }
 clap-markdown = "0.1.3"
-# ansi_term = "0.12.1"
 
-# TUI
-# ratatui = "0.25"
-# crossterm = "0.27.0"
-
-# Logging
-# env_logger = "0.10.1"
-# log = "0.4.20"
-logfather = "0.2.3"
-
-crypt-cloud = { path = "../crypt-cloud" }
-# crypt-core = { path = "../crypt-core" }
+crypt-cloud = { path = "../crypt-cloud" } 
  

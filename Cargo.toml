@@ -1,9 +1,19 @@
+[package]
+name = "crypt"
+version = "0.1.0"
+authors = ["Ryan M", "Joshua B"]
+edition = "2021"
+
+[dependencies]
+crypt-ui = { path = "crypt-ui" } 
+anyhow = {workspace = true}
+chrono = { version = "0.4.31", features = ["serde"] }
+
+
+
 [workspace]
 resolver = "2"
-default-run = "crypt"
-default-members = ["crypt"]
 members = [
-    "crypt",
     "crypt-core",
     "crypt-ui",
     "crypt-cloud",
@@ -19,6 +29,11 @@ keywords = ["encryption", "files"]
 categories = ["command-line-utilities", "file-encryption"]
 license = "MIT"
 rust-version = "1.70"
+
+[workspace.dependencies]
+anyhow = "1.0.75"
+lazy_static = "1.4"
+logfather = "0.2.3"
 
 # The development profile, used for `cargo build`.
 [profile.dev]
@@ -63,7 +78,6 @@ rpath = false
 lto = false
 debug-assertions = true
 codegen-units = 1
-panic = 'unwind'
 incremental = true
 overflow-checks = true
 
@@ -74,19 +88,7 @@ debug = false
 rpath = false
 lto = false
 debug-assertions = false
-codegen-units = 1
-panic = 'unwind'
+codegen-units = 1 
 incremental = false
 overflow-checks = false
-
-# The documentation profile, used for `cargo doc`.
-[profile.doc]
-opt-level = 0
-debug = 2
-rpath = false
-lto = false
-debug-assertions = true
-codegen-units = 1
-panic = 'unwind'
-incremental = true
-overflow-checks = true
+ 

@@ -4,7 +4,8 @@ use crate::cli::{
 };
 use crypt_cloud::crypt_core::{
     common::{
-        build_tree, get_full_file_path, send_information, walk_directory, walk_paths, PathInfo,
+        build_tree, get_crypt_folder, get_full_file_path, send_information, walk_directory,
+        walk_paths, PathInfo,
     },
     config::{self, Config, ConfigTask, ItemsTask},
     db::{
@@ -12,6 +13,10 @@ use crypt_cloud::crypt_core::{
         query_keeper_crypt,
     },
     filecrypt::{decrypt_contents, decrypt_file, encrypt_file, get_uuid, FileCrypt},
+    filetree::{
+        filetree::{dir_walk, is_not_hidden, sort_by_name, Directory},
+        treeprint::print_tree,
+    },
     token::{purge_tokens, UserToken},
 };
 use crypt_cloud::drive;
@@ -38,8 +43,7 @@ enum CloudError {
 /// directive.encrypt(in_place, output);
 ///```
 ///TODO: implement output
-pub fn encrypt(path: &str, in_place: bool, _output: Option<String>) {
-    info!("lolobolli");
+pub fn encrypt(path: &str, _in_place: bool, output: Option<String>) {
     let buf = PathBuf::from(path);
     //Determine if file or directory
     if buf.is_dir() {
@@ -50,13 +54,13 @@ pub fn encrypt(path: &str, in_place: bool, _output: Option<String>) {
             Ok(d) => {
                 for p in d {
                     send_information(vec![format!("Encrypting file: {}", p.display())]);
-                    encrypt_file(&p.display().to_string(), in_place)
+                    encrypt_file(&p.display().to_string(), &output)
                 }
             }
             Err(_) => todo!(),
         }
     } else if buf.is_file() {
-        encrypt_file(path, in_place);
+        encrypt_file(path, &output);
     }
 }
 
@@ -84,13 +88,15 @@ pub fn decrypt(path: &str, _in_place: bool, output: Option<String>) {
             for path in dir {
                 if path.extension().unwrap() == "crypt" {
                     send_information(vec![format!("Decrypting file: {}", path.display())]);
-                    let _ = decrypt_file(path.display().to_string().as_str(), output.to_owned());
+                    let res = decrypt_file(path.display().to_string().as_str(), output.to_owned());
+                    println!("{res:?}");
                 }
             }
         }
         //if file
         false => {
-            let _ = decrypt_file(path, output.to_owned());
+            let res = decrypt_file(path, output.to_owned());
+            println!("{res:?}");
         }
     };
 }
@@ -127,19 +133,18 @@ pub fn google_upload(path: &str, no_encrypt: &bool) {
 
     //Get walk path given and build a list of PathInfos
     let path_info = PathInfo::new(path);
-    let paths: Vec<PathInfo> = walk_paths(path).into_iter()
+    let paths: Vec<PathInfo> = walk_paths(path)
+        .into_iter()
         .filter(|p| p.is_dir || p.name.contains(".crypt"))
         .collect();
-    let (mut folders, files): (Vec<_>, Vec<_>) = paths.into_iter()
-        .partition(|p| p.is_dir);
+    let (mut folders, files): (Vec<_>, Vec<_>) = paths.into_iter().partition(|p| p.is_dir);
     folders.sort_by(|a, b| a.full_path.cmp(&b.full_path));
 
     //Create a hashmap relating PathInfo to FileCrypt for relevant .crypt files
     let mut crypts: HashMap<PathInfo, FileCrypt> = HashMap::new();
     for file in files.clone().iter() {
         let contents = &std::fs::read(file.full_path.display().to_string().as_str()).unwrap();
-        let (uuid, _) = get_uuid(contents)
-            .expect("Could not retrieve UUID from the file");
+        let (uuid, _) = get_uuid(contents).expect("Could not retrieve UUID from the file");
         let filecrypt = query_crypt(uuid).expect("Could not query keeper");
         crypts.insert(file.to_owned(), filecrypt);
     }
@@ -196,9 +201,12 @@ pub fn google_upload(path: &str, no_encrypt: &bool) {
                 //Determine if the file already exists in the google drive
                 let drive_id = &crypts.get(&file).unwrap().drive_id;
                 let exists = if !drive_id.is_empty() {
-                    runtime.block_on(drive::g_id_exists(&user_token, &drive_id))
+                    runtime
+                        .block_on(drive::g_id_exists(&user_token, &drive_id))
                         .expect("Could not query Google Drive")
-                } else { false };
+                } else {
+                    false
+                };
 
                 //Only if the file doesn't exist should it be uploaded
                 if !exists {
@@ -209,13 +217,14 @@ pub fn google_upload(path: &str, no_encrypt: &bool) {
                         &no_encrypt,
                     ));
                     //Update the FileCrypt's drive_id
-                    crypts.entry(file.clone())
+                    crypts
+                        .entry(file.clone())
                         .and_modify(|fc| fc.drive_id = file_id.unwrap());
                 } else {
                     let _ = runtime.block_on(drive::g_update(
                         &user_token,
                         &drive_id,
-                        &file.full_path.display().to_string()
+                        &file.full_path.display().to_string(),
                     ));
                 }
             }
@@ -361,10 +370,41 @@ pub fn config(path: &str, config_task: ConfigTask) {
                     } else {
                         //TODO: create path
                     }
-                    config.set_database_path(path);
                 }
             }
         },
+
+        ConfigTask::CryptPath => {
+            match path.to_lowercase().as_str() {
+                "" => {
+                    let path = get_full_file_path(&config.crypt_path);
+                    send_information(vec![format!("Current crypt Path:\n  {}", path.display())]);
+                }
+                _ => {
+                    send_information(vec![format!(
+                        "{} {}",
+                        "WARNING: changing your crypt file path will desync existing crypt files in the cloud",
+                        "until you change the path back. ARE YOU SURE? (Y/N)"
+                    )]);
+
+                    //TODO: Modify to properly handle tui/gui interactions
+                    let mut s = String::new();
+                    while s.to_lowercase() != *"y" || s.to_lowercase() != *"n" {
+                        std::io::stdin()
+                            .read_line(&mut s)
+                            .expect("Did not enter a correct string");
+                    }
+
+                    if s.as_str() == "y" {
+                        if PathBuf::from(path).exists() {
+                            config.set_crypt_path(path);
+                        } else {
+                            //TODO: create path
+                        }
+                    }
+                }
+            };
+        }
 
         ConfigTask::IgnoreItems(option, item) => match option {
             ItemsTask::Add => config.append_ignore_items(&item),
@@ -373,16 +413,6 @@ pub fn config(path: &str, config_task: ConfigTask) {
                 let default = Config::default();
                 config.set_ignore_items(default.ignore_items);
             }
-        },
-
-        ConfigTask::Retain(value) => match config.set_retain(value) {
-            true => send_information(vec![format!("Retain changed to {}", value)]),
-            false => send_information(vec![format!("Error occured, please verify parameters")]),
-        },
-
-        ConfigTask::Backup(value) => match config.set_backup(value) {
-            true => send_information(vec![format!("Backup changed to {}", value)]),
-            false => send_information(vec![format!("Error occured, please verify parameters")]),
         },
 
         ConfigTask::ZstdLevel(level) => match config.set_zstd_level(level) {
@@ -397,6 +427,14 @@ pub fn config(path: &str, config_task: ConfigTask) {
             )]),
         },
         ConfigTask::IgnoreHidden(_) => todo!(),
+        ConfigTask::Hwid => {
+            if path.is_empty() {
+                send_information(vec![format!("{}", config.get_system_name())]);
+            } else {
+                send_information(vec![format!("changing system name to: {}", path)]);
+            }
+            config.set_system_name(path);
+        }
     };
 }
 
@@ -443,7 +481,7 @@ pub fn keeper(kc: &KeeperCommand) {
             }
             None => send_information(vec![format!("invalid entry entered.")]),
         },
-        //
+        //List
         KeeperCommand::List {} => {
             let fc = query_keeper_crypt().unwrap();
             for crypt in fc {
@@ -457,4 +495,19 @@ pub fn keeper(kc: &KeeperCommand) {
             }
         }
     }
+}
+
+pub fn ls(local: &bool, cloud: &bool) {
+    let crypt_root = get_crypt_folder();
+
+    let dir: Directory = dir_walk(&crypt_root.clone(), is_not_hidden, sort_by_name).unwrap();
+
+    match (local, cloud) {
+        // display both
+        (true, true) => todo!(),
+        // display local only
+        (_, false) => print_tree(crypt_root.to_str().unwrap(), &dir),
+        // display cloud only
+        (_, true) => google_view("Crypt"),
+    };
 }

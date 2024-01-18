@@ -3,8 +3,9 @@ use async_recursion::async_recursion;
 use crypt_core::{
     common::DirInfo,
     common::{FileInfo, FsNode},
+    db::{insert_crypt, query_crypt},
     filecrypt::{encrypt_contents, get_uuid},
-    token::UserToken, db::{query_crypt, insert_crypt},
+    token::UserToken,
 };
 use reqwest::{
     header::{HeaderMap, HeaderValue, CONTENT_LENGTH, CONTENT_RANGE, LOCATION},
