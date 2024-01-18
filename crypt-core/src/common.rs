@@ -406,6 +406,7 @@ pub fn chooser(list: Vec<PathBuf>, item: &str) -> PathBuf {
 
     println!("\nmultiple values found for {item}");
     println!("please choose from the following matches: (or 0 to abort)\n");
+    println!("{0: <3} {1: <36} {2: <14}", "#", "files", "last modified");
 
     for item in &list {
         let meta = item.metadata().unwrap();
@@ -416,7 +417,7 @@ pub fn chooser(list: Vec<PathBuf>, item: &str) -> PathBuf {
 
         let (_left, right) = str_item.split_at(found);
         println!(
-            "{0: <3} |  {1: <36}  {2: <14} ",
+            "{0: <3} {1: <36} {2: <14}",
             count,
             right,
             get_sys_time_timestamp(meta.modified().unwrap())
