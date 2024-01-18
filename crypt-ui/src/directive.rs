@@ -4,7 +4,8 @@ use crate::cli::{
 };
 use crypt_cloud::crypt_core::{
     common::{
-        build_tree, get_full_file_path, send_information, walk_directory, walk_paths, PathInfo, get_crypt_folder,
+        build_tree, get_crypt_folder, get_full_file_path, send_information, walk_directory,
+        walk_paths, PathInfo,
     },
     config::{self, Config, ConfigTask, ItemsTask},
     db::{
@@ -12,10 +13,13 @@ use crypt_cloud::crypt_core::{
         query_keeper_crypt,
     },
     filecrypt::{decrypt_contents, decrypt_file, encrypt_file, get_uuid, FileCrypt},
-    token::{purge_tokens, UserToken}, filetree::{treeprint::print_tree, filetree::{is_not_hidden, sort_by_name, dir_walk, Directory}},
+    filetree::{
+        filetree::{dir_walk, is_not_hidden, sort_by_name, Directory},
+        treeprint::print_tree,
+    },
+    token::{purge_tokens, UserToken},
 };
 use crypt_cloud::drive;
-use logfather::*;
 use std::{collections::HashMap, path::PathBuf};
 use tokio::runtime::Runtime;
 
@@ -426,7 +430,7 @@ pub fn config(path: &str, config_task: ConfigTask) {
             if path.is_empty() {
                 send_information(vec![format!("{}", config.get_system_name())]);
             } else {
-                send_information(vec![format!("changing system name to: {}", path)]); 
+                send_information(vec![format!("changing system name to: {}", path)]);
             }
             config.set_system_name(path);
         }
@@ -493,17 +497,16 @@ pub fn keeper(kc: &KeeperCommand) {
 }
 
 pub fn ls(local: &bool, cloud: &bool) {
-
     let crypt_root = get_crypt_folder();
- 
+
     let dir: Directory = dir_walk(&crypt_root.clone(), is_not_hidden, sort_by_name).unwrap();
 
     match (local, cloud) {
         // display both
         (true, true) => todo!(),
         // display local only
-        (_, false) => print_tree(crypt_root.to_str().unwrap(),&dir),
+        (_, false) => print_tree(crypt_root.to_str().unwrap(), &dir),
         // display cloud only
-        (_, true) => google_view("Crypt"), 
+        (_, true) => google_view("Crypt"),
     };
 }

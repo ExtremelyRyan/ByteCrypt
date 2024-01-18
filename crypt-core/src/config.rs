@@ -1,5 +1,5 @@
 use crate::{
-    common::{self, send_information, get_machine_name},
+    common::{self, get_machine_name, send_information},
     db::{self},
 };
 use chrono::prelude::*;
@@ -165,7 +165,7 @@ impl ToString for ConfigOptions {
             Self::DatabasePath => "database_path".to_string(),
             Self::IgnoreHidden => "ignore_hidden".to_string(),
             Self::IgnoreItems => "ignore_items".to_string(),
-            Self::Hwid        => "hwid".to_string(),
+            Self::Hwid => "hwid".to_string(),
             Self::ZstdLevel => "zstd_level".to_string(),
             Self::CryptPath => "crypt_path".to_string(),
         }

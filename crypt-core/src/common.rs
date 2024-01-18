@@ -402,7 +402,6 @@ pub fn get_machine_name() -> String {
 /// user will choose number, and return that item.\
 /// todo: rename this retarded function
 pub fn chooser(list: Vec<PathBuf>, item: &str) -> PathBuf {
-    let time = SystemTime::now();
     let mut count = 1;
 
     println!("\nmultiple values found for {item}");
@@ -415,9 +414,9 @@ pub fn chooser(list: Vec<PathBuf>, item: &str) -> PathBuf {
 
         let str_item = item.display().to_string();
 
-        let (left, right) = str_item.split_at(found);
+        let (_left, right) = str_item.split_at(found);
         println!(
-            "{}) {} {}",
+            "{0: <3} |  {1: <36}  {2: <14} ",
             count,
             right,
             get_sys_time_timestamp(meta.modified().unwrap())
@@ -547,7 +546,7 @@ pub fn walk_directory(path_in: &str) -> Result<Vec<PathBuf>> {
 }
 
 /// takes in a path, and recursively walks the subdirectories and returns a vec<pathbuf>
-pub fn walk_crypt_folder(filename: &str) -> Result<Vec<PathBuf>> {
+pub fn walk_crypt_folder() -> Result<Vec<PathBuf>> {
     let crypt_folder = get_crypt_folder().to_str().unwrap().to_string();
 
     // folders to avoid

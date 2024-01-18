@@ -1,6 +1,6 @@
 use clap::{Parser, Subcommand};
 use crypt_cloud::crypt_core::{
-    common::{send_information, get_machine_name},
+    common::{get_machine_name, send_information},
     config::{self, ConfigTask, ItemsTask},
     db::import_keeper,
 };
@@ -96,7 +96,7 @@ enum Commands {
         ///Show all files contained in the cloud folder
         #[arg(short = 'c', long, default_value_t = false)]
         cloud: bool,
-    }
+    },
 }
 
 ///Subcommands for Upload
@@ -182,9 +182,7 @@ pub enum ConfigCommand {
 
     /// View or change current pc name associated with the cloud.
     #[command()]
-    Hwid {
-        
-    },
+    Hwid {},
 
     /// View or change the compression level (-7 to 22) -- higher is more compression
     #[command(short_flag = 'z')]
@@ -307,7 +305,6 @@ pub fn load_cli() {
 
         // Cloud commands - upload | download | view for Google Drive and TODO: Dropbox
         Some(Commands::Cloud { category }) => match category {
-            
             // Google
             Some(CloudCommand::Google { task }) => {
                 match task {
@@ -334,7 +331,7 @@ pub fn load_cli() {
                 };
             }
 
-            None => { }
+            None => {}
         },
         // Keeper
         Some(Commands::Keeper { category }) => {

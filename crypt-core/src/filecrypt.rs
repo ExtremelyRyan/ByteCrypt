@@ -1,8 +1,7 @@
 use crate::{
     common::get_full_file_path,
     common::{
-        chooser, get_crypt_folder, get_file_bytes, walk_crypt_folder, walk_directory,
-        write_contents_to_file,
+        chooser, get_crypt_folder, get_file_bytes, walk_crypt_folder, write_contents_to_file,
     },
     config::get_config,
     db::{insert_crypt, query_crypt},
@@ -60,7 +59,7 @@ pub enum FcError {
     HashFail(String),
     InvalidFilePath,
     CryptQueryError,
-    DecompressionError,
+    DecompressionError(String),
     FileDeletionError(std::io::Error, String),
     FileReadError,
     FileError(String),
@@ -178,31 +177,36 @@ impl FileCrypt {
 /// # Panics
 ///
 /// This function may panic in case of critical errors, but most errors are returned in the `Result`.
-pub fn decrypt_file(filename: &str, output: Option<String>) -> Result<(), FcError> { 
-
+pub fn decrypt_file(filename: &str, output: Option<String>) -> Result<(), FcError> {
     // get location of crypt folder and append "decrypted" path
     let mut crypt_folder = get_crypt_folder();
 
     // walk along crypt folder and find all files.
-    let paths = match walk_crypt_folder(filename) {
+    let paths = match walk_crypt_folder() {
         Ok(p) => p,
         Err(e) => panic!("{e}"),
     };
 
-    let mut compared = paths.clone();
+    let mut compared: Vec<PathBuf> = Vec::new();
+
+    // appeasing the compiler gods
+    let binding = filename.trim().to_lowercase();
+    let filename = binding.as_str();
 
     // compare files found to filename, and keep in compared those that match
-    for (i, p) in paths.iter().enumerate() {
-        // file may or may not include extension, so check for both
-        if !(p.file_stem().unwrap() == filename || p.file_name().unwrap() == filename) {
-            // likely a better way to do this, but brain big dumb.
-            _ = compared.remove(i);
+    for p in paths.iter() {
+        // file may or may not include extension, so check for both & if filename is partial match.
+        if p.file_stem().unwrap().to_ascii_lowercase() == filename
+            || p.file_name().unwrap().to_ascii_lowercase() == filename
+            || p.to_string_lossy().to_string().to_lowercase().contains(filename)
+        {
+            compared.push(p.to_owned());
         }
     }
 
     // if we have more than one match, prompt user to choose which file they want.
     let file_match = match compared.len() > 1 {
-        true => chooser(compared, filename),
+        true => chooser(compared, &filename),
         false => compared[0].to_owned(),
     };
 
@@ -229,7 +233,7 @@ pub fn decrypt_file(filename: &str, output: Option<String>) -> Result<(), FcErro
 
     decrypted_content = match decompress(&decrypted_content) {
         Ok(d) => d,
-        Err(e) => return Err(FcError::DecompressionError),
+        Err(e) => return Err(FcError::DecompressionError(e.to_string())),
     };
 
     let hash = compute_hash(&decrypted_content);
