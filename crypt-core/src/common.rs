@@ -484,13 +484,7 @@ impl Convert for PathBuf {
 /// - `GOOGLE_CLIENT_ID`: Google OAuth client ID.
 /// - `GOOGLE_CLIENT_SECRET`: Google OAuth client secret.
 ///
-/// # Todo
-///
-/// - Fix the hardcoded file path for better flexibility.
-///
-/// @return Result<(), Error> indicating success or an error.
 pub fn parse_json_token() -> Result<(), Error> {
-    // todo: fix path
     let mut config_path = get_config_folder();
     config_path.push("google.json");
 
@@ -506,8 +500,7 @@ pub fn parse_json_token() -> Result<(), Error> {
     secret = secret.replace(&['\"'][..], ""); 
  
     std::env::set_var("GOOGLE_CLIENT_ID", client);
-    std::env::set_var("GOOGLE_CLIENT_SECRET", secret); 
-
+    std::env::set_var("GOOGLE_CLIENT_SECRET", secret);
     Ok(())
 }
 
