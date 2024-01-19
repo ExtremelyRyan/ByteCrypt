@@ -1,16 +1,17 @@
 use crate::{
-    common::{get_crypt_folder, send_information},
+    common::{get_crypt_folder, send_information, parse_json_token},
     config::get_config,
     db,
     encryption::{compress, decompress, generate_seeds},
     encryption::{KEY_SIZE, NONCE_SIZE},
 };
 use chacha20poly1305::{aead::Aead, ChaCha20Poly1305, Key, KeyInit, Nonce};
+use chrono::Duration;
 use lazy_static::lazy_static;
 use oauth2::{
-    basic::BasicClient, reqwest::http_client, revocation::StandardRevocableToken, AuthUrl,
+    basic::BasicClient, reqwest::http_client, AuthUrl,
     AuthorizationCode, ClientId, ClientSecret, CsrfToken, PkceCodeChallenge, RedirectUrl,
-    RevocationUrl, Scope, TokenResponse, TokenUrl, StandardTokenResponse, AccessToken,
+    RevocationUrl, Scope, TokenResponse, TokenUrl, AccessToken, RefreshToken,
 };
 use std::{
     fs,
@@ -20,7 +21,7 @@ use std::{
         env,
         io::{BufRead, BufReader, Write},
         net::TcpListener,
-    },
+    }, default,
 };
 use url::Url;
 use serde::{Serialize, Deserialize};
@@ -64,8 +65,9 @@ lazy_static! {
 /// CloudPlatform::Google
 /// CloudPlatform::DropBox
 ///```
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
 pub enum CloudService {
+    #[default]
     Google,
     Dropbox,
 }
@@ -129,7 +131,7 @@ pub enum CloudTask {
 ///     access_token: String,
 /// }
 ///```
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
 pub struct UserToken {
     ///Platform the token is used for
     pub service: CloudService,
@@ -160,137 +162,10 @@ impl UserToken {
             return user_token;
         }
 
+        let parse_json_token = parse_json_token();
+
 
         // Unwrapping token_result will either produce a Token or a RequestTokenError.
-
-        //Authorization URL to redirect the user
-        // let (authorize_url, _) = client
-        //     .authorize_url(CsrfToken::new_random)
-        //     .add_scope(Scope::new(
-        //         "https://www.googleapis.com/auth/drive".to_string(),
-        //     ))
-        //     .use_implicit_flow()
-        //     .set_response_type(&ResponseType::new("token".to_string()))
-        //     .url();
-
-        // send_information(vec![format!(
-        //     "Open this URL to authorize this application:\n{}\n",
-        //     authorize_url
-        // )]);
-        // let mut token: Option<String> = None;
-        // let mut expires_in: Option<u64> = None;
-
-        // //Redirect server that grabs the token
-        // let listener = TcpListener::bind("127.0.0.1:3000").unwrap();
-        // for stream in listener.incoming() {
-        //     if let Ok(mut stream) = stream {
-        //         // Read the HTTP request
-        //         let mut reader = BufReader::new(&stream);
-        //         let mut request = String::new();
-        //         reader.read_line(&mut request).unwrap();
-
-        //         // Check for GET request and serve the HTML with JavaScript
-        //         if request.starts_with("GET") {
-        //             let html = r#"
-        //                 <html>
-        //                 <body>
-        //                     <script>
-        //                     window.onload = function() {
-        //                         var hash = window.location.hash.substr(1);
-        //                         var xhr = new XMLHttpRequest();
-        //                         xhr.open("POST", "http://localhost:3000/token", true);
-        //                         xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
-        //                         xhr.send(hash);
-        //                     };
-        //                     </script>
-        //                     <p>You can now close this page and return to the applciation</p>
-        //                 </body>
-        //                 </html>
-        //             "#;
-        //             let response = format!(
-        //                 "HTTP/1.1 200 OK\r\nContent-Length: {}\r\n\r\n{}",
-        //                 html.len(),
-        //                 html
-        //             );
-        //             stream.write_all(response.as_bytes()).unwrap();
-        //         }
-        //         // Check for POST request to /token
-        //         else if request.starts_with("POST /token") {
-        //             let mut content_length = 0;
-        //             let mut headers = String::new();
-
-        //             //read the line until breakpoint reached
-        //             while reader.read_line(&mut headers).unwrap() > 0 {
-        //                 //Get the length of the body
-        //                 if headers.starts_with("Content-Length:") {
-        //                     content_length = headers
-        //                         .split_whitespace()
-        //                         .nth(1)
-        //                         .unwrap()
-        //                         .parse::<usize>()
-        //                         .unwrap();
-        //                 }
-        //                 //break out of the loop if end reached
-        //                 if headers == "\r\n" {
-        //                     break;
-        //                 }
-        //                 headers.clear();
-        //             }
-        //             //Read the body
-        //             let mut body_buffer = vec![0_u8; content_length];
-        //             reader.read_exact(&mut body_buffer).unwrap();
-        //             let body = String::from_utf8(body_buffer).unwrap();
-
-        //             //Extract the token
-        //             let body_parts: HashMap<_, _> = form_urlencoded::parse(body.as_bytes())
-        //                 .into_owned()
-        //                 .collect();
-        //             token = body_parts.get("access_token").cloned();
-        //             expires_in = body_parts
-        //                 .get("expires_in")
-        //                 .and_then(|v| v.parse::<u64>().ok());
-
-        //             //Respond to close connection
-        //             let response = "HTTP/1.1 200 OK\r\n\r\n";
-        //             stream.write_all(response.as_bytes()).unwrap();
-        //             break; //shut down server
-        //         }
-        //     }
-        // }
-        let token = match token {
-            Some(token) => token,
-            None => {
-                send_information(vec![format!("Unable to get access token")]);
-                "".to_string()
-            }
-        };
-        let expires_in = match expires_in {
-            Some(expires_in) => expires_in,
-            None => {
-                send_information(vec![format!("Unable to get token expiration information")]);
-                0
-            }
-        };
-        //Create the user_token
-        let (key_seed, nonce_seed) = generate_seeds();
-        let user_token = Self {
-            service: CloudService::Google,
-            key_seed,
-            nonce_seed,
-            expiration: SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .expect("Somehow, time has gone backwards")
-                .as_secs()
-                + expires_in,
-            access_token: token.to_string(),
-        };
-
-        let _ = db::insert_token(&user_token);
-        let _ = save_access_token(&user_token);
-        user_token
-    }
-
-    pub fn google() -> &StandardTokenResponse<EF,TT> { 
         let google_client_id = ClientId::new(
             env::var("GOOGLE_CLIENT_ID")
                 .expect("Missing the GOOGLE_CLIENT_ID environment variable."),
@@ -314,20 +189,20 @@ impl UserToken {
         // This example will be running its own server at localhost:8080.
         // See below for the server implementation.
         .set_redirect_uri(
-            RedirectUrl::new("127.0.0.1:3000".to_string()).expect("Invalid redirect URL"),
-        )
-        // Google supports OAuth 2.0 Token Revocation (RFC-7009)
-        .set_revocation_uri(
-            RevocationUrl::new("https://oauth2.googleapis.com/revoke".to_string())
-                .expect("Invalid revocation endpoint URL"),
+            RedirectUrl::new("http://127.0.0.1:3000".to_string()).expect("Invalid redirect URL"),
         );
+        // Google supports OAuth 2.0 Token Revocation (RFC-7009)
+        // .set_revocation_uri(
+        //     RevocationUrl::new("https://oauth2.googleapis.com/revoke".to_string())
+        //         .expect("Invalid revocation endpoint URL"),
+        // );
 
         // Google supports Proof Key for Code Exchange (PKCE - https://oauth.net/2/pkce/).
         // Create a PKCE code verifier and SHA-256 encode it as a code challenge.
         let (pkce_code_challenge, pkce_code_verifier) = PkceCodeChallenge::new_random_sha256();
 
         // Generate the authorization URL to which we'll redirect the user.
-        let (authorize_url, csrf_state) = client
+        let (authorize_url, _csrf_state) = client
             .authorize_url(CsrfToken::new_random)
             // This example is requesting access to the "calendar" features and the user's profile.
             .add_scope(Scope::new(
@@ -340,6 +215,11 @@ impl UserToken {
             "Open this URL in your browser:\n{}\n",
             authorize_url.to_string()
         );
+
+        // what we use to save our token info to later on.
+        let mut access_token: &AccessToken = &AccessToken::new(String::from(""));
+        let mut expire: std::time::Duration = std::time::Duration::ZERO; 
+        let mut refresh_token: Option<&RefreshToken> = None;
 
         // A very naive implementation of the redirect server.
         let listener = TcpListener::bind("127.0.0.1:3000").unwrap();
@@ -359,7 +239,7 @@ impl UserToken {
                     let code_pair = url
                         .query_pairs()
                         .find(|pair| {
-                            let &(ref key, _) = pair;
+                            let (key, _) = pair;
                             key == "code"
                         })
                         .unwrap();
@@ -370,7 +250,7 @@ impl UserToken {
                     let state_pair = url
                         .query_pairs()
                         .find(|pair| {
-                            let &(ref key, _) = pair;
+                            let ( key, _) = pair;
                             key == "state"
                         })
                         .unwrap();
@@ -387,13 +267,6 @@ impl UserToken {
                 );
                 stream.write_all(response.as_bytes()).unwrap();
 
-                // println!("Google returned the following code:\n{}\n", code.secret());
-                // println!(
-                //     "Google returned the following state:\n{} (expected `{}`)\n",
-                //     state.secret(),
-                //     csrf_state.secret()
-                // );
-
                 // Exchange the code with a token.
                 let token_response = client
                     .exchange_code(code)
@@ -406,29 +279,34 @@ impl UserToken {
                 );
 
                 let token_response = token_response.unwrap();
+                access_token = token_response.access_token();
+                expire = token_response.expires_in().unwrap();
 
-                let t =  token_response.access_token();
-                let expire = token_response.expires_in().unwrap();
-                let x = token_response.refresh_token()
 
-                // Revoke the obtained token
-                // let token_response = token_response.unwrap();
-                // let token_to_revoke: StandardRevocableToken = match token_response.refresh_token() {
-                //     Some(token) => token.into(),
-                //     None => token_response.access_token().into(),
-                // };
+                //Create the user_token
+                let (key_seed, nonce_seed) = generate_seeds();
+                let user_token = Self {
+                    service: CloudService::Google,
+                    key_seed,
+                    nonce_seed,
+                    expiration: SystemTime::now()
+                        .duration_since(UNIX_EPOCH)
+                        .expect("Somehow, time has gone backwards")
+                        .as_secs()
+                        + expire.as_secs(),
+                    access_token: access_token.secret().to_owned(),
+                };
 
-                // client
-                //     .revoke_token(token_to_revoke)
-                //     .unwrap()
-                //     .request(http_client)
-                //     .expect("Failed to revoke token");
-
-                // The server will terminate itself after revoking the token.
-                // break;
-            }
-        }
+                let _ = db::insert_token(&user_token);
+                let _ = save_access_token(&user_token);
+                return user_token;
+                 
+                   
+            } 
+        };
+        return UserToken::default();
     }
+
 
     /// Generate a new user token to use with Dropbox.
     /// - Prompts user with link to authenticate with Dropbox.
@@ -546,3 +424,100 @@ pub fn purge_tokens() {
         send_information(vec![format!("removed dropbox token file.")]);
     }
 }
+
+
+// old redirect
+        //Authorization URL to redirect the user
+        // let (authorize_url, _) = client
+        //     .authorize_url(CsrfToken::new_random)
+        //     .add_scope(Scope::new(
+        //         "https://www.googleapis.com/auth/drive".to_string(),
+        //     ))
+        //     .use_implicit_flow()
+        //     .set_response_type(&ResponseType::new("token".to_string()))
+        //     .url();
+
+        // send_information(vec![format!(
+        //     "Open this URL to authorize this application:\n{}\n",
+        //     authorize_url
+        // )]);
+        // let mut token: Option<String> = None;
+        // let mut expires_in: Option<u64> = None;
+
+        // //Redirect server that grabs the token
+        // let listener = TcpListener::bind("127.0.0.1:3000").unwrap();
+        // for stream in listener.incoming() {
+        //     if let Ok(mut stream) = stream {
+        //         // Read the HTTP request
+        //         let mut reader = BufReader::new(&stream);
+        //         let mut request = String::new();
+        //         reader.read_line(&mut request).unwrap();
+
+        //         // Check for GET request and serve the HTML with JavaScript
+        //         if request.starts_with("GET") {
+        //             let html = r#"
+        //                 <html>
+        //                 <body>
+        //                     <script>
+        //                     window.onload = function() {
+        //                         var hash = window.location.hash.substr(1);
+        //                         var xhr = new XMLHttpRequest();
+        //                         xhr.open("POST", "http://localhost:3000/token", true);
+        //                         xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+        //                         xhr.send(hash);
+        //                     };
+        //                     </script>
+        //                     <p>You can now close this page and return to the applciation</p>
+        //                 </body>
+        //                 </html>
+        //             "#;
+        //             let response = format!(
+        //                 "HTTP/1.1 200 OK\r\nContent-Length: {}\r\n\r\n{}",
+        //                 html.len(),
+        //                 html
+        //             );
+        //             stream.write_all(response.as_bytes()).unwrap();
+        //         }
+        //         // Check for POST request to /token
+        //         else if request.starts_with("POST /token") {
+        //             let mut content_length = 0;
+        //             let mut headers = String::new();
+
+        //             //read the line until breakpoint reached
+        //             while reader.read_line(&mut headers).unwrap() > 0 {
+        //                 //Get the length of the body
+        //                 if headers.starts_with("Content-Length:") {
+        //                     content_length = headers
+        //                         .split_whitespace()
+        //                         .nth(1)
+        //                         .unwrap()
+        //                         .parse::<usize>()
+        //                         .unwrap();
+        //                 }
+        //                 //break out of the loop if end reached
+        //                 if headers == "\r\n" {
+        //                     break;
+        //                 }
+        //                 headers.clear();
+        //             }
+        //             //Read the body
+        //             let mut body_buffer = vec![0_u8; content_length];
+        //             reader.read_exact(&mut body_buffer).unwrap();
+        //             let body = String::from_utf8(body_buffer).unwrap();
+
+        //             //Extract the token
+        //             let body_parts: HashMap<_, _> = form_urlencoded::parse(body.as_bytes())
+        //                 .into_owned()
+        //                 .collect();
+        //             token = body_parts.get("access_token").cloned();
+        //             expires_in = body_parts
+        //                 .get("expires_in")
+        //                 .and_then(|v| v.parse::<u64>().ok());
+
+        //             //Respond to close connection
+        //             let response = "HTTP/1.1 200 OK\r\n\r\n";
+        //             stream.write_all(response.as_bytes()).unwrap();
+        //             break; //shut down server
+        //         }
+        //     }
+        // }

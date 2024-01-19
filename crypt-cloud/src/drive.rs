@@ -357,13 +357,13 @@ fn build_headers(start: u64, end: u64, total_size: u64) -> HeaderMap {
     dbg!(&end, &start, &total_size);
     // Ensure no overflow by adding first and then subtracting
     let content_length = end.checked_add(1).and_then(|e| e.checked_sub(start));
+    dbg!(&content_length);
     if let Some(length) = content_length {
         headers.insert(CONTENT_LENGTH, HeaderValue::from(length));
     } else {
         // TODO: find better way to handle this
         panic!("Overflow when calculating content length");
     }
-
     headers
 }
 

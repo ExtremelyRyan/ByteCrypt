@@ -1,8 +1,8 @@
 use anyhow::{Error, Ok, Result};
 use std::{
     fmt::Display,
-    fs::read_to_string,
-    io,
+    fs::{read_to_string, File},
+    io::{self, BufReader, BufRead, Read},
     path::{Path, PathBuf},
     process::Command,
     time::SystemTime,
@@ -462,17 +462,51 @@ impl Convert for PathBuf {
     }
 }
 
+/// Parse JSON Token from File
+///
+/// This function reads a JSON file containing Google OAuth configuration, extracts the necessary
+/// information, and sets environment variables accordingly.
+///
+/// # Errors
+///
+/// This function returns a `Result<(), Error>` where `Error` is the type for any error that occurred
+/// during the parsing process. This includes file reading errors, JSON parsing errors, and any other
+/// related issues.
+///
+/// # Panics
+///
+/// This function may panic if the JSON file format does not match the expected structure.
+/// It's recommended to ensure the JSON file is properly formatted and contains the required fields.
+///
+/// # Environment Variables
+///
+/// This function sets the following environment variables based on the JSON content:
+/// - `GOOGLE_CLIENT_ID`: Google OAuth client ID.
+/// - `GOOGLE_CLIENT_SECRET`: Google OAuth client secret.
+///
+/// # Todo
+///
+/// - Fix the hardcoded file path for better flexibility.
+///
+/// @return Result<(), Error> indicating success or an error.
 pub fn parse_json_token() -> Result<(), Error> {
-    let path = r#"C:\Users\1140982\crypt_config\google.json"#;
-    let json = read_to_string(path)?;
+    // todo: fix path
+    let mut config_path = get_config_folder();
+    config_path.push("google.json");
 
-    // Parse the string of data into serde_json::Value.
-    let v: Value = serde_json::from_str(json.as_str())?;
+    // Open the file in read-only mode with buffer.
+    let file = File::open(config_path)?; 
 
-    println!(
-        "client id: {} \nclient secret: {}",
-        v["web"]["client_id"], v["web"]["client_secret"]
-    );
+    // Read the JSON contents of the file as an instance of `User`.
+    let v: Value = serde_json::from_reader(BufReader::new(file))?; 
+
+    let mut client: String = v["web"]["client_id"].to_string();
+    client = client.replace(&['\"'][..], "");
+    let mut secret: String = v["web"]["client_secret"].to_string();
+    secret = secret.replace(&['\"'][..], ""); 
+ 
+    std::env::set_var("GOOGLE_CLIENT_ID", client);
+    std::env::set_var("GOOGLE_CLIENT_SECRET", secret); 
 
     Ok(())
 }
