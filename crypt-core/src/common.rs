@@ -1,6 +1,7 @@
-use anyhow::{Ok, Result};
+use anyhow::{Error, Ok, Result};
 use std::{
     fmt::Display,
+    fs::read_to_string,
     io,
     path::{Path, PathBuf},
     process::Command,
@@ -12,6 +13,7 @@ use walkdir::WalkDir;
 use crate::config;
 use crate::ui_repo::CharacterSet;
 use ansi_term::Color;
+use serde_json::Value;
 
 /// given a path, dissect and return a struct containing the full path, is_dir, parent path, and name.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -330,9 +332,9 @@ pub fn get_config_folder() -> PathBuf {
 
 /// performs a process command to query user profile.
 /// if on windows, we use `cmd`. If on Linux, we use `sh`
-/// returns a `PathBuf` of the home path with "crypt" 
+/// returns a `PathBuf` of the home path with "crypt"
 /// appended to the end of the path if query was sucessful.
-/// 
+///
 /// # Example
 /// assuming user profile name is ryan
 /// ```rust ignore
@@ -344,7 +346,7 @@ pub fn get_config_folder() -> PathBuf {
 /// ```
 /// # Panics
 ///
-/// function can panic if either the process fails, 
+/// function can panic if either the process fails,
 /// or the conversion from Vec<u8> to String fails.
 pub fn get_crypt_folder() -> PathBuf {
     let output = if cfg!(target_os = "windows") {
@@ -460,6 +462,21 @@ impl Convert for PathBuf {
     }
 }
 
+pub fn parse_json_token() -> Result<(), Error> {
+    let path = r#"C:\Users\1140982\crypt_config\google.json"#;
+    let json = read_to_string(path)?;
+
+    // Parse the string of data into serde_json::Value.
+    let v: Value = serde_json::from_str(json.as_str())?;
+
+    println!(
+        "client id: {} \nclient secret: {}",
+        v["web"]["client_id"], v["web"]["client_secret"]
+    );
+
+    Ok(())
+}
+
 /// Called to print any information passed.
 ///
 /// # Arguments
@@ -528,7 +545,7 @@ pub fn send_information(info: Vec<String>) {
 // }
 
 /// takes in a path, and recursively walks the subdirectories and returns a vec<pathbuf>
-pub fn walk_directory(path_in: &str) -> Result<Vec<PathBuf>> {
+pub fn walk_directory(path_in: &str) -> Result<Vec<PathBuf>, Error> {
     let path = match path_in.is_empty() {
         true => std::env::current_dir()?,
         false => get_full_file_path(path_in),
@@ -547,7 +564,7 @@ pub fn walk_directory(path_in: &str) -> Result<Vec<PathBuf>> {
 }
 
 /// takes in a path, and recursively walks the subdirectories and returns a vec<pathbuf>
-pub fn walk_crypt_folder() -> Result<Vec<PathBuf>> {
+pub fn walk_crypt_folder() -> Result<Vec<PathBuf>, Error> {
     let crypt_folder = get_crypt_folder().to_str().unwrap().to_string();
 
     // folders to avoid

@@ -24,9 +24,11 @@ pub struct CommandLineArgs {
     #[arg(long, hide = true)]
     md: bool,
 
-    ///TUI mode
-    #[arg(short, long, default_value_t = false)]
-    pub tui: bool,
+    // ///TUI mode
+    // #[arg(short, long, default_value_t = false)]
+    // pub tui: bool,
+    #[arg(short, default_value_t = false)]
+    pub test: bool,
 
     ///Subcommands
     #[command(subcommand)]
@@ -271,8 +273,12 @@ pub fn load_cli() {
     }
 
     // Call TUI if flag was passed
-    if cli.tui {
-        // load_tui().expect("failed to load TUI");
+    // if cli.tui {
+    //     // load_tui().expect("failed to load TUI");
+    // }
+
+    if cli.test {
+        directive::test();
     }
 
     // Process the command passed by the user

@@ -5,7 +5,7 @@ authors = ["Ryan M", "Joshua B"]
 edition = "2021"
 
 [dependencies]
-crypt-ui = { path = "crypt-ui" } 
+crypt-ui = { path = "crypt-ui" }
 anyhow = {workspace = true}
 chrono = { version = "0.4.31", features = ["serde"] }
 

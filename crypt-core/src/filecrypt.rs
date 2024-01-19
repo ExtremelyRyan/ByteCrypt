@@ -198,7 +198,10 @@ pub fn decrypt_file(filename: &str, output: Option<String>) -> Result<(), FcErro
         // file may or may not include extension, so check for both & if filename is partial match.
         if p.file_stem().unwrap().to_ascii_lowercase() == filename
             || p.file_name().unwrap().to_ascii_lowercase() == filename
-            || p.to_string_lossy().to_string().to_lowercase().contains(filename)
+            || p.to_string_lossy()
+                .to_string()
+                .to_lowercase()
+                .contains(filename)
         {
             compared.push(p.to_owned());
         }
