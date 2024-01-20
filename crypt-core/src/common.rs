@@ -472,10 +472,12 @@ pub fn chooser(mut list: Vec<PathBuf>, item: &str) -> PathBuf {
     println!("----------------------------------------------------------------");
     
     folders.sort();
-    for i in folders {
+    for i in &folders {
         println!("{0: <3} {1: <45}", count, i.display());
         count += 1;
     }
+
+    list.append(&mut folders);
 
 
     // get input
