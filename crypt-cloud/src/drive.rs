@@ -15,7 +15,7 @@ use serde_json::Value;
 use std::path::{Path, PathBuf};
 use tokio::{fs::File, io::AsyncReadExt};
 
-const GOOGLE_FOLDER: &str = "Crypt"; 
+const GOOGLE_FOLDER: &str = "Crypt";
 const CHUNK_SIZE: usize = 5_242_880; //5MB
 
 /// <b>Asynchronously</b> sends an HTTP GET request to the specified URL with the provided user credentials.

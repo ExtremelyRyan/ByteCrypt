@@ -1,5 +1,5 @@
 use crate::{
-    common::{get_crypt_folder, send_information, parse_json_token},
+    common::{get_crypt_folder, parse_json_token, send_information},
     config::get_config,
     db,
     encryption::{compress, decompress, generate_seeds},
@@ -9,22 +9,22 @@ use chacha20poly1305::{aead::Aead, ChaCha20Poly1305, Key, KeyInit, Nonce};
 use chrono::Duration;
 use lazy_static::lazy_static;
 use oauth2::{
-    basic::BasicClient, reqwest::http_client, AuthUrl,
-    AuthorizationCode, ClientId, ClientSecret, CsrfToken, PkceCodeChallenge, RedirectUrl,
-    RevocationUrl, Scope, TokenResponse, TokenUrl, AccessToken, RefreshToken,
+    basic::BasicClient, reqwest::http_client, AccessToken, AuthUrl, AuthorizationCode, ClientId,
+    ClientSecret, CsrfToken, PkceCodeChallenge, RedirectUrl, RefreshToken, RevocationUrl, Scope,
+    TokenResponse, TokenUrl,
 };
+use serde::{Deserialize, Serialize};
 use std::{
-    fs,
+    default, fs,
     path::Path,
     time::{SystemTime, UNIX_EPOCH},
     {
         env,
         io::{BufRead, BufReader, Write},
         net::TcpListener,
-    }, default,
+    },
 };
 use url::Url;
-use serde::{Serialize, Deserialize};
 
 const _GOOGLE_FOLDER: &str = "Crypt";
 pub const GOOGLE_CLIENT_ID: &str =
@@ -164,7 +164,6 @@ impl UserToken {
 
         let parse_json_token = parse_json_token();
 
-
         // Unwrapping token_result will either produce a Token or a RequestTokenError.
         let google_client_id = ClientId::new(
             env::var("GOOGLE_CLIENT_ID")
@@ -218,7 +217,7 @@ impl UserToken {
 
         // what we use to save our token info to later on.
         let mut access_token: &AccessToken = &AccessToken::new(String::from(""));
-        let mut expire: std::time::Duration = std::time::Duration::ZERO; 
+        let mut expire: std::time::Duration = std::time::Duration::ZERO;
         let mut refresh_token: Option<&RefreshToken> = None;
 
         // A very naive implementation of the redirect server.
@@ -250,7 +249,7 @@ impl UserToken {
                     let state_pair = url
                         .query_pairs()
                         .find(|pair| {
-                            let ( key, _) = pair;
+                            let (key, _) = pair;
                             key == "state"
                         })
                         .unwrap();
@@ -282,7 +281,6 @@ impl UserToken {
                 access_token = token_response.access_token();
                 expire = token_response.expires_in().unwrap();
 
-
                 //Create the user_token
                 let (key_seed, nonce_seed) = generate_seeds();
                 let user_token = Self {
@@ -300,13 +298,10 @@ impl UserToken {
                 let _ = db::insert_token(&user_token);
                 let _ = save_access_token(&user_token);
                 return user_token;
-                 
-                   
-            } 
-        };
+            }
+        }
         return UserToken::default();
     }
-
 
     /// Generate a new user token to use with Dropbox.
     /// - Prompts user with link to authenticate with Dropbox.
@@ -425,99 +420,98 @@ pub fn purge_tokens() {
     }
 }
 
-
 // old redirect
-        //Authorization URL to redirect the user
-        // let (authorize_url, _) = client
-        //     .authorize_url(CsrfToken::new_random)
-        //     .add_scope(Scope::new(
-        //         "https://www.googleapis.com/auth/drive".to_string(),
-        //     ))
-        //     .use_implicit_flow()
-        //     .set_response_type(&ResponseType::new("token".to_string()))
-        //     .url();
+//Authorization URL to redirect the user
+// let (authorize_url, _) = client
+//     .authorize_url(CsrfToken::new_random)
+//     .add_scope(Scope::new(
+//         "https://www.googleapis.com/auth/drive".to_string(),
+//     ))
+//     .use_implicit_flow()
+//     .set_response_type(&ResponseType::new("token".to_string()))
+//     .url();
 
-        // send_information(vec![format!(
-        //     "Open this URL to authorize this application:\n{}\n",
-        //     authorize_url
-        // )]);
-        // let mut token: Option<String> = None;
-        // let mut expires_in: Option<u64> = None;
+// send_information(vec![format!(
+//     "Open this URL to authorize this application:\n{}\n",
+//     authorize_url
+// )]);
+// let mut token: Option<String> = None;
+// let mut expires_in: Option<u64> = None;
 
-        // //Redirect server that grabs the token
-        // let listener = TcpListener::bind("127.0.0.1:3000").unwrap();
-        // for stream in listener.incoming() {
-        //     if let Ok(mut stream) = stream {
-        //         // Read the HTTP request
-        //         let mut reader = BufReader::new(&stream);
-        //         let mut request = String::new();
-        //         reader.read_line(&mut request).unwrap();
+// //Redirect server that grabs the token
+// let listener = TcpListener::bind("127.0.0.1:3000").unwrap();
+// for stream in listener.incoming() {
+//     if let Ok(mut stream) = stream {
+//         // Read the HTTP request
+//         let mut reader = BufReader::new(&stream);
+//         let mut request = String::new();
+//         reader.read_line(&mut request).unwrap();
 
-        //         // Check for GET request and serve the HTML with JavaScript
-        //         if request.starts_with("GET") {
-        //             let html = r#"
-        //                 <html>
-        //                 <body>
-        //                     <script>
-        //                     window.onload = function() {
-        //                         var hash = window.location.hash.substr(1);
-        //                         var xhr = new XMLHttpRequest();
-        //                         xhr.open("POST", "http://localhost:3000/token", true);
-        //                         xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
-        //                         xhr.send(hash);
-        //                     };
-        //                     </script>
-        //                     <p>You can now close this page and return to the applciation</p>
-        //                 </body>
-        //                 </html>
-        //             "#;
-        //             let response = format!(
-        //                 "HTTP/1.1 200 OK\r\nContent-Length: {}\r\n\r\n{}",
-        //                 html.len(),
-        //                 html
-        //             );
-        //             stream.write_all(response.as_bytes()).unwrap();
-        //         }
-        //         // Check for POST request to /token
-        //         else if request.starts_with("POST /token") {
-        //             let mut content_length = 0;
-        //             let mut headers = String::new();
+//         // Check for GET request and serve the HTML with JavaScript
+//         if request.starts_with("GET") {
+//             let html = r#"
+//                 <html>
+//                 <body>
+//                     <script>
+//                     window.onload = function() {
+//                         var hash = window.location.hash.substr(1);
+//                         var xhr = new XMLHttpRequest();
+//                         xhr.open("POST", "http://localhost:3000/token", true);
+//                         xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+//                         xhr.send(hash);
+//                     };
+//                     </script>
+//                     <p>You can now close this page and return to the applciation</p>
+//                 </body>
+//                 </html>
+//             "#;
+//             let response = format!(
+//                 "HTTP/1.1 200 OK\r\nContent-Length: {}\r\n\r\n{}",
+//                 html.len(),
+//                 html
+//             );
+//             stream.write_all(response.as_bytes()).unwrap();
+//         }
+//         // Check for POST request to /token
+//         else if request.starts_with("POST /token") {
+//             let mut content_length = 0;
+//             let mut headers = String::new();
 
-        //             //read the line until breakpoint reached
-        //             while reader.read_line(&mut headers).unwrap() > 0 {
-        //                 //Get the length of the body
-        //                 if headers.starts_with("Content-Length:") {
-        //                     content_length = headers
-        //                         .split_whitespace()
-        //                         .nth(1)
-        //                         .unwrap()
-        //                         .parse::<usize>()
-        //                         .unwrap();
-        //                 }
-        //                 //break out of the loop if end reached
-        //                 if headers == "\r\n" {
-        //                     break;
-        //                 }
-        //                 headers.clear();
-        //             }
-        //             //Read the body
-        //             let mut body_buffer = vec![0_u8; content_length];
-        //             reader.read_exact(&mut body_buffer).unwrap();
-        //             let body = String::from_utf8(body_buffer).unwrap();
+//             //read the line until breakpoint reached
+//             while reader.read_line(&mut headers).unwrap() > 0 {
+//                 //Get the length of the body
+//                 if headers.starts_with("Content-Length:") {
+//                     content_length = headers
+//                         .split_whitespace()
+//                         .nth(1)
+//                         .unwrap()
+//                         .parse::<usize>()
+//                         .unwrap();
+//                 }
+//                 //break out of the loop if end reached
+//                 if headers == "\r\n" {
+//                     break;
+//                 }
+//                 headers.clear();
+//             }
+//             //Read the body
+//             let mut body_buffer = vec![0_u8; content_length];
+//             reader.read_exact(&mut body_buffer).unwrap();
+//             let body = String::from_utf8(body_buffer).unwrap();
 
-        //             //Extract the token
-        //             let body_parts: HashMap<_, _> = form_urlencoded::parse(body.as_bytes())
-        //                 .into_owned()
-        //                 .collect();
-        //             token = body_parts.get("access_token").cloned();
-        //             expires_in = body_parts
-        //                 .get("expires_in")
-        //                 .and_then(|v| v.parse::<u64>().ok());
+//             //Extract the token
+//             let body_parts: HashMap<_, _> = form_urlencoded::parse(body.as_bytes())
+//                 .into_owned()
+//                 .collect();
+//             token = body_parts.get("access_token").cloned();
+//             expires_in = body_parts
+//                 .get("expires_in")
+//                 .and_then(|v| v.parse::<u64>().ok());
 
-        //             //Respond to close connection
-        //             let response = "HTTP/1.1 200 OK\r\n\r\n";
-        //             stream.write_all(response.as_bytes()).unwrap();
-        //             break; //shut down server
-        //         }
-        //     }
-        // }
+//             //Respond to close connection
+//             let response = "HTTP/1.1 200 OK\r\n\r\n";
+//             stream.write_all(response.as_bytes()).unwrap();
+//             break; //shut down server
+//         }
+//     }
+// }

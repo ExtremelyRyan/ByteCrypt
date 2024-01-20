@@ -2,11 +2,11 @@ use anyhow::{Error, Ok, Result};
 use std::{
     fmt::Display,
     fs::{read_to_string, File},
-    io::{self, BufReader, BufRead, Read},
+    io::{self, BufRead, BufReader, Read},
     path::{Path, PathBuf},
     process::Command,
     time::SystemTime,
-    {fs::OpenOptions, io::Write},
+    {fs::OpenOptions, io::Write}, str::FromStr,
 };
 use walkdir::WalkDir;
 
@@ -401,16 +401,43 @@ pub fn get_machine_name() -> String {
 }
 
 /// chooser takes in a vector, and displays contents to the user with a number and last modified metadata.
-/// user will choose number, and return that item.\
+/// user will choose number, and return that item.
 /// todo: rename this retarded function
-pub fn chooser(list: Vec<PathBuf>, item: &str) -> PathBuf {
+pub fn chooser(mut list: Vec<PathBuf>, item: &str) -> PathBuf {
     let mut count = 1;
 
-    println!("\nmultiple values found for {item}");
-    println!("please choose from the following matches: (or 0 to abort)\n");
-    println!("{0: <3} {1: <36} {2: <14}", "#", "files", "last modified");
+    // if item we are looking for is empty, we will just show all files in crypt folder.
+    match item.is_empty() {
+        true => {
+            println!("please choose from the following items: (or 0 to abort)\n");
+            println!("{0: <3} {1: <45} {2: <14}", "#", "files", "last modified");
+        }
+        false => {
+            println!("\nmultiple values found for {item}");
+            println!("please choose from the following matches: (or 0 to abort)\n");
+            println!("{0: <3} {1: <45} {2: <14}", "#", "files", "last modified");
 
-    for item in &list {
+            let mut compared: Vec<PathBuf> = Vec::new();
+
+            // compare files found to filename, and keep in compared those that match
+            for p in list.iter() {
+                // file may or may not include extension, so check for both & if filename is partial match.
+                if p.file_stem().unwrap().to_ascii_lowercase().to_string_lossy().contains(item)
+                    || p.file_name().unwrap().to_ascii_lowercase() == item
+                {
+                    compared.push(p.to_owned());
+                }
+            }
+
+            list = compared;
+            
+        }
+    };
+
+    let mut folders: Vec<PathBuf> = Vec::new();
+
+    println!("----------------------------------------------------------------");
+    for mut item in list.clone().into_iter() {
         let meta = item.metadata().unwrap();
 
         let found = item.display().to_string().find(r#"\crypt"#).unwrap();
@@ -418,14 +445,38 @@ pub fn chooser(list: Vec<PathBuf>, item: &str) -> PathBuf {
         let str_item = item.display().to_string();
 
         let (_left, right) = str_item.split_at(found);
+        let mut cropped_path = PathBuf::from_str(right).unwrap();
         println!(
-            "{0: <3} {1: <36} {2: <14}",
+            "{0: <3} {1: <45} {2: <14}",
             count,
-            right,
+            cropped_path.display(),
             get_sys_time_timestamp(meta.modified().unwrap())
         );
         count += 1;
+
+        // see if any directories past crypt are present in current path
+        while cropped_path.display().to_string().len() > 6 {
+            cropped_path.pop();
+            match cropped_path.display().to_string().len() > 6 {
+                true => {
+                    if !folders.contains(&cropped_path) {
+                        folders.push(cropped_path.clone());
+                    }
+                }
+                false => break,
+            }
+        }
     }
+    println!("----------------------------------------------------------------");
+    println!("{0: <3} {1: <45} ", "#", "folders", );
+    println!("----------------------------------------------------------------");
+    
+    folders.sort();
+    for i in folders {
+        println!("{0: <3} {1: <45}", count, i.display());
+        count += 1;
+    }
+
 
     // get input
     loop {
@@ -435,7 +486,7 @@ pub fn chooser(list: Vec<PathBuf>, item: &str) -> PathBuf {
         let num: usize = number.trim().parse().unwrap();
 
         if num == 0 {
-            std::process::exit(0);
+            return PathBuf::from("");
         }
 
         if num <= list.len() {
@@ -489,16 +540,16 @@ pub fn parse_json_token() -> Result<(), Error> {
     config_path.push("google.json");
 
     // Open the file in read-only mode with buffer.
-    let file = File::open(config_path)?; 
+    let file = File::open(config_path)?;
 
     // Read the JSON contents of the file as an instance of `User`.
-    let v: Value = serde_json::from_reader(BufReader::new(file))?; 
+    let v: Value = serde_json::from_reader(BufReader::new(file))?;
 
     let mut client: String = v["web"]["client_id"].to_string();
     client = client.replace(&['\"'][..], "");
     let mut secret: String = v["web"]["client_secret"].to_string();
-    secret = secret.replace(&['\"'][..], ""); 
- 
+    secret = secret.replace(&['\"'][..], "");
+
     std::env::set_var("GOOGLE_CLIENT_ID", client);
     std::env::set_var("GOOGLE_CLIENT_SECRET", secret);
     Ok(())

@@ -2,10 +2,11 @@ use crate::cli::{
     KeeperCommand,
     KeeperPurgeSubCommand::{Database, Token},
 };
+use anyhow::Result;
 use crypt_cloud::crypt_core::{
     common::{
-        build_tree, get_crypt_folder, get_full_file_path, send_information, walk_directory,
-        walk_paths, PathInfo,
+        build_tree, chooser, get_crypt_folder, get_full_file_path, send_information,
+        walk_crypt_folder, walk_directory, walk_paths, PathInfo,
     },
     config::{self, Config, ConfigTask, ItemsTask},
     db::{
@@ -100,7 +101,7 @@ pub fn decrypt(path: &str, _in_place: bool, output: Option<String>) {
     };
 }
 
-fn google_startup() -> anyhow::Result<(Runtime, UserToken, String), CloudError> {
+fn google_startup() -> Result<(Runtime, UserToken, String), CloudError> {     
     let runtime = match Runtime::new() {
         Ok(it) => it,
         Err(_err) => return Err(CloudError::RuntimeError),
@@ -110,7 +111,7 @@ fn google_startup() -> anyhow::Result<(Runtime, UserToken, String), CloudError> 
     let user_token = UserToken::new_google();
 
     //Access google drive and ensure a crypt folder exists, create if doesn't
-    let crypt_folder = match runtime.block_on(drive::g_create_folder(&user_token, None, "")) {
+    let crypt_folder: String = match runtime.block_on(drive::g_create_folder(&user_token, None, "")) {
         Ok(folder_id) => folder_id,
         Err(error) => {
             send_information(vec![format!("{}", error)]);
@@ -119,6 +120,21 @@ fn google_startup() -> anyhow::Result<(Runtime, UserToken, String), CloudError> 
     };
 
     Ok((runtime, user_token, crypt_folder))
+}
+
+pub fn google_upload2(path: &str) -> Result<()> {
+    let crypt_root = get_crypt_folder(); 
+    let dir = walk_crypt_folder()?;
+    let res = chooser(dir, path);
+
+    // user aborted
+    if res.to_string_lossy() == "" {
+        return Ok(())
+    }
+
+    dbg!("{}", res.display());
+
+    Ok(())
 }
 
 pub fn google_upload(path: &str, no_encrypt: &bool) {
