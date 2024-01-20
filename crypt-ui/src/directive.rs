@@ -513,7 +513,7 @@ pub fn keeper(kc: &KeeperCommand) {
 }
 
 pub fn test() {
-    dbg!(crypt_cloud::crypt_core::common::parse_json_token());
+
 }
 
 pub fn ls(local: &bool, cloud: &bool) {
