@@ -3,8 +3,6 @@ use async_recursion::async_recursion;
 use crypt_core::{
     common::DirInfo,
     common::{FileInfo, FsNode},
-    db::{insert_crypt, query_crypt},
-    filecrypt::{encrypt_contents, get_uuid},
     token::UserToken,
 };
 use reqwest::{
@@ -184,12 +182,12 @@ pub async fn g_upload(
     user_token: &UserToken,
     path: &str,
     parent: &str,
-    no_encrypt: &bool,
+    _no_encrypt: &bool,
 ) -> Result<String> {
     //Get file content
     let mut file = File::open(path).await?;
     // let mut tmp; // to appease the compiler gods
-    let mut file_name = Path::new(path).file_name().unwrap().to_str().unwrap();
+    let file_name = Path::new(path).file_name().unwrap().to_str().unwrap();
 
     // // if we are encrypting the file, get just the filename and append ".crypt"
     // if !no_encrypt {
@@ -284,7 +282,7 @@ async fn upload_chunks(session_uri: &str, file: &mut File, file_size: u64) -> Re
     return Err(anyhow::Error::msg("File upload not successful"));
 }
 
-async fn upload_content_chunks(session_uri: &str, data: &[u8]) -> Result<String> {
+async fn _upload_content_chunks(session_uri: &str, data: &[u8]) -> Result<String> {
     let client = reqwest::Client::new();
     let data_size = data.len() as u64;
 
@@ -454,7 +452,7 @@ pub async fn google_query_file(user_token: &UserToken, file_id: &str) -> Result<
         file_id
     );
     //Send the url and get the response
-    let response = request_url(&url, &user_token).await?;
+    let response = request_url(&url, user_token).await?;
 
     //If drive query failed, break out and print error
     if !response.status().is_success() {

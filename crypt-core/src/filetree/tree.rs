@@ -62,14 +62,11 @@ pub fn dir_walk(
                 FileTree::DirNode(dir_walk(&root.join(name), filter, compare)?)
             }
             path if path.is_symlink() => FileTree::LinkNode(Symlink {
-                name: name.into(),
+                name,
                 target: fs::read_link(path).unwrap().to_string_lossy().to_string(),
-                metadata: metadata,
+                metadata,
             }),
-            path if path.is_file() => FileTree::FileNode(File {
-                name: name.into(),
-                metadata: metadata,
-            }),
+            path if path.is_file() => FileTree::FileNode(File { name, metadata }),
             _ => unreachable!(),
         };
         directory.push(node);
@@ -81,7 +78,7 @@ pub fn dir_walk(
         .unwrap()
         .into();
     Ok(Directory {
-        name: name,
+        name,
         entries: directory,
     })
 }

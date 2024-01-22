@@ -8,9 +8,8 @@ use crate::{
 use chacha20poly1305::{aead::Aead, ChaCha20Poly1305, Key, KeyInit, Nonce};
 use lazy_static::lazy_static;
 use oauth2::{
-    basic::BasicClient, reqwest::http_client, AccessToken, AuthUrl, AuthorizationCode, ClientId,
-    ClientSecret, CsrfToken, PkceCodeChallenge, RedirectUrl, RefreshToken, Scope, TokenResponse,
-    TokenUrl,
+    basic::BasicClient, reqwest::http_client, AuthUrl, AuthorizationCode, ClientId, ClientSecret,
+    CsrfToken, PkceCodeChallenge, RedirectUrl, Scope, TokenResponse, TokenUrl,
 };
 use serde::{Deserialize, Serialize};
 use std::{
@@ -156,7 +155,7 @@ impl UserToken {
             return user_token;
         }
 
-        let parse_json_token = parse_json_token();
+        let _parse_json_token = parse_json_token();
 
         // Unwrapping token_result will either produce a Token or a RequestTokenError.
         let google_client_id = ClientId::new(
@@ -204,10 +203,7 @@ impl UserToken {
             .set_pkce_challenge(pkce_code_challenge)
             .url();
 
-        println!(
-            "Open this URL in your browser:\n{}\n",
-            authorize_url.to_string()
-        );
+        println!("Open this URL in your browser:\n{}\n", authorize_url);
 
         // A very naive implementation of the redirect server.
         let listener = TcpListener::bind("127.0.0.1:3000").unwrap();

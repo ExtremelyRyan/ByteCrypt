@@ -6,8 +6,7 @@ use crypt_cloud::crypt_core::{
 };
 
 use crate::directive::{
-    self, dropbox_download, dropbox_upload, dropbox_view, google_download, google_upload,
-    google_view,
+    self, dropbox_download, dropbox_upload, dropbox_view, google_download, google_view,
 };
 // use crate::tui::load_tui;
 

@@ -210,7 +210,7 @@ pub fn decrypt_file(filename: &str, output: Option<String>) -> Result<(), FcErro
 
     // if we have more than one match, prompt user to choose which file they want.
     let file_match = match compared.len() > 1 {
-        true => chooser(compared, &filename),
+        true => chooser(compared, filename),
         false => compared[0].to_owned(),
     };
 

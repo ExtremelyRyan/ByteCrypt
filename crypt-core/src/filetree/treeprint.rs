@@ -1,4 +1,4 @@
-use super::filetree::*;
+use super::tree::*;
 
 pub fn print_tree(root: &str, dir: &Directory) {
     const OTHER_CHILD: &str = "│   "; // prefix: pipe
@@ -25,7 +25,7 @@ pub fn print_tree(root: &str, dir: &Directory) {
                         prefix,
                         if count == 0 { FINAL_CHILD } else { OTHER_CHILD }
                     );
-                    let (d, f) = visit(&sub_dir, &new_prefix);
+                    let (d, f) = visit(sub_dir, &new_prefix);
                     dirs += d;
                     files += f;
                 }

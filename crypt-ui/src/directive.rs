@@ -17,7 +17,7 @@ use crypt_cloud::crypt_core::{
         decrypt_contents, decrypt_file, encrypt_file, get_uuid, get_uuid_from_file, FileCrypt,
     },
     filetree::{
-        filetree::{dir_walk, is_not_hidden, sort_by_name, Directory},
+        tree::{dir_walk, is_not_hidden, sort_by_name, Directory},
         treeprint::print_tree,
     },
     token::{purge_tokens, UserToken},
@@ -253,7 +253,7 @@ pub fn google_upload(path: &str, no_encrypt: &bool) {
                 let drive_id = &crypts.get(&file).unwrap().drive_id;
                 let exists = if !drive_id.is_empty() {
                     runtime
-                        .block_on(drive::g_id_exists(&user_token, &drive_id))
+                        .block_on(drive::g_id_exists(&user_token, drive_id))
                         .expect("Could not query Google Drive")
                 } else {
                     false
@@ -265,7 +265,7 @@ pub fn google_upload(path: &str, no_encrypt: &bool) {
                         &user_token,
                         &file.full_path.display().to_string(),
                         &parent_id,
-                        &no_encrypt,
+                        no_encrypt,
                     ));
                     //Update the FileCrypt's drive_id
                     crypts
@@ -274,7 +274,7 @@ pub fn google_upload(path: &str, no_encrypt: &bool) {
                 } else {
                     let _ = runtime.block_on(drive::g_update(
                         &user_token,
-                        &drive_id,
+                        drive_id,
                         &file.full_path.display().to_string(),
                     ));
                 }
@@ -286,7 +286,7 @@ pub fn google_upload(path: &str, no_encrypt: &bool) {
                 &user_token,
                 &path_info.full_path.display().to_string(),
                 &crypt_folder,
-                &no_encrypt,
+                no_encrypt,
             ));
             //Update the FileCrypt's drive_id
             if path_info.name.contains(".crypt") {

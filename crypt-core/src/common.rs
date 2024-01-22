@@ -1,8 +1,8 @@
 use anyhow::{Error, Ok, Result};
 use std::{
     fmt::Display,
-    fs::{read_to_string, File},
-    io::{self, BufRead, BufReader, Read},
+    fs::File,
+    io::{self, BufReader},
     path::{Path, PathBuf},
     process::Command,
     str::FromStr,
@@ -482,7 +482,8 @@ pub fn chooser(mut list: Vec<PathBuf>, item: &str) -> PathBuf {
         count += 1;
     }
     println!("----------------------------------------------------------------");
-    list.append(&mut folders); 
+
+    list.append(&mut folders);
 
     // get input
     loop {
