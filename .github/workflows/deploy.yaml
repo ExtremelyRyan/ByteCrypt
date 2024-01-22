@@ -20,8 +20,8 @@ jobs:
         include:
           - build: linux
             os: ubuntu-latest
-            target: x86_64-unknown-linux-musl
-
+            target: stable-x86_64-unknown-linux-gnu
+            
           # - build: macos
           #   os: macos-latest
           #   target: x86_64-apple-darwin
