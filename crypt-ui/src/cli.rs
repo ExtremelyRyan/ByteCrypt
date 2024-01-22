@@ -314,7 +314,10 @@ pub fn load_cli() {
             // Google
             Some(CloudCommand::Google { task }) => {
                 match task {
-                    Some(DriveCommand::Upload { path, no_encrypt: _ }) => {
+                    Some(DriveCommand::Upload {
+                        path,
+                        no_encrypt: _,
+                    }) => {
                         dbg!(&path);
                         _ = directive::google_upload2(path);
                     }

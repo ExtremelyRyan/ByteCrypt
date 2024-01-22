@@ -9,14 +9,14 @@ use crate::{
         compress, compute_hash, decompress, decrypt, encrypt, generate_seeds, KEY_SIZE, NONCE_SIZE,
     },
 };
-use anyhow::Result;
+use anyhow::{Result};
 use logfather::*;
 use rand::RngCore;
 use serde::{Deserialize, Serialize};
 use std::{
     fs::read,
     path::{Path, PathBuf},
-    time::Duration,
+    time::Duration, error::Error, io,
 };
 
 /// Represents various errors that can occur during file decryption.
@@ -582,6 +582,63 @@ pub fn get_uuid(contents: &[u8]) -> Result<(String, Vec<u8>), String> {
         String::from_utf8(uuid.to_vec()).unwrap_or(String::from_utf8_lossy(uuid).to_string()),
         contents.to_vec(),
     ))
+}
+
+/// Reads a file specified by the provided path and extracts a UUID from its contents.
+///
+/// # Arguments
+///
+/// * `file` - A type that implements `AsRef<Path>`, representing the path to the file.
+///
+/// # Returns
+///
+/// Returns a `Result` containing a `String` with the extracted UUID if successful,
+/// or a `Box<dyn std::error::Error>` containing an error if the operation fails.
+///
+/// # Errors
+///
+/// The function may return an error in the following cases:
+///
+/// * The file has an invalid extension (not "crypt").
+/// * The file has no extension.
+/// * The file content cannot be read.
+/// * The UTF-8 conversion of the file content fails.
+///
+/// # Example
+///
+/// ```rust ignore
+/// # use crypt_core::filecrypt::get_uuid_from_file;
+/// use std::path::Path;
+/// use std::io;
+///
+/// fn main() -> Result<(), Box<dyn std::error::Error>> {
+///     let uuid = get_uuid_from_file("dracula.crypt")?;
+///     println!("Extracted UUID: {}", uuid);
+///     Ok(())
+/// }
+/// ```
+pub fn get_uuid_from_file<T: AsRef<Path>>(file: T) -> Result<String, Box<dyn std::error::Error>> {
+    let path = file.as_ref();
+
+    // Check if the file has the expected extension
+    match path.extension() {
+        Some(ext) => {
+            match ext == "crypt" {
+                true => (),
+                false => return Err(io::Error::new(io::ErrorKind::InvalidData, "Invalid file extension").into()),
+            }
+        }
+        None => return Err(io::Error::new(io::ErrorKind::InvalidData, "File has no extension").into()),
+    }
+
+    // Read the file contents
+    let contents = std::fs::read(path)?;
+
+    // Extract UUID (assuming it is the first 36 characters)
+    let uuid = String::from_utf8(contents.clone().drain(0..36).collect())
+        .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, format!("Invalid UTF-8: {}", e)))?;
+
+    Ok(uuid)
 }
 
 /// Prepends a UUID represented as a string to a vector of encrypted contents. Modifies vector in place.

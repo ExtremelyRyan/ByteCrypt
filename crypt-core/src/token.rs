@@ -1,21 +1,20 @@
 use crate::{
-    common::{get_crypt_folder, parse_json_token, send_information},
+    common::{get_config_folder, get_crypt_folder, parse_json_token, send_information},
     config::get_config,
     db,
     encryption::{compress, decompress, generate_seeds},
     encryption::{KEY_SIZE, NONCE_SIZE},
 };
 use chacha20poly1305::{aead::Aead, ChaCha20Poly1305, Key, KeyInit, Nonce};
-use chrono::Duration;
 use lazy_static::lazy_static;
 use oauth2::{
     basic::BasicClient, reqwest::http_client, AccessToken, AuthUrl, AuthorizationCode, ClientId,
-    ClientSecret, CsrfToken, PkceCodeChallenge, RedirectUrl, RefreshToken, RevocationUrl, Scope,
-    TokenResponse, TokenUrl,
+    ClientSecret, CsrfToken, PkceCodeChallenge, RedirectUrl, RefreshToken, Scope, TokenResponse,
+    TokenUrl,
 };
 use serde::{Deserialize, Serialize};
 use std::{
-    default, fs,
+    fs,
     path::Path,
     time::{SystemTime, UNIX_EPOCH},
     {
@@ -26,15 +25,10 @@ use std::{
 };
 use url::Url;
 
-const _GOOGLE_FOLDER: &str = "Crypt";
-pub const GOOGLE_CLIENT_ID: &str =
-    "1006603075663-bi4o75nk6opljg7bicdiuden76s3v18f.apps.googleusercontent.com";
-const _CHUNK_SIZE: usize = 1_048_576; //1MB
-
 lazy_static! {
     ///Path for the google user token
     pub static ref GOOGLE_TOKEN_PATH: String = {
-        let mut path = get_crypt_folder();
+        let mut path = get_config_folder();
         path.push(".config");
 
         if !path.exists() {
@@ -46,7 +40,7 @@ lazy_static! {
 
     ///Path for the dropbox user token
     pub static ref DROPBOX_TOKEN_PATH: String = {
-        let mut path = get_crypt_folder();
+        let mut path = get_config_folder();
         path.push(".config");
 
         if !path.exists() {

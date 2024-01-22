@@ -5,8 +5,9 @@ use std::{
     io::{self, BufRead, BufReader, Read},
     path::{Path, PathBuf},
     process::Command,
+    str::FromStr,
     time::SystemTime,
-    {fs::OpenOptions, io::Write}, str::FromStr,
+    {fs::OpenOptions, io::Write},
 };
 use walkdir::WalkDir;
 
@@ -422,7 +423,11 @@ pub fn chooser(mut list: Vec<PathBuf>, item: &str) -> PathBuf {
             // compare files found to filename, and keep in compared those that match
             for p in list.iter() {
                 // file may or may not include extension, so check for both & if filename is partial match.
-                if p.file_stem().unwrap().to_ascii_lowercase().to_string_lossy().contains(item)
+                if p.file_stem()
+                    .unwrap()
+                    .to_ascii_lowercase()
+                    .to_string_lossy()
+                    .contains(item)
                     || p.file_name().unwrap().to_ascii_lowercase() == item
                 {
                     compared.push(p.to_owned());
@@ -430,7 +435,6 @@ pub fn chooser(mut list: Vec<PathBuf>, item: &str) -> PathBuf {
             }
 
             list = compared;
-            
         }
     };
 
@@ -468,9 +472,9 @@ pub fn chooser(mut list: Vec<PathBuf>, item: &str) -> PathBuf {
         }
     }
     println!("----------------------------------------------------------------");
-    println!("{0: <3} {1: <45} ", "#", "folders", );
+    println!("{0: <3} {1: <45} ", "#", "folders",);
     println!("----------------------------------------------------------------");
-    
+
     folders.sort();
     for i in &folders {
         println!("{0: <3} {1: <45}", count, i.display());
@@ -479,7 +483,6 @@ pub fn chooser(mut list: Vec<PathBuf>, item: &str) -> PathBuf {
     println!("----------------------------------------------------------------");
 
     list.append(&mut folders);
-
 
     // get input
     loop {

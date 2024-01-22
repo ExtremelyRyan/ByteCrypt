@@ -13,7 +13,7 @@ use crypt_cloud::crypt_core::{
         self, delete_keeper, export_keeper, query_crypt, query_keeper_by_file_name,
         query_keeper_crypt,
     },
-    filecrypt::{decrypt_contents, decrypt_file, encrypt_file, get_uuid, FileCrypt},
+    filecrypt::{decrypt_contents, decrypt_file, encrypt_file, get_uuid, FileCrypt, get_uuid_from_file},
     filetree::{
         filetree::{dir_walk, is_not_hidden, sort_by_name, Directory},
         treeprint::print_tree,
@@ -101,17 +101,17 @@ pub fn decrypt(path: &str, _in_place: bool, output: Option<String>) {
     };
 }
 
-fn google_startup() -> Result<(Runtime, UserToken, String), CloudError> {     
+fn google_startup() -> Result<(Runtime, UserToken, String), CloudError> {
     let runtime = match Runtime::new() {
         Ok(it) => it,
         Err(_err) => return Err(CloudError::RuntimeError),
     };
 
-    // TODO: Split this off into a seperate function.
     let user_token = UserToken::new_google();
 
     //Access google drive and ensure a crypt folder exists, create if doesn't
-    let crypt_folder: String = match runtime.block_on(drive::g_create_folder(&user_token, None, "")) {
+    let crypt_folder: String = match runtime.block_on(drive::g_create_folder(&user_token, None, ""))
+    {
         Ok(folder_id) => folder_id,
         Err(error) => {
             send_information(vec![format!("{}", error)]);
@@ -123,16 +123,62 @@ fn google_startup() -> Result<(Runtime, UserToken, String), CloudError> {
 }
 
 pub fn google_upload2(path: &str) -> Result<()> {
-    let crypt_root = get_crypt_folder(); 
+    // let crypt_root = get_crypt_folder();
     let dir = walk_crypt_folder()?;
     let res = chooser(dir, path);
 
     // user aborted
     if res.to_string_lossy() == "" {
-        return Ok(())
+        return Ok(());
     }
 
     dbg!("{}", res.display());
+
+    // determine if path picked is a file or path
+    match res.is_file() {
+        true => {
+            let (runtime, user_token, crypt_folder) = match google_startup() {
+                Ok(res) => res,
+                Err(_) => todo!(), // TODO: do we handle this here? or do we pass back to CLI?
+            };
+
+
+            // 1. get crypt info from pathbuf
+            let fc = match get_uuid_from_file(path) {
+                Ok(uuid) => db::query_crypt(uuid)?,
+                Err(err) => panic!("{}", err),
+            };
+            
+            // 2. upload file to cloud
+            let file_id = runtime.block_on(drive::g_upload(
+                &user_token,
+                &res.display().to_string(),
+                &crypt_folder,
+                &false,
+            ))?;
+            // 3. update crypt info with drive_id, update database.
+
+
+            // 4. show cloud directory
+
+            
+            
+
+            // TESTING PORPISES
+            let after_upload_keeper = db::query_keeper_crypt().unwrap();
+            for item in after_upload_keeper {
+                println!("file: {}{}", item.filename, item.ext);
+                println!("full path: {}", item.full_path.display());
+                println!("drive ID: {}", item.drive_id);
+            }
+            // Print the cloud directory
+            let cloud_directory = runtime
+                .block_on(drive::g_walk(&user_token, "Crypt"))
+                .expect("Could not view directory information");
+            send_information(build_tree(&cloud_directory));
+        }
+        false => todo!(),
+    }
 
     Ok(())
 }
@@ -266,7 +312,7 @@ pub fn google_upload(path: &str, no_encrypt: &bool) {
         println!("{:?}", value);
     }
 
-    //TESTING PORPISES
+    // TESTING PORPISES
     let after_upload_keeper = db::query_keeper_crypt().unwrap();
     for item in after_upload_keeper {
         println!("file: {}{}", item.filename, item.ext);
@@ -512,9 +558,7 @@ pub fn keeper(kc: &KeeperCommand) {
     }
 }
 
-pub fn test() {
-
-}
+pub fn test() {}
 
 pub fn ls(local: &bool, cloud: &bool) {
     let crypt_root = get_crypt_folder();
