@@ -3,6 +3,10 @@
 <h1 align="center">ByteCrypt</h1>
 </p>
 <br/>
+
+[![Crates.io](https://img.shields.io/crates/v/ByteCrypt.svg)](https://crates.io/crates/ByteCrypt)
+[![Docs.rs](https://docs.rs/ByteCrypt/badge.svg)](https://docs.rs/ByteCrypt)
+[![CI](https://github.com/ExtremelyRyan/ByteCrypt/workflows/CI/badge.svg)](https://github.com/ExtremelyRyan/ByteCrypt/actions)
  
 Encryption command line application on single file or entire directories.
 
@@ -47,6 +51,8 @@ currently being tested on windows 10,11, wsl(ubuntu), and Arch linux.
 requires minimum Rust version > 1.70.
 
 ### Installing
+* Install the rust toolchain in order to have cargo installed by following
+  [this](https://www.rust-lang.org/tools/install) guide.
 * go to our [release](https://github.com/ExtremelyRyan/ByteCrypt/releases) page and download the latest 
 * Clone the repository, and go to the root project directory. Run `cargo install --path .`
 

@@ -482,8 +482,7 @@ pub fn chooser(mut list: Vec<PathBuf>, item: &str) -> PathBuf {
         count += 1;
     }
     println!("----------------------------------------------------------------");
-
-    list.append(&mut folders);
+    list.append(&mut folders); 
 
     // get input
     loop {
