@@ -9,14 +9,15 @@ use crate::{
         compress, compute_hash, decompress, decrypt, encrypt, generate_seeds, KEY_SIZE, NONCE_SIZE,
     },
 };
-use anyhow::{Result};
+use anyhow::Result;
 use logfather::*;
 use rand::RngCore;
 use serde::{Deserialize, Serialize};
 use std::{
     fs::read,
+    io,
     path::{Path, PathBuf},
-    time::Duration, error::Error, io,
+    time::Duration,
 };
 
 /// Represents various errors that can occur during file decryption.
@@ -622,13 +623,17 @@ pub fn get_uuid_from_file<T: AsRef<Path>>(file: T) -> Result<String, Box<dyn std
 
     // Check if the file has the expected extension
     match path.extension() {
-        Some(ext) => {
-            match ext == "crypt" {
-                true => (),
-                false => return Err(io::Error::new(io::ErrorKind::InvalidData, "Invalid file extension").into()),
+        Some(ext) => match ext == "crypt" {
+            true => (),
+            false => {
+                return Err(
+                    io::Error::new(io::ErrorKind::InvalidData, "Invalid file extension").into(),
+                )
             }
+        },
+        None => {
+            return Err(io::Error::new(io::ErrorKind::InvalidData, "File has no extension").into())
         }
-        None => return Err(io::Error::new(io::ErrorKind::InvalidData, "File has no extension").into()),
     }
 
     // Read the file contents

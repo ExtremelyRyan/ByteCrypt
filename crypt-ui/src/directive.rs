@@ -13,7 +13,9 @@ use crypt_cloud::crypt_core::{
         self, delete_keeper, export_keeper, query_crypt, query_keeper_by_file_name,
         query_keeper_crypt,
     },
-    filecrypt::{decrypt_contents, decrypt_file, encrypt_file, get_uuid, FileCrypt, get_uuid_from_file},
+    filecrypt::{
+        decrypt_contents, decrypt_file, encrypt_file, get_uuid, get_uuid_from_file, FileCrypt,
+    },
     filetree::{
         filetree::{dir_walk, is_not_hidden, sort_by_name, Directory},
         treeprint::print_tree,
@@ -142,36 +144,24 @@ pub fn google_upload2(path: &str) -> Result<()> {
                 Err(_) => todo!(), // TODO: do we handle this here? or do we pass back to CLI?
             };
 
-
             // 1. get crypt info from pathbuf
-            let fc = match get_uuid_from_file(path) {
+            let mut fc = match get_uuid_from_file(res.clone()) {
                 Ok(uuid) => db::query_crypt(uuid)?,
                 Err(err) => panic!("{}", err),
             };
-            
-            // 2. upload file to cloud
-            let file_id = runtime.block_on(drive::g_upload(
+
+            // 2. upload file to cloud, saving drive id to crypt
+            fc.drive_id = runtime.block_on(drive::g_upload(
                 &user_token,
                 &res.display().to_string(),
                 &crypt_folder,
                 &false,
             ))?;
-            // 3. update crypt info with drive_id, update database.
 
+            // 3. update database.
+            db::insert_crypt(&fc)?;
 
             // 4. show cloud directory
-
-            
-            
-
-            // TESTING PORPISES
-            let after_upload_keeper = db::query_keeper_crypt().unwrap();
-            for item in after_upload_keeper {
-                println!("file: {}{}", item.filename, item.ext);
-                println!("full path: {}", item.full_path.display());
-                println!("drive ID: {}", item.drive_id);
-            }
-            // Print the cloud directory
             let cloud_directory = runtime
                 .block_on(drive::g_walk(&user_token, "Crypt"))
                 .expect("Could not view directory information");

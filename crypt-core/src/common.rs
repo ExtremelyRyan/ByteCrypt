@@ -441,7 +441,7 @@ pub fn chooser(mut list: Vec<PathBuf>, item: &str) -> PathBuf {
     let mut folders: Vec<PathBuf> = Vec::new();
 
     println!("----------------------------------------------------------------");
-    for mut item in list.clone().into_iter() {
+    for item in list.clone().into_iter() {
         let meta = item.metadata().unwrap();
 
         let found = item.display().to_string().find(r#"\crypt"#).unwrap();
@@ -471,6 +471,7 @@ pub fn chooser(mut list: Vec<PathBuf>, item: &str) -> PathBuf {
             }
         }
     }
+    // TODO: if no folders exist, do not show folders section.
     println!("----------------------------------------------------------------");
     println!("{0: <3} {1: <45} ", "#", "folders",);
     println!("----------------------------------------------------------------");

@@ -209,17 +209,12 @@ impl UserToken {
             authorize_url.to_string()
         );
 
-        // what we use to save our token info to later on.
-        let mut access_token: &AccessToken = &AccessToken::new(String::from(""));
-        let mut expire: std::time::Duration = std::time::Duration::ZERO;
-        let mut refresh_token: Option<&RefreshToken> = None;
-
         // A very naive implementation of the redirect server.
         let listener = TcpListener::bind("127.0.0.1:3000").unwrap();
         for stream in listener.incoming() {
             if let Ok(mut stream) = stream {
                 let code;
-                let state;
+                let _state;
                 {
                     let mut reader = BufReader::new(&stream);
 
@@ -249,7 +244,7 @@ impl UserToken {
                         .unwrap();
 
                     let (_, value) = state_pair;
-                    state = CsrfToken::new(value.into_owned());
+                    _state = CsrfToken::new(value.into_owned());
                 }
 
                 let message = "Go back to your terminal :)";
@@ -272,8 +267,8 @@ impl UserToken {
                 );
 
                 let token_response = token_response.unwrap();
-                access_token = token_response.access_token();
-                expire = token_response.expires_in().unwrap();
+                let access_token = token_response.access_token();
+                let expire = token_response.expires_in().unwrap();
 
                 //Create the user_token
                 let (key_seed, nonce_seed) = generate_seeds();
