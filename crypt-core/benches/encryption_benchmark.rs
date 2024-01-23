@@ -1,11 +1,13 @@
-use std::path::PathBuf;
+use std::{path::PathBuf, time::Duration};
 
 use criterion::{criterion_group, criterion_main, Criterion};
 use crypt_core::{
     common::get_file_bytes,
-    filecrypt::{encrypt_file, generate_uuid, FileCrypt},
+    filecrypt::{encrypt_file, FileCrypt},
     *,
 };
+use logfather::info;
+use rand::RngCore;
 
 #[cfg(target_os = "linux")]
 static DRACULA: &str = "benches/files/dracula.txt";
@@ -46,11 +48,11 @@ pub fn dracula_content_encryption(c: &mut Criterion) {
     let s = String::from("");
     let pb = PathBuf::new();
     let b: [u8; 32] = [0u8; 32];
-    let mut fc = FileCrypt::new(s.clone(), s, "".to_string(), pb, b);
+    let fc = FileCrypt::new(s.clone(), s, "".to_string(), pb, b);
     let contents = get_file_bytes(DRACULA);
 
     c.bench_function("encrypt contents of dracula", |b| {
-        b.iter(|| encryption::encrypt(&mut fc, &contents))
+        b.iter(|| encryption::encrypt(&fc, &contents))
     });
 }
 
@@ -60,11 +62,11 @@ pub fn shakespeare_content_encryption(c: &mut Criterion) {
     let s = String::from("");
     let pb = PathBuf::new();
     let b: [u8; 32] = [0u8; 32];
-    let mut fc = FileCrypt::new(s.clone(), s, "".to_string(), pb, b);
+    let fc = FileCrypt::new(s.clone(), s, "".to_string(), pb, b);
     let contents = get_file_bytes(SHAKESPEARE);
 
     c.bench_function("encrypt contents of shakespeare", |b| {
-        b.iter(|| encryption::encrypt(&mut fc, &contents))
+        b.iter(|| encryption::encrypt(&fc, &contents))
     });
 }
 
@@ -125,7 +127,24 @@ pub fn test_compute_hash(c: &mut Criterion) {
 
 // test generation of a 26 digit uuid
 pub fn test_generate_uuid(c: &mut Criterion) {
-    c.bench_function("generate 26 digit uuid", |b| b.iter(|| generate_uuid()));
+    c.bench_function("generate 26 digit uuid", |b| {
+        b.iter(|| {
+            info!("generating new uuid");
+            let ts = std::time::SystemTime::now()
+                .duration_since(std::time::SystemTime::UNIX_EPOCH)
+                .unwrap_or(Duration::new(63871342634, 0));
+
+            let mut random_bytes = [0u8; 10];
+            chacha20poly1305::aead::OsRng.fill_bytes(&mut random_bytes);
+
+            uuid::Builder::from_unix_timestamp_millis(
+                ts.as_millis().try_into().unwrap(),
+                &random_bytes,
+            )
+            .into_uuid()
+            .to_string()
+        })
+    });
 }
 
 pub fn test_zip(c: &mut Criterion) {

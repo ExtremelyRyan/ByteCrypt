@@ -105,7 +105,7 @@ pub fn decrypt(path: &str, _in_place: bool, output: Option<String>) {
 
 fn google_startup() -> Result<(Runtime, UserToken, String), CloudError> {
     let runtime = match Runtime::new() {
-        Ok(it) => it,
+        core::result::Result::Ok(it) => it,
         Err(_err) => return Err(CloudError::RuntimeError),
     };
 
@@ -114,7 +114,7 @@ fn google_startup() -> Result<(Runtime, UserToken, String), CloudError> {
     //Access google drive and ensure a crypt folder exists, create if doesn't
     let crypt_folder: String = match runtime.block_on(drive::g_create_folder(&user_token, None, ""))
     {
-        Ok(folder_id) => folder_id,
+        core::result::Result::Ok(folder_id) => folder_id,
         Err(error) => {
             send_information(vec![format!("{}", error)]);
             return Err(CloudError::CryptFolderError);
@@ -126,7 +126,12 @@ fn google_startup() -> Result<(Runtime, UserToken, String), CloudError> {
 
 pub fn google_upload2(path: &str) -> Result<()> {
     // let crypt_root = get_crypt_folder();
-    let dir = walk_crypt_folder()?;
+    let dir = walk_crypt_folder().unwrap_or_default();
+
+    // if there are no files in the crypt folder, return
+    if dir.is_empty() {
+        return Ok(());
+    }
     let res = chooser(dir, path);
 
     // user aborted

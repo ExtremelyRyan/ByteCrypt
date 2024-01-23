@@ -1,4 +1,4 @@
-use anyhow::{Error, Ok, Result};
+use anyhow;
 use std::{
     fmt::Display,
     fs::File,
@@ -292,15 +292,16 @@ pub fn get_file_bytes(path: &str) -> Vec<u8> {
 ///
 /// Returns a `Result` indicating whether the write operation was successful.
 ///
-pub fn write_contents_to_file(file: &str, contents: Vec<u8>) -> Result<()> {
+pub fn write_contents_to_file<T: AsRef<Path>>(file: T, contents: Vec<u8>) -> Result<(), io::Error> {
     let mut f = OpenOptions::new()
         .write(true)
         .create(true)
         .read(true)
-        .open(file)?;
-    f.write_all(contents.as_slice())
-        .expect("failed writing to file");
-    Ok(f.flush()?)
+        .truncate(true)
+        .open(file.as_ref())?;
+    f.write_all(contents.as_slice())?;
+    f.flush()?;
+    Ok(())
 }
 
 /// Performs a system command to get user home path.
@@ -374,13 +375,29 @@ pub fn get_crypt_folder() -> PathBuf {
     path
 }
 
-/// performs a process command to query device hostname
-/// if on windows, we use the command prompt, otherwise, we use `sh`
-/// returns a String if query was sucessful.
+/// Performs a command to query the device hostname.
+///
+/// If the target operating system is Windows, the function uses the command prompt (`cmd`).
+/// Otherwise, it uses the shell (`sh`).
 ///
 /// # Panics
 ///
-/// function can panic if either the process fails, or the conversion from Vec<u8> to String fails.
+/// This function may panic under the following conditions:
+///
+/// - The process execution fails.
+/// - The conversion from `Vec<u8>` to `String` fails.
+///
+/// # Returns
+///
+/// Returns the hostname as a `String` if the query is successful.
+///
+/// # Examples
+///
+/// ```rust ignore
+/// # use crate::get_machine_name;
+/// let hostname = get_machine_name();
+/// println!("Hostname: {}", hostname);
+/// ```
 pub fn get_machine_name() -> String {
     let name = if cfg!(target_os = "windows") {
         Command::new("cmd")
@@ -401,9 +418,33 @@ pub fn get_machine_name() -> String {
         .to_string()
 }
 
-/// chooser takes in a vector, and displays contents to the user with a number and last modified metadata.
-/// user will choose number, and return that item.
-/// todo: rename this retarded function
+/// Displays a menu for choosing files and folders based on a provided list and item.
+///
+/// # Arguments
+///
+/// * `list`: A mutable vector of `PathBuf` representing the initial list of files and folders.
+/// * `item`: A string representing the filename or part of it to filter the list.
+///
+/// # Returns
+///
+/// Returns a `PathBuf` representing the user's selection. Returns an empty `PathBuf` if the user chooses to abort.
+///
+/// # Examples
+///
+/// ```rust ignore
+/// use std::path::PathBuf;
+/// # use crate::chooser;
+///
+/// let paths = vec![
+///     PathBuf::from("path/to/file1.txt"),
+///     PathBuf::from("path/to/file2.txt"),
+///     PathBuf::from("path/to/folder1/file3.txt"),
+///     PathBuf::from("path/to/folder2/file4.txt"),
+/// ];
+///
+/// let selected_path = chooser(paths, "file");
+/// println!("Selected Path: {:?}", selected_path);
+/// ```
 pub fn chooser(mut list: Vec<PathBuf>, item: &str) -> PathBuf {
     let mut count = 1;
 
@@ -471,19 +512,20 @@ pub fn chooser(mut list: Vec<PathBuf>, item: &str) -> PathBuf {
             }
         }
     }
-    // TODO: if no folders exist, do not show folders section.
-    println!("----------------------------------------------------------------");
-    println!("{0: <3} {1: <45} ", "#", "folders",);
-    println!("----------------------------------------------------------------");
+    if folders.is_empty() {
+        println!("----------------------------------------------------------------\n");
+        println!("{0: <3} {1: <45} ", "#", "folders",);
+        println!("----------------------------------------------------------------");
 
-    folders.sort();
-    for i in &folders {
-        println!("{0: <3} {1: <45}", count, i.display());
-        count += 1;
+        folders.sort();
+        for i in &folders {
+            println!("{0: <3} {1: <45}", count, i.display());
+            count += 1;
+        }
+        println!("----------------------------------------------------------------");
+
+        list.append(&mut folders);
     }
-    println!("----------------------------------------------------------------");
-
-    list.append(&mut folders);
 
     // get input
     loop {
@@ -542,7 +584,7 @@ impl Convert for PathBuf {
 /// - `GOOGLE_CLIENT_ID`: Google OAuth client ID.
 /// - `GOOGLE_CLIENT_SECRET`: Google OAuth client secret.
 ///
-pub fn parse_json_token() -> Result<(), Error> {
+pub fn parse_json_token() -> Result<(), io::Error> {
     let mut config_path = get_config_folder();
     config_path.push("google.json");
 
@@ -587,50 +629,12 @@ where
 }
 
 pub fn send_information(info: Vec<String>) {
-    //TODO: Check which platform
     //CLI
     print_information(info);
-    //TODO: TUI
-    //TODO: GUI
 }
 
-// ///Generates a directory to convert into strings
-// pub fn generate_directory(path: &PathBuf) -> anyhow::Result<DirInfo> {
-//     let p = path.display().to_string();
-//     //Create root
-//     let mut root = DirInfo {
-//         path: PathInfo::new(p.as_str()),
-//         id: p,
-//         expanded: true, //root is always expanded
-//         contents: Vec::new(),
-//     };
-
-//     //Read contents of current directory
-//     for entry in fs::read_dir(path)? {
-//         let entry = entry?;
-//         let p = entry.path().display().to_string();
-//         let file_name = entry.file_name();
-//         let file_name_str = file_name.to_string_lossy();
-
-//         if !file_name_str.starts_with('.') && !file_name_str.starts_with("target") {
-//             if path.is_dir() {
-//                 root.contents.push(FileSystemEntity::Directory(DirInfo {
-//                     PathInfo::new(p.as_str()),
-//                     p,
-//                     expanded: true, //TODO: This still shows true regardless
-//                     contents: Vec::new(),
-//                 }));
-//             } else {
-//                 root.contents
-//                     .push(FileSystemEntity::File(FileInfo::new(p.as_str(), p)));
-//             }
-//         }
-//     }
-//     Ok(root)
-// }
-
 /// takes in a path, and recursively walks the subdirectories and returns a vec<pathbuf>
-pub fn walk_directory(path_in: &str) -> Result<Vec<PathBuf>, Error> {
+pub fn walk_directory(path_in: &str) -> Result<Vec<PathBuf>, anyhow::Error> {
     let path = match path_in.is_empty() {
         true => std::env::current_dir()?,
         false => get_full_file_path(path_in),
@@ -648,15 +652,37 @@ pub fn walk_directory(path_in: &str) -> Result<Vec<PathBuf>, Error> {
     Ok(pathlist)
 }
 
-/// takes in a path, and recursively walks the subdirectories and returns a vec<pathbuf>
-pub fn walk_crypt_folder() -> Result<Vec<PathBuf>, Error> {
+/// Recursively walks the subdirectories of the crypt folder and returns a Vec<PathBuf>.
+///
+/// # Returns
+///
+/// Returns a Result containing a Vec<PathBuf> with paths to files within the crypt folder,
+/// excluding certain folders such as "logs" and "decrypted". If an error occurs during the
+/// walking process, an Err variant is returned with an associated error message.
+///
+/// # Errors
+///
+/// This function may return an error if there are issues with walking the directories or
+/// filtering entries.
+///
+/// # Examples
+///
+/// ```rust ignore  
+/// match walk_crypt_folder() {
+///     Ok(paths) => {
+///         for path in paths {
+///             println!("Found file: {}", path.display());
+///         }
+///     }
+///     Err(err) => eprintln!("Error: {}", err),
+/// }
+/// ```
+pub fn walk_crypt_folder() -> Result<Vec<PathBuf>, Box<dyn std::error::Error>> {
     let crypt_folder = get_crypt_folder().to_str().unwrap().to_string();
 
     // folders to avoid
-    let mut log_folder = PathBuf::from(crypt_folder.clone());
-    log_folder.push("logs");
-    let mut decrypted_folder = PathBuf::from(crypt_folder.clone());
-    decrypted_folder.push("decrypted");
+    let log_folder = Path::new(&crypt_folder).join("logs");
+    let decrypted_folder = Path::new(&crypt_folder).join("decrypted");
 
     let walker = WalkDir::new(crypt_folder).into_iter();
     let mut pathlist: Vec<PathBuf> = Vec::new();
@@ -666,39 +692,51 @@ pub fn walk_crypt_folder() -> Result<Vec<PathBuf>, Error> {
             && !e.path().starts_with(log_folder.as_os_str())
             && !e.path().starts_with(decrypted_folder.as_os_str())
     }) {
-        let entry = entry.unwrap();
+        let entry = entry?;
         // we only want to save paths that are towards a file.
-        if entry.path().display().to_string().find('.').is_some() {
-            pathlist.push(PathBuf::from(entry.path().display().to_string()));
+        if entry.file_type().is_file() {
+            pathlist.push(entry.path().to_owned());
         }
     }
     Ok(pathlist)
 }
 
 /// takes in a path, and recursively walks the subdirectories and returns a vec<pathbuf>
-pub fn walk_paths(path_in: &str) -> Vec<PathInfo> {
-    let path = match path_in.is_empty() {
-        true => std::env::current_dir().unwrap(),
-        false => get_full_file_path(path_in),
+pub fn walk_paths<T: AsRef<str>>(path_in: T) -> Vec<PathInfo> {
+    let path = match path_in.as_ref().is_empty() {
+        true => std::env::current_dir().unwrap_or_else(|err| {
+            eprintln!("Error getting current directory: {}", err);
+            PathBuf::new()
+        }),
+        false => get_full_file_path(path_in.as_ref()),
     };
+
+    if !path.exists() {
+        eprintln!("Path does not exist: {:?}", path);
+        return Vec::new();
+    }
+    
     let walker = WalkDir::new(path).into_iter();
     let mut pathlist: Vec<PathInfo> = Vec::new();
 
     for entry in walker.filter_entry(|e| !is_hidden(e)) {
-        let entry = entry.unwrap().path().display().to_string();
-        pathlist.push(PathInfo::new(entry.as_str()));
+        if let Ok(entry) = entry {
+            let entry_path = entry.path().display().to_string();
+            pathlist.push(PathInfo::new(entry_path.as_str()));
+        } else {
+            eprintln!("Error processing directory entry");
+        }
     }
 
     pathlist
 }
 
 /// get full full path from a relative path
-pub fn get_full_file_path(path: &str) -> PathBuf {
-    use std::result::Result::Ok;
-    let canonicalize = dunce::canonicalize(path);
+pub fn get_full_file_path<T: AsRef<Path>>(path: T) -> PathBuf {
+    let canonicalize = dunce::canonicalize(path.as_ref());
     match canonicalize {
         Ok(c) => c,
-        Err(_) => PathBuf::from(path),
+        Err(_) => PathBuf::from(path.as_ref()),
     }
 }
 

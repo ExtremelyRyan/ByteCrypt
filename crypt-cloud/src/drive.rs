@@ -461,9 +461,6 @@ pub async fn google_query_file(user_token: &UserToken, file_id: &str) -> Result<
 
     let bytes = &response.bytes().await?;
     let text = bytes.to_vec();
-    // TODO: Move somewhere else.
-    // TODO: Also, get name from file and use that instead of "downloaded".
-    // _ = std::fs::write("downloaded.crypt", text);
     Ok(text)
 }
 

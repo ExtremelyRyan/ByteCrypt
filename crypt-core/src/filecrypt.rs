@@ -14,6 +14,7 @@ use logfather::*;
 use rand::RngCore;
 use serde::{Deserialize, Serialize};
 use std::{
+    fmt,
     fs::read,
     io,
     path::{Path, PathBuf},
@@ -66,6 +67,23 @@ pub enum FcError {
     FileError(String),
     DecryptError(String),
     GeneralError(String),
+    IoError(io::Error),
+}
+
+impl fmt::Display for FcError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        // Implement how you want to display the error
+        // This is just a placeholder, adjust as needed
+        write!(f, "Custom FcError: {:?}", self)
+    }
+}
+
+impl std::error::Error for FcError {}
+
+impl From<io::Error> for FcError {
+    fn from(err: io::Error) -> Self {
+        FcError::IoError(err)
+    }
 }
 
 impl From<String> for FcError {
@@ -267,16 +285,15 @@ pub fn decrypt_contents(fc: FileCrypt, contents: Vec<u8>) -> Result<(), FcError>
     // get output file
     let file = generate_output_file(&fc, None, Path::new(&crypt_folder));
 
+    // strip out uuid from contents
     let (_uuid, stripped_contents) = get_uuid(&contents)?;
 
+    // Decrypt contents
     let mut decrypted_content =
         decrypt(fc.clone(), &stripped_contents.to_vec()).expect("failed decryption");
 
     // unzip contents
-    decrypted_content = match decompress(&decrypted_content) {
-        Ok(d) => d,
-        Err(_) => todo!(),
-    };
+    decrypted_content = decompress(&decrypted_content)?;
 
     // compute hash on contents
     let hash = compute_hash(&decrypted_content);
@@ -291,10 +308,9 @@ pub fn decrypt_contents(fc: FileCrypt, contents: Vec<u8>) -> Result<(), FcError>
         return Err(FcError::HashFail(s));
     }
 
-    if write_contents_to_file(&file, decrypted_content).is_err() {
-        eprintln!("failed to write contents to {file}");
-        std::process::exit(2);
-    }
+    // Write contents to file
+    write_contents_to_file(file, decrypted_content)?;
+
     Ok(())
 }
 

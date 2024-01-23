@@ -6,8 +6,7 @@ use r2d2::Pool;
 use r2d2_sqlite::SqliteConnectionManager;
 use rusqlite::{params, Connection, Error as rusqliteError};
 use std::{
-    fs,
-    path::{Path, PathBuf},
+    fs, path::{Path, PathBuf}, str::FromStr
 };
 
 use crate::{
@@ -68,26 +67,50 @@ fn init_keeper(conn: &Connection) -> Result<()> {
     Ok(())
 }
 
-///Exports ALL content within the `crypt_keeper` database to a csv for easy sharing.
-/// Exports `crypt_export.csv` to crypt folder
+/// Export data from the keeper and write it to a CSV file.
+///
+/// # Arguments
+///
+/// * `alt_path`: An optional alternative path where the CSV file should be saved.
+///
+/// # Returns
+///
+/// Returns a `Result` or `Error` indicating success or failure.
 pub fn export_keeper(alt_path: Option<&str>) -> Result<()> {
     // https://rust-lang-nursery.github.io/rust-cookbook/encoding/csv.html
-    let db_crypts = query_keeper_crypt().unwrap();
+    
+    // Query keeper crypts
+    let db_crypts = query_keeper_crypt()?;
+
+    // Create CSV writer
     let mut wtr = WriterBuilder::new().has_headers(false).from_writer(vec![]);
+    
+    // Serialize crypts to CSV
     for crypt in db_crypts {
         wtr.serialize(crypt)?;
     }
-    let data = String::from_utf8(wtr.into_inner()?)?;
+
+    // Get CSV data as bytes
+    let data = wtr.into_inner()?;
 
     // get crypt dir "C:\\users\\USER\\crypt_config"
-    let mut path = get_config_folder();
-    path.push("crypt_export.csv");
+    let path: PathBuf = match alt_path {
+        Some(p) => PathBuf::from_str(p)?,
+        None =>  {
+            let mut p = get_config_folder();
+            p.push("crypt_export.csv");
+            p
+        },
+    };
 
     info!(&format!("writing export to {}", &path.display()));
-    match alt_path.is_some() {
-        true => write_contents_to_file(alt_path.unwrap(), data.into_bytes()),
-        false => write_contents_to_file(path.to_str().unwrap(), data.into_bytes()),
+
+    if let Some(ap) = alt_path {
+        write_contents_to_file(ap, data)?; 
+    } else {
+        write_contents_to_file(path, data)?;
     }
+    Ok(())
 }
 
 /// Imports csv into database. <b>WARNING</b>, overrides may occur!
