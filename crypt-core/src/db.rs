@@ -6,7 +6,9 @@ use r2d2::Pool;
 use r2d2_sqlite::SqliteConnectionManager;
 use rusqlite::{params, Connection, Error as rusqliteError};
 use std::{
-    fs, path::{Path, PathBuf}, str::FromStr
+    fs,
+    path::{Path, PathBuf},
+    str::FromStr,
 };
 
 use crate::{
@@ -78,13 +80,13 @@ fn init_keeper(conn: &Connection) -> Result<()> {
 /// Returns a `Result` or `Error` indicating success or failure.
 pub fn export_keeper(alt_path: Option<&str>) -> Result<()> {
     // https://rust-lang-nursery.github.io/rust-cookbook/encoding/csv.html
-    
+
     // Query keeper crypts
     let db_crypts = query_keeper_crypt()?;
 
     // Create CSV writer
     let mut wtr = WriterBuilder::new().has_headers(false).from_writer(vec![]);
-    
+
     // Serialize crypts to CSV
     for crypt in db_crypts {
         wtr.serialize(crypt)?;
@@ -96,17 +98,17 @@ pub fn export_keeper(alt_path: Option<&str>) -> Result<()> {
     // get crypt dir "C:\\users\\USER\\crypt_config"
     let path: PathBuf = match alt_path {
         Some(p) => PathBuf::from_str(p)?,
-        None =>  {
+        None => {
             let mut p = get_config_folder();
             p.push("crypt_export.csv");
             p
-        },
+        }
     };
 
     info!(&format!("writing export to {}", &path.display()));
 
     if let Some(ap) = alt_path {
-        write_contents_to_file(ap, data)?; 
+        write_contents_to_file(ap, data)?;
     } else {
         write_contents_to_file(path, data)?;
     }

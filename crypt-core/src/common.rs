@@ -715,7 +715,7 @@ pub fn walk_paths<T: AsRef<str>>(path_in: T) -> Vec<PathInfo> {
         eprintln!("Path does not exist: {:?}", path);
         return Vec::new();
     }
-    
+
     let walker = WalkDir::new(path).into_iter();
     let mut pathlist: Vec<PathInfo> = Vec::new();
 
