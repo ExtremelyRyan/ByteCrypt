@@ -63,12 +63,7 @@ By default, we will create a new file (file<b>.crypt</b>) with the encrypted con
 ```bash 
 crypt encrypt file.ext
 ```
-
-Encrypt a file in-place
-```bash
-crypt encrypt -p file.ext
-```
-
+ 
 Encrypt a whole directory with a path! even include hidden files with `-i`
 ```bash
 crypt encrypt /some/dir

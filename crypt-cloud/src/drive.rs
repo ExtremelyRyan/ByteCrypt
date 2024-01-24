@@ -189,15 +189,9 @@ pub async fn g_upload(
     // let mut tmp; // to appease the compiler gods
     let file_name = Path::new(path).file_name().unwrap().to_str().unwrap();
 
-    // // if we are encrypting the file, get just the filename and append ".crypt"
-    // if !no_encrypt {
-    //     file_name = Path::new(path).file_stem().unwrap().to_str().unwrap();
-    //     tmp = String::from(file_name);
-    //     tmp.push_str(".crypt");
-    //     file_name = &tmp;
-    // }
-
     let file_size = std::fs::metadata(path)?.len();
+
+    // dbg!(&file_name, &parent);
 
     let client = reqwest::Client::new();
     let response = client
@@ -217,21 +211,6 @@ pub async fn g_upload(
         .ok_or_else(|| Error::msg("Location header missing"))?
         .to_str()?
         .to_string();
-
-    // if the `no_encrypt` flag IS NOT true, assume we are encrypting contents to send.
-    // if !no_encrypt {
-    //     let encrypted_content = encrypt_contents(path);
-    //     if encrypted_content.is_some() {
-    //         let ec = encrypted_content.unwrap();
-    //         let drive_id = upload_content_chunks(&session_uri, &ec).await?;
-
-    //         let (uuid, _) = get_uuid(&ec).unwrap();
-    //         let mut filecrypt = query_crypt(uuid).unwrap();
-    //         filecrypt.drive_id = drive_id.clone();
-    //         _ = insert_crypt(&filecrypt);
-    //         return Ok(drive_id);
-    //     }
-    // }
 
     return Ok(upload_chunks(&session_uri, &mut file, file_size).await?);
 }

@@ -1,7 +1,7 @@
 use anyhow;
 use std::{
     fmt::Display,
-    fs::File,
+    fs::{self, File},
     io::{self, BufReader},
     path::{Path, PathBuf},
     process::Command,
@@ -418,6 +418,41 @@ pub fn get_machine_name() -> String {
         .to_string()
 }
 
+pub fn get_filenames_from_subdirectories<T: AsRef<Path>>(
+    dir_path: T,
+) -> Result<(Vec<PathBuf>, Vec<PathBuf>), std::io::Error> {
+    let walker = WalkDir::new(&dir_path).into_iter();
+    let folder_walker = WalkDir::new(&dir_path).into_iter();
+
+    let filenames: Vec<PathBuf> = walker
+        .filter_map(|entry| {
+            entry.ok().and_then(|e| {
+                let path = e.path();
+                if path.is_file() {
+                    Some(path.to_path_buf())
+                } else {
+                    None
+                }
+            })
+        })
+        .collect();
+
+    let folders: Vec<PathBuf> = folder_walker
+        .filter_map(|entry| {
+            entry.ok().and_then(|e| {
+                let path = e.path();
+                if path.is_dir() {
+                    Some(path.to_path_buf())
+                } else {
+                    None
+                }
+            })
+        })
+        .collect();
+
+    Ok((filenames, folders))
+}
+
 /// Displays a menu for choosing files and folders based on a provided list and item.
 ///
 /// # Arguments
@@ -512,7 +547,7 @@ pub fn chooser(mut list: Vec<PathBuf>, item: &str) -> PathBuf {
             }
         }
     }
-    if folders.is_empty() {
+    if !folders.is_empty() {
         println!("----------------------------------------------------------------\n");
         println!("{0: <3} {1: <45} ", "#", "folders",);
         println!("----------------------------------------------------------------");
@@ -544,7 +579,29 @@ pub fn chooser(mut list: Vec<PathBuf>, item: &str) -> PathBuf {
     }
 }
 
-/// sub-optimal way of converting a `SystemTime` into a formatted "date : time" string.
+/// Converts a `SystemTime` into a formatted "date : time" string.
+///
+/// This function takes a `SystemTime` value and converts it into a human-readable
+/// string representing the date and time in the "MM/DD/YY HH:MM" format.
+///
+/// # Arguments
+///
+/// * `ts`: A `SystemTime` value to be converted.
+///
+/// # Returns
+///
+/// Returns a `String` representing the formatted date and time.
+///
+/// # Examples
+///
+/// ```rust ignore
+/// use std::time::SystemTime;
+/// use crate::get_sys_time_timestamp;
+///
+/// let current_time = SystemTime::now();
+/// let formatted_time = get_sys_time_timestamp(current_time);
+/// println!("Formatted Time: {}", formatted_time);
+/// ```
 fn get_sys_time_timestamp(ts: SystemTime) -> String {
     let dt: chrono::DateTime<chrono::Utc> = ts.into();
     dt.format("%m/%d/%y %H:%M").to_string()
@@ -740,16 +797,61 @@ pub fn get_full_file_path<T: AsRef<Path>>(path: T) -> PathBuf {
     }
 }
 
+/// Checks whether a `DirEntry` should be considered hidden based on the configured
+/// items to ignore in the file system.
+///
+/// This function examines the file name of a `DirEntry` and determines whether it
+/// should be considered hidden according to the configured items to ignore. The
+/// configuration is obtained using `config::get_config()`.
+///
+/// # Arguments
+///
+/// * `entry`: A reference to a `DirEntry` representing a file or directory entry.
+///
+/// # Returns
+///
+/// Returns `true` if the file should be considered hidden, and `false` otherwise.
+///
+/// # Examples
+///
+/// ``` rust ignore
+/// use walkdir::DirEntry;
+/// use crate::is_hidden;
+///
+/// // Assuming you have a DirEntry, e.g., obtained during directory traversal
+/// let dir_entry = /* ... */;
+///
+/// if is_hidden(&dir_entry) {
+///     println!("The file is hidden.");
+/// } else {
+///     println!("The file is not hidden.");
+/// }
+/// ```
+///
+/// # Note
+///
+/// - If the file name is not a valid UTF-8 string, it is considered hidden.
+/// - The configuration, obtained through `config::get_config()`, specifies items
+///   to ignore, and any file name containing or starting with these items is
+///   considered hidden.
 pub fn is_hidden(entry: &walkdir::DirEntry) -> bool {
     let conf = config::get_config();
-    let mut b: bool = false;
+
     if let Some(s) = entry.file_name().to_str() {
-        conf.ignore_items.into_iter().for_each(|item| {
-            // TODO: make this better ------------------v
-            b = s.to_string().contains(&item) || s.starts_with('.');
-        })
-    };
-    b
+        // Early return if the file name is not a valid UTF-8 string
+        if s.is_empty() {
+            return true;
+        }
+
+        // TODO: change to support including hidden files?
+        // Use the `any` method for a more concise check
+        return conf
+            .ignore_items
+            .iter()
+            .any(|item| s.contains(item) || s.starts_with('.'));
+    }
+
+    true // Return true if the file name is not a valid UTF-8 string
 }
 
 #[cfg(test)]

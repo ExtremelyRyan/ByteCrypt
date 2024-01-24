@@ -318,7 +318,8 @@ pub fn load_cli() {
                         no_encrypt: _,
                     }) => {
                         dbg!(&path);
-                        _ = directive::google_upload2(path);
+                        let response = directive::google_upload2(path);
+                        dbg!(response);
                     }
                     Some(DriveCommand::Download { path }) => google_download(path),
                     Some(DriveCommand::View { path }) => google_view(path),
