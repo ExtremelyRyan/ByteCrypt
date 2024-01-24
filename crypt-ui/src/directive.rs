@@ -176,6 +176,7 @@ pub fn google_upload2(path: &str) -> Result<()> {
                 .expect("Could not view directory information");
             send_information(build_tree(&cloud_directory));
         }
+        // user chose to upload a directory
         false => {
             let (runtime, user_token, crypt_folder) = match google_startup() {
                 Ok(res) => res,
@@ -210,7 +211,7 @@ pub fn google_upload2(path: &str) -> Result<()> {
             // upload each file one by one, and save drive_id to their perspective crypt
             for (i, f) in files.clone().into_iter().enumerate() { 
 
-                let mut tmp_f = f.clone();  
+                let mut tmp_f = f.clone();
                 let mut f_str = tmp_f.to_string_lossy().to_string();
 
                 let mut parent_folder_id = &crypt_folder;
@@ -218,6 +219,7 @@ pub fn google_upload2(path: &str) -> Result<()> {
                 let mut tmp_id = String::new();
 
                 let index = f_str.find("crypt").unwrap();
+                // remove "crypt" from string
                 f_str.drain(0..index + 5);
                 
                 f_str = if let Some(s) = f_str.strip_prefix(MAIN_SEPARATOR) {
@@ -226,23 +228,34 @@ pub fn google_upload2(path: &str) -> Result<()> {
                     f_str
                 };
 
-                let truncated_path = PathBuf::from_str(&f_str).unwrap();
-                let collection: Vec<&str> = f_str.split(MAIN_SEPARATOR).collect();
+                let mut truncated_path = PathBuf::from_str(&f_str).unwrap();
+                truncated_path.pop();
+                let mut collection: Vec<&str> = f_str.split(MAIN_SEPARATOR).collect();
+                // remove the last index, which is the "filename.extension"
+                collection.remove(collection.len() - 1);
 
-                for p in collection.iter() {
+                
+                let mut child_id = &String::new();
+
+                for p in collection {
                     dbg!(&p);
-                    let p = PathBuf::from(*p);
-                    if p.extension().is_some() {
-                        continue;
+                    let p = PathBuf::from(p);
+                    let mut parent_id = &crypt_folder;
+
+                    if !child_id.is_empty() {
+                        parent_id = &child_id;
                     }
-                    println!("attempting to create a new folder..");
+
+                    println!("attempting to create a new folder {}..", p.display());
                     tmp_id = runtime.block_on(drive::g_create_folder(
                         &user_token,
-                        Some(&PathBuf::from(p)),
-                        parent_folder_id,
+                        // Some(&PathBuf::from(p)),
+                        Some(&p),
+                        parent_id,
                     ))
                     .expect("Could not create directory in google drive");
-                    parent_folder_id = &tmp_id;
+
+                    child_id = &tmp_id;
                 }
                 
                 let file = files.get(i).unwrap().to_str().unwrap();
@@ -251,7 +264,7 @@ pub fn google_upload2(path: &str) -> Result<()> {
                 let file_id = runtime.block_on(drive::g_upload(
                     &user_token,
                     file,
-                    &parent_folder_id,
+                    &child_id,
                     &false,
                 ))?;
 
