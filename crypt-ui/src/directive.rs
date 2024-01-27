@@ -3,7 +3,6 @@ use crate::cli::{
     KeeperPurgeSubCommand::{Database, Token},
 };
 use anyhow::Result;
-use clap::builder::Str;
 use crypt_cloud::drive;
 use crypt_cloud::{
     crypt_core::{
@@ -29,7 +28,7 @@ use crypt_cloud::{
     drive::test_create_subfolders,
 };
 use std::{
-    char::REPLACEMENT_CHARACTER, collections::HashMap, ops::Deref, path::{Path, PathBuf, MAIN_SEPARATOR}, str::FromStr
+    collections::HashMap, path::{PathBuf, MAIN_SEPARATOR}
 };
 use tokio::runtime::Runtime;
 
@@ -108,6 +107,18 @@ pub fn decrypt(path: &str, _in_place: bool, output: Option<String>) {
             println!("{res:?}");
         }
     };
+}
+
+struct Google {
+    runtime: Runtime,
+    token: UserToken,
+    cloud_root_folder: String,
+    
+}
+
+impl Google {
+    /// Creates a new [`Google`].
+    fn new(runtime: Runtime, token: UserToken, cloud_root_folder: String) -> Self { Self { runtime, token, cloud_root_folder } }
 }
 
 pub fn google_startup() -> Result<(Runtime, UserToken, String), CloudError> {
