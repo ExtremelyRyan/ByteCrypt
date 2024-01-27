@@ -85,8 +85,8 @@ pub async fn test_query (
 
     //Check if the folder exists
     let query = format!(
-        "name = '{}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false and {} in parents",
-        save_path, crypt_root_id
+        "mimeType = 'application/vnd.google-apps.folder' and trashed = false and '{}' in parents",
+        "1fqr6ko5-73QeqnMM6ySE3gzp5M-MN5KS"
     );
     let url = format!("https://www.googleapis.com/drive/v3/files?q={}", query);
     //Send the url and get the response
@@ -94,10 +94,10 @@ pub async fn test_query (
 
     //If drive query failed, break out and print error
     if !response.status().is_success() {
-        return Err(Error::msg(format!("{:?}", response.text().await?)));
+        return Err(Error::msg(format!("ERROR {:?}", response.text().await?)));
     }
 
-    println!("{:?}", response);
+    println!("\n\n{:?}", response.text().await?);
 
     Ok(())
 }
