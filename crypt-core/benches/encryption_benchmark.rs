@@ -2,7 +2,7 @@ use std::{path::PathBuf, time::Duration};
 
 use criterion::{criterion_group, criterion_main, Criterion};
 use crypt_core::{
-    common::get_file_bytes,
+    common::get_vec_file_bytes,
     filecrypt::{encrypt_file, FileCrypt},
     *,
 };
@@ -49,7 +49,7 @@ pub fn dracula_content_encryption(c: &mut Criterion) {
     let pb = PathBuf::new();
     let b: [u8; 32] = [0u8; 32];
     let fc = FileCrypt::new(s.clone(), s, "".to_string(), pb, b);
-    let contents = get_file_bytes(DRACULA);
+    let contents = get_vec_file_bytes(DRACULA);
 
     c.bench_function("encrypt contents of dracula", |b| {
         b.iter(|| encryption::encrypt(&fc, &contents))
@@ -63,7 +63,7 @@ pub fn shakespeare_content_encryption(c: &mut Criterion) {
     let pb = PathBuf::new();
     let b: [u8; 32] = [0u8; 32];
     let fc = FileCrypt::new(s.clone(), s, "".to_string(), pb, b);
-    let contents = get_file_bytes(SHAKESPEARE);
+    let contents = get_vec_file_bytes(SHAKESPEARE);
 
     c.bench_function("encrypt contents of shakespeare", |b| {
         b.iter(|| encryption::encrypt(&fc, &contents))
@@ -148,14 +148,14 @@ pub fn test_generate_uuid(c: &mut Criterion) {
 }
 
 pub fn test_zip(c: &mut Criterion) {
-    let contents = get_file_bytes(DRACULA);
+    let contents = get_vec_file_bytes(DRACULA);
     c.bench_function("zip dracula.txt", |b| {
         b.iter(|| crate::encryption::compress(contents.as_slice(), 3))
     });
 }
 
 pub fn test_zip_large(c: &mut Criterion) {
-    let contents = get_file_bytes(SHAKESPEARE);
+    let contents = get_vec_file_bytes(SHAKESPEARE);
     c.bench_function("zip Shakespeare.txt", |b| {
         b.iter(|| crate::encryption::compress(contents.as_slice(), 3))
     });

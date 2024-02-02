@@ -1,7 +1,8 @@
 use crate::{
     common::get_full_file_path,
     common::{
-        chooser, get_crypt_folder, get_file_bytes, walk_crypt_folder, write_contents_to_file,
+        chooser, get_crypt_folder, get_file_contents, get_vec_file_bytes, walk_crypt_folder,
+        write_contents_to_file,
     },
     config::get_config,
     db::{insert_crypt, query_crypt},
@@ -337,7 +338,7 @@ pub fn encrypt_file(path: &str, output: &Option<String>) {
     let (fp, _, filename, extension) = get_file_info(path);
 
     // get contents of file
-    let binding = get_file_bytes(path);
+    let binding = get_vec_file_bytes(path);
     let mut contents = binding.as_slice();
 
     let fc = FileCrypt::new(
@@ -377,8 +378,54 @@ pub fn encrypt_file(path: &str, output: &Option<String>) {
     // write fc to crypt_keeper
     insert_crypt(&fc).expect("failed to insert FileCrypt data into database!");
 
+    dbg!(&path);
     write_contents_to_file(path.to_str().unwrap(), encrypted_contents.clone())
         .expect("failed to write contents to file!");
+}
+
+pub fn create_file_crypt<T: AsRef<Path>>(path: T, contents: &[u8]) -> FileCrypt {
+    let path = path.as_ref();
+    // parse out file path
+    let (fp, _, filename, extension) = get_file_info(path);
+    FileCrypt::new(
+        filename,
+        extension,
+        "".to_string(),
+        fp,
+        compute_hash(contents),
+    )
+}
+
+pub fn zip_contents(contents: &[u8]) -> Result<Vec<u8>> {
+    let conf = get_config();
+    Ok(compress(contents, conf.zstd_level))
+}
+
+pub fn do_file_encryption<T: AsRef<Path>>(path: T) -> Result<Vec<u8>, String> {
+    let path = path.as_ref();
+
+    let contents = match get_file_contents(path) {
+        Ok(c) => c,
+        Err(error) => {
+            // Propagate the error to the caller
+            return Err(format!("Error reading file contents: {}", error));
+        }
+    };
+
+    let fc = create_file_crypt(path, &contents);
+
+    let compressed_contents: Vec<u8> = match zip_contents(&contents) {
+        Ok(c) => c,
+        Err(error) => return Err(format!("Error compressing file contents: {}", error)),
+    };
+
+    let mut encrypted_contents = match encrypt(&fc, &compressed_contents) {
+        Ok(e) => e,
+        Err(error) => return Err(format!("File encryption failed: {}", error)),
+    };
+
+    // prepend uuid to contents
+    Ok(prepend_uuid(&fc.uuid, &mut encrypted_contents))
 }
 
 pub fn encrypt_contents(path: &str) -> Option<Vec<u8>> {
@@ -390,7 +437,7 @@ pub fn encrypt_contents(path: &str) -> Option<Vec<u8>> {
     let (fp, _, filename, extension) = get_file_info(path);
 
     // get contents of file
-    let binding = get_file_bytes(path);
+    let binding = get_vec_file_bytes(path);
     let mut contents = binding.as_slice();
 
     let fc = FileCrypt::new(
@@ -708,7 +755,9 @@ pub fn prepend_uuid(uuid: &str, encrypted_contents: &mut [u8]) -> Vec<u8> {
 /// assert_eq!(filename,  "file");
 /// assert_eq!(extension, ".txt");
 /// ```
-pub fn get_file_info(path: &str) -> (PathBuf, PathBuf, String, String) {
+pub fn get_file_info<T: AsRef<Path>>(path: T) -> (PathBuf, PathBuf, String, String) {
+    let path = path.as_ref();
+
     // get filename, extension, and full path info
     let fp = get_full_file_path(path);
     let parent_dir = fp.parent().unwrap().to_owned();

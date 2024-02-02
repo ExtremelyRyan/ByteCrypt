@@ -276,9 +276,13 @@ fn tree_recursion(dir_info: &DirInfo, path: String, tree: &mut Vec<String>) {
     }
 }
 
-/// read file, and return values within a Vector of Strings.
-pub fn get_file_bytes(path: &str) -> Vec<u8> {
+/// read file, and return values within a Vector of u8.
+pub fn get_vec_file_bytes(path: &str) -> Vec<u8> {
     std::fs::read(path).expect("Can't open/read file!")
+}
+
+pub fn get_file_contents<T: AsRef<Path>>(path: T) -> Result<Vec<u8>, String> {
+    std::fs::read(path).map_err(|e| format!("Failed to open/read file: {}", e))
 }
 
 /// Writes the contents of a `Vec<u8>` to a file.

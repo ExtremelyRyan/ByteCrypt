@@ -72,16 +72,16 @@ pub async fn g_id_exists(user_token: &UserToken, id: &str) -> Result<bool> {
     }
 }
 
-pub async fn test_query (
+pub async fn test_query(
     user_token: &UserToken,
     path: Option<&PathBuf>,
-    parent: &str, 
-    crypt_root_id: &str
-)  -> Result<()> {
+    parent: &str,
+    crypt_root_id: &str,
+) -> Result<()> {
     let save_path = match path {
         Some(p) => p.to_str().unwrap(),
         None => GOOGLE_FOLDER,
-    }; 
+    };
 
     //Check if the folder exists
     let query = format!(
@@ -106,12 +106,12 @@ pub async fn test_query (
 pub async fn g_create_folder(
     user_token: &UserToken,
     path: Option<&PathBuf>,
-    parent: &str, 
+    parent: &str,
 ) -> Result<String> {
     let save_path = match path {
         Some(p) => p.to_str().unwrap(),
         None => GOOGLE_FOLDER,
-    }; 
+    };
 
     //Check if the folder exists
     let query = format!(
@@ -592,7 +592,7 @@ pub fn test_create_subfolders<'a>(
     let id = runtime.block_on(g_create_folder(
         &user_token,
         Some(&PathBuf::from(root_folder_name)),
-        &crypt_folder, 
+        &crypt_folder,
     ));
     println!("Creating root result : {:?}", id);
 
@@ -606,7 +606,7 @@ pub fn test_create_subfolders<'a>(
                 .block_on(g_create_folder(
                     &user_token,
                     Some(&PathBuf::from(sub.clone())),
-                    &sub_folder_id, 
+                    &sub_folder_id,
                 ))
                 .expect("Could not create directory in google drive");
 

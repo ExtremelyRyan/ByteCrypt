@@ -29,7 +29,7 @@ use crypt_cloud::{
     drive::test_create_subfolders,
 };
 use std::{
-    char::REPLACEMENT_CHARACTER, collections::HashMap, ops::Deref, path::{Path, PathBuf, MAIN_SEPARATOR}, str::FromStr
+    collections::HashMap, path::{Component, PathBuf, MAIN_SEPARATOR}
 };
 use tokio::runtime::Runtime;
 
@@ -53,17 +53,26 @@ pub enum CloudError {
 ///```
 ///TODO: implement output
 pub fn encrypt(path: &str, _in_place: bool, output: Option<String>) {
-    let buf = PathBuf::from(path);
+    let mut buf = PathBuf::from(path);
+    let mut current_path = std::env::current_dir().unwrap();
+    for b in buf.components() {
+        if b == Component::CurDir {
+            continue;
+        }
+        current_path.push(b);
+    }
+    // current_path = current_path.join(&mut buf);
+    dbg!(&path, current_path);
     //Determine if file or directory
     if buf.is_dir() {
         // get vec of dir
         let dir = walk_directory(path);
-
+        dbg!(&dir);
         match dir {
             Ok(d) => {
                 for p in d {
                     send_information(vec![format!("Encrypting file: {}", p.display())]);
-                    encrypt_file(&p.display().to_string(), &output)
+                    encrypt_file(&p.display().to_string(), &Some(p.parent().unwrap().file_stem().unwrap().to_string_lossy().to_string()))
                 }
             }
             Err(_) => todo!(),
@@ -97,7 +106,7 @@ pub fn decrypt(path: &str, _in_place: bool, output: Option<String>) {
             for path in dir {
                 if path.extension().unwrap() == "crypt" {
                     send_information(vec![format!("Decrypting file: {}", path.display())]);
-                    let res = decrypt_file(path.display().to_string().as_str(), output.to_owned());
+                    let res: std::prelude::v1::Result<(), crypt_cloud::crypt_core::filecrypt::FcError> = decrypt_file(path.display().to_string().as_str(), output.to_owned());
                     println!("{res:?}");
                 }
             }
@@ -119,7 +128,7 @@ struct Google {
 
 impl Google {
     /// Creates a new [`Google`].
-    fn new(runtime: Runtime, token: UserToken, cloud_root_folder: String) -> Self { Self { runtime, token, cloud_root_folder } }
+    fn _new(runtime: Runtime, token: UserToken, cloud_root_folder: String) -> Self { Self { runtime, token, cloud_root_folder } }
 }
 
 pub fn google_startup() -> Result<(Runtime, UserToken, String), CloudError> {
@@ -144,7 +153,7 @@ pub fn google_startup() -> Result<(Runtime, UserToken, String), CloudError> {
 }
 
 pub fn google_upload2(path: &str) -> Result<()> {
-    let mut crypt_root = get_crypt_folder();
+    let mut crypt_root: PathBuf = get_crypt_folder();
     let dir = walk_crypt_folder().unwrap_or_default();
 
     // if there are no files in the crypt folder, return
@@ -731,12 +740,33 @@ pub fn keeper(kc: &KeeperCommand) {
 }
 
 pub fn test() {
-    let (runtime, user_token, crypt_folder) = match google_startup() {
-        Ok(res) => res,
-        Err(_) => todo!(), // TODO: do we handle this here? or do we pass back to CLI?
-    };
-    let res = runtime.block_on(drive::test_query(&user_token, None, "", &crypt_folder));
+    // let (runtime, user_token, crypt_folder) = match google_startup() {
+    //     Ok(res) => res,
+    //     Err(_) => todo!(), // TODO: do we handle this here? or do we pass back to CLI?
+    // };
+    // let res = runtime.block_on(drive::test_query(&user_token, None, "", &crypt_folder));
     // println!("{:?}", res);
+
+    // Get the current working directory
+    let current_dir = std::env::current_dir().expect("Failed to get current directory");
+
+    // Specify the file or directory for which you want to find the relative path
+    let target_path = "..\\test_folder\\file1.txt";
+    
+    // Create a PathBuf for the target path
+    let target_path_buf = PathBuf::from(target_path);
+
+    // Resolve the full path of the target path
+    let full_path = current_dir.join(&target_path_buf);
+
+    // Get the relative path from the current directory to the target path
+    let relative_path = full_path
+        .strip_prefix(&current_dir)
+        .expect("Failed to calculate relative path");
+
+    println!("Current Directory: {:?}", current_dir);
+    println!("Full Path: {:?}", full_path);
+    println!("Relative Path: {:?}", relative_path);
 }
 
 pub fn ls(local: &bool, cloud: &bool) {

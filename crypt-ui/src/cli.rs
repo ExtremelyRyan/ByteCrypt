@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use clap::{Parser, Subcommand};
 use crypt_cloud::crypt_core::{
     common::{get_machine_name, send_information},
@@ -400,11 +402,32 @@ fn debug_mode() {
 }
 
 pub fn test() {
-    let crypts = crypt_cloud::crypt_core::db::query_keeper_for_files_with_drive_id().unwrap();
+    // let crypts = crypt_cloud::crypt_core::db::query_keeper_for_files_with_drive_id().unwrap();
 
-    for crypt in crypts {
-        println!("file: {}{}", crypt.filename, crypt.ext);
-        println!("full path: {}", crypt.full_path.display());
-        println!("drive ID: {}\n", crypt.drive_id);
-    }
+    // for crypt in crypts {
+    //     println!("file: {}{}", crypt.filename, crypt.ext);
+    //     println!("full path: {}", crypt.full_path.display());
+    //     println!("drive ID: {}\n", crypt.drive_id);
+    // }
+
+       // Get the current working directory
+       let current_dir = std::env::current_dir().expect("Failed to get current directory");
+
+       // Specify the file or directory for which you want to find the relative path
+       let target_path = "test_folder\\folder2\\file3.txt";
+       
+       // Create a PathBuf for the target path
+       let target_path_buf = PathBuf::from(target_path);
+   
+       // Resolve the full path of the target path
+       let full_path = current_dir.join(&target_path_buf);
+   
+       // Get the relative path from the current directory to the target path
+       let relative_path = full_path
+           .strip_prefix(&current_dir)
+           .expect("Failed to calculate relative path");
+   
+       println!("Current Directory: {:?}", current_dir);
+       println!("Full Path: {:?}", full_path);
+       println!("Relative Path: {:?}", relative_path);
 }
