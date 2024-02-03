@@ -2,9 +2,8 @@ use crate::cli::{
     KeeperCommand,
     KeeperPurgeSubCommand::{Database, Token},
 };
-use anyhow::Result;
+// use anyhow::{Ok, Result};
 
-use crypt_cloud::drive;
 use crypt_cloud::{
     crypt_core::{
         common::{
@@ -28,8 +27,17 @@ use crypt_cloud::{
     },
     drive::test_create_subfolders,
 };
+use crypt_cloud::{
+    crypt_core::{
+        common::{get_path_diff, verify_path},
+        filecrypt::do_file_encryption,
+    },
+    drive,
+};
 use std::{
-    collections::HashMap, path::{Component, PathBuf, MAIN_SEPARATOR}
+    collections::HashMap,
+    io::{self, Error},
+    path::{Component, PathBuf, MAIN_SEPARATOR},
 };
 use tokio::runtime::Runtime;
 
@@ -52,34 +60,39 @@ pub enum CloudError {
 /// directive.encrypt(in_place, output);
 ///```
 ///TODO: implement output
-pub fn encrypt(path: &str, _in_place: bool, output: Option<String>) {
-    let mut buf = PathBuf::from(path);
-    let mut current_path = std::env::current_dir().unwrap();
-    for b in buf.components() {
-        if b == Component::CurDir {
-            continue;
-        }
-        current_path.push(b);
+pub fn encrypt(path: &str, _in_place: bool, output: Option<String>) -> Result<(), io::Error> {
+    // verify our path is pointing to a actual dir/file
+    if !verify_path(&path) {
+        send_information(vec![format!("could not find path: {}", path)]);
+        return Ok(());
     }
-    // current_path = current_path.join(&mut buf);
-    dbg!(&path, current_path);
+
+    // get the difference between the user's current working directory, and the path they passed in.
+    let root_diff = get_path_diff(None, path)?;
+
+    let user_path = PathBuf::from(path);
+
+    dbg!(&path, root_diff);
     //Determine if file or directory
-    if buf.is_dir() {
-        // get vec of dir
-        let dir = walk_directory(path);
-        dbg!(&dir);
-        match dir {
-            Ok(d) => {
-                for p in d {
-                    send_information(vec![format!("Encrypting file: {}", p.display())]);
-                    encrypt_file(&p.display().to_string(), &Some(p.parent().unwrap().file_stem().unwrap().to_string_lossy().to_string()))
+    match user_path.is_dir() {
+        true => {
+            // get vec of dir
+            let dir = walk_directory(path);
+            dbg!(&dir);
+            match dir {
+                Ok(d) => {
+                    for p in d {
+                        send_information(vec![format!("Encrypting file: {}", p.display())]);
+                        let file_diff = get_path_diff(Some(root_diff), p.parent()?)?;
+                        let enc = do_file_encryption(&p.display().to_string())?;
+                    }
                 }
+                Err(_) => todo!(),
             }
-            Err(_) => todo!(),
         }
-    } else if buf.is_file() {
-        encrypt_file(path, &output);
+        false => encrypt_file(path, &output),
     }
+    Ok(())
 }
 
 ///Process the decryption directive
@@ -106,7 +119,10 @@ pub fn decrypt(path: &str, _in_place: bool, output: Option<String>) {
             for path in dir {
                 if path.extension().unwrap() == "crypt" {
                     send_information(vec![format!("Decrypting file: {}", path.display())]);
-                    let res: std::prelude::v1::Result<(), crypt_cloud::crypt_core::filecrypt::FcError> = decrypt_file(path.display().to_string().as_str(), output.to_owned());
+                    let res: std::prelude::v1::Result<
+                        (),
+                        crypt_cloud::crypt_core::filecrypt::FcError,
+                    > = decrypt_file(path.display().to_string().as_str(), output.to_owned());
                     println!("{res:?}");
                 }
             }
@@ -123,12 +139,17 @@ struct Google {
     runtime: Runtime,
     token: UserToken,
     cloud_root_folder: String,
-    
 }
 
 impl Google {
     /// Creates a new [`Google`].
-    fn _new(runtime: Runtime, token: UserToken, cloud_root_folder: String) -> Self { Self { runtime, token, cloud_root_folder } }
+    fn _new(runtime: Runtime, token: UserToken, cloud_root_folder: String) -> Self {
+        Self {
+            runtime,
+            token,
+            cloud_root_folder,
+        }
+    }
 }
 
 pub fn google_startup() -> Result<(Runtime, UserToken, String), CloudError> {
@@ -152,7 +173,7 @@ pub fn google_startup() -> Result<(Runtime, UserToken, String), CloudError> {
     Ok((runtime, user_token, crypt_folder))
 }
 
-pub fn google_upload2(path: &str) -> Result<()> {
+pub fn google_upload2(path: &str) -> Result<(), dyn Error> {
     let mut crypt_root: PathBuf = get_crypt_folder();
     let dir = walk_crypt_folder().unwrap_or_default();
 
@@ -746,27 +767,6 @@ pub fn test() {
     // };
     // let res = runtime.block_on(drive::test_query(&user_token, None, "", &crypt_folder));
     // println!("{:?}", res);
-
-    // Get the current working directory
-    let current_dir = std::env::current_dir().expect("Failed to get current directory");
-
-    // Specify the file or directory for which you want to find the relative path
-    let target_path = "..\\test_folder\\file1.txt";
-    
-    // Create a PathBuf for the target path
-    let target_path_buf = PathBuf::from(target_path);
-
-    // Resolve the full path of the target path
-    let full_path = current_dir.join(&target_path_buf);
-
-    // Get the relative path from the current directory to the target path
-    let relative_path = full_path
-        .strip_prefix(&current_dir)
-        .expect("Failed to calculate relative path");
-
-    println!("Current Directory: {:?}", current_dir);
-    println!("Full Path: {:?}", full_path);
-    println!("Relative Path: {:?}", relative_path);
 }
 
 pub fn ls(local: &bool, cloud: &bool) {

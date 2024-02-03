@@ -6,6 +6,7 @@ use std::{
     path::{Path, PathBuf},
     process::Command,
     str::FromStr,
+    thread::current,
     time::SystemTime,
     {fs::OpenOptions, io::Write},
 };
@@ -158,6 +159,116 @@ impl DirInfo {
             contents,
         }
     }
+}
+
+/// Verifies the existence of a file or directory at the specified path.
+///
+/// This function checks whether the given path exists in the filesystem.
+/// It can be used to verify the existence of a file or directory before
+/// performing further operations.
+///
+/// # Arguments
+/// * `path` - A type that can be converted to a `&Path`. This includes
+///           types like `&str` and `String`.
+///
+/// # Returns
+/// Returns `true` if the path exists, `false` otherwise.
+///
+/// # Examples
+/// ```rust ignore
+/// use std::path::Path;
+///
+/// let existing_path = "path/to/existing/file.txt";
+/// let non_existing_path = "path/to/non/existing/file.txt";
+///
+/// assert_eq!(verify_path(existing_path), true);
+/// assert_eq!(verify_path(non_existing_path), false);
+/// ```
+pub fn verify_path(path: &impl AsRef<Path>) -> bool {
+    let as_ref = path.as_ref();
+    as_ref.exists()
+}
+
+/// Retrieves the relative path from the current working directory to the specified target path.
+///
+/// This function takes a target path, resolves its full path by joining it with
+/// the current working directory, and then determines the relative path from the
+/// current working directory to the target path. The result is returned as a `PathBuf`.
+///
+/// # Arguments
+///
+/// * `target_path` - A type that can be converted to a `&Path`. This includes
+///                  types like `&str` and `String`.
+///
+/// # Returns
+///
+/// Returns a `Result` containing a `PathBuf` representing the relative path from
+/// the current working directory to the target path. If an error occurs during
+/// the process (e.g., failure to retrieve the current working directory or join
+/// paths), an `Err` variant with a `std::io::Error` is returned.
+///
+/// # Examples
+///
+/// ```
+/// use std::path::PathBuf;
+/// # use crate::crypt_core::common::get_path_diff;
+///
+/// fn main() {
+///     match get_path_diff("path/to/target") {
+///         Ok(relative_path) => {
+///             println!("Relative Path: {:?}", relative_path);
+///         }
+///         Err(error) => {
+///             eprintln!("Error: {}", error);
+///         }
+///     }
+/// }
+/// ```
+///
+/// # Notes
+///
+/// - If the target path is not found, an empty `PathBuf` is returned.
+/// - The function prints debug information about the current working directory,
+///   full path, and relative path to aid in understanding the process.
+///
+/// # Errors
+///
+/// This function returns an `Err` variant if an error occurs during the process.
+/// Possible errors include failure to retrieve the current working directory or
+/// failure to join paths.
+///
+/// ```
+/// use std::io::Error;
+/// # use crate::crypt_core::common::get_path_diff;
+///
+/// fn main() -> Result<(), Error> {
+///     let relative_path = get_path_diff("non/existing/path")?;
+///     Ok(())
+/// }
+/// ```
+pub fn get_path_diff<T>(root: Option<T>, target_path: T) -> Result<PathBuf, std::io::Error>
+where
+    T: AsRef<Path>,
+{
+    let target_path = target_path.as_ref();
+
+    // if root directory is Some, get contents.
+    // otherwise, get the user's current working directory.
+    let current_dir: PathBuf = match root {
+        Some(dir) => dir.as_ref().to_owned(),
+        None => std::env::current_dir()?,
+    };
+
+    // Resolve the full path of the target path
+    let full_path = current_dir.join(&target_path);
+
+    // Get the relative path from the current directory to the target path
+    let relative_path = match full_path.strip_prefix(&current_dir) {
+        Ok(c) => c,
+        Err(_) => Path::new(""),
+    };
+
+    Ok(relative_path.to_owned())
 }
 
 ///Builds a file tree with given DirInfo struct

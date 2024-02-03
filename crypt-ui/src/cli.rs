@@ -410,24 +410,24 @@ pub fn test() {
     //     println!("drive ID: {}\n", crypt.drive_id);
     // }
 
-       // Get the current working directory
-       let current_dir = std::env::current_dir().expect("Failed to get current directory");
+    // Get the current working directory
+    let current_dir = std::env::current_dir().expect("Failed to get current directory");
 
-       // Specify the file or directory for which you want to find the relative path
-       let target_path = "test_folder\\folder2\\file3.txt";
-       
-       // Create a PathBuf for the target path
-       let target_path_buf = PathBuf::from(target_path);
-   
-       // Resolve the full path of the target path
-       let full_path = current_dir.join(&target_path_buf);
-   
-       // Get the relative path from the current directory to the target path
-       let relative_path = full_path
-           .strip_prefix(&current_dir)
-           .expect("Failed to calculate relative path");
-   
-       println!("Current Directory: {:?}", current_dir);
-       println!("Full Path: {:?}", full_path);
-       println!("Relative Path: {:?}", relative_path);
+    // Specify the file or directory for which you want to find the relative path
+    let target_path = "test_folder\\folder2\\file3.txt";
+
+    // Create a PathBuf for the target path
+    let target_path_buf = PathBuf::from(target_path);
+
+    // Resolve the full path of the target path
+    let full_path = current_dir.join(&target_path_buf);
+
+    // Get the relative path from the current directory to the target path
+    let relative_path = full_path
+        .strip_prefix(&current_dir)
+        .expect("Failed to calculate relative path");
+
+    println!("Current Directory: {:?}", current_dir);
+    println!("Full Path: {:?}", full_path);
+    println!("Relative Path: {:?}", relative_path);
 }
