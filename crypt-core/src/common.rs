@@ -213,7 +213,7 @@ pub fn verify_path(path: &impl AsRef<Path>) -> bool {
 /// # use crate::crypt_core::common::get_path_diff;
 ///
 /// fn main() {
-///     match get_path_diff("path/to/target") {
+///     match get_path_diff(None, &PathBuf::from("path/to/target")) {
 ///         Ok(relative_path) => {
 ///             println!("Relative Path: {:?}", relative_path);
 ///         }
@@ -237,11 +237,12 @@ pub fn verify_path(path: &impl AsRef<Path>) -> bool {
 /// failure to join paths.
 ///
 /// ```
+/// use std::path::PathBuf;
 /// use std::io::Error;
 /// # use crate::crypt_core::common::get_path_diff;
 ///
 /// fn main() -> Result<(), Error> {
-///     let relative_path = get_path_diff("non/existing/path")?;
+///     let relative_path = get_path_diff(None, &PathBuf::from("non/existing/path"))?;
 ///     Ok(())
 /// }
 /// ```
