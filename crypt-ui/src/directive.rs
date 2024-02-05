@@ -36,8 +36,7 @@ use crypt_cloud::{
 };
 use std::{
     collections::HashMap,
-    io::{self, Error},
-    path::{Component, PathBuf, MAIN_SEPARATOR},
+    path::{PathBuf, MAIN_SEPARATOR},
 };
 use tokio::runtime::Runtime;
 
@@ -60,7 +59,7 @@ pub enum CloudError {
 /// directive.encrypt(in_place, output);
 ///```
 ///TODO: implement output
-pub fn encrypt(path: &str, _in_place: bool, output: Option<String>) -> Result<(), io::Error> {
+pub fn encrypt(path: &str, _in_place: bool, output: Option<String>) -> Result<(), Box<dyn std::error::Error>> {
     // verify our path is pointing to a actual dir/file
     if !verify_path(&path) {
         send_information(vec![format!("could not find path: {}", path)]);
@@ -68,11 +67,11 @@ pub fn encrypt(path: &str, _in_place: bool, output: Option<String>) -> Result<()
     }
 
     // get the difference between the user's current working directory, and the path they passed in.
-    let root_diff = get_path_diff(None, path)?;
+    let root_diff = get_path_diff(None, &path)?;
 
     let user_path = PathBuf::from(path);
 
-    dbg!(&path, root_diff);
+    dbg!(&path, &root_diff);
     //Determine if file or directory
     match user_path.is_dir() {
         true => {
@@ -83,8 +82,8 @@ pub fn encrypt(path: &str, _in_place: bool, output: Option<String>) -> Result<()
                 Ok(d) => {
                     for p in d {
                         send_information(vec![format!("Encrypting file: {}", p.display())]);
-                        let file_diff = get_path_diff(Some(root_diff), p.parent()?)?;
-                        let enc = do_file_encryption(&p.display().to_string())?;
+                        let _file_diff = get_path_diff(Some(&root_diff), &p.parent().unwrap().to_path_buf())?;
+                        let _enc = do_file_encryption(&p.display().to_string())?;
                     }
                 }
                 Err(_) => todo!(),
@@ -135,6 +134,7 @@ pub fn decrypt(path: &str, _in_place: bool, output: Option<String>) {
     };
 }
 
+#[allow(dead_code)]
 struct Google {
     runtime: Runtime,
     token: UserToken,
@@ -173,7 +173,7 @@ pub fn google_startup() -> Result<(Runtime, UserToken, String), CloudError> {
     Ok((runtime, user_token, crypt_folder))
 }
 
-pub fn google_upload2(path: &str) -> Result<(), dyn Error> {
+pub fn google_upload2(path: &str) -> Result<(), Box<dyn std::error::Error>> {
     let mut crypt_root: PathBuf = get_crypt_folder();
     let dir = walk_crypt_folder().unwrap_or_default();
 
@@ -297,7 +297,6 @@ pub fn google_upload2(path: &str) -> Result<(), dyn Error> {
                             temp_file.pop();
                         }
                     };
-                    break;
                 }
                 dbg!(&path_parts);
 

@@ -2,7 +2,7 @@ use anyhow::{Error, Ok, Result};
 use async_recursion::async_recursion;
 use crypt_core::{
     common::DirInfo,
-    common::{parse_json_token, send_information, FileInfo, FsNode},
+    common::{send_information, FileInfo, FsNode},
     token::UserToken,
 };
 use reqwest::{
@@ -12,7 +12,7 @@ use reqwest::{
 use serde_json::Value;
 use std::{
     collections::HashMap,
-    fmt, io,
+    fmt,
     path::{Path, PathBuf},
 };
 use tokio::{fs::File, io::AsyncReadExt, runtime::Runtime};
@@ -75,10 +75,10 @@ pub async fn g_id_exists(user_token: &UserToken, id: &str) -> Result<bool> {
 pub async fn test_query(
     user_token: &UserToken,
     path: Option<&PathBuf>,
-    parent: &str,
-    crypt_root_id: &str,
+    _parent: &str,
+    _crypt_root_id: &str,
 ) -> Result<()> {
-    let save_path = match path {
+    let _save_path = match path {
         Some(p) => p.to_str().unwrap(),
         None => GOOGLE_FOLDER,
     };
@@ -572,8 +572,8 @@ pub async fn g_drive_info(user_token: &UserToken) -> Result<Vec<Value>> {
     Ok(values)
 }
 
-pub fn test_create_subfolders<'a>(
-    root_folder_name: &'a str,
+pub fn test_create_subfolders(
+    root_folder_name: &str,
     subfolder_names: Option<Vec<String>>,
 ) -> Result<HashMap<String, String>> {
     let (runtime, user_token, crypt_folder) = match google_startup() {

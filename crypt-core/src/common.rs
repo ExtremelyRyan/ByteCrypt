@@ -6,7 +6,6 @@ use std::{
     path::{Path, PathBuf},
     process::Command,
     str::FromStr,
-    thread::current,
     time::SystemTime,
     {fs::OpenOptions, io::Write},
 };
@@ -246,7 +245,7 @@ pub fn verify_path(path: &impl AsRef<Path>) -> bool {
 ///     Ok(())
 /// }
 /// ```
-pub fn get_path_diff<T>(root: Option<T>, target_path: T) -> Result<PathBuf, std::io::Error>
+pub fn get_path_diff<T>(root: Option<&T>, target_path: &T) -> Result<PathBuf, std::io::Error>
 where
     T: AsRef<Path>,
 {
@@ -260,7 +259,7 @@ where
     };
 
     // Resolve the full path of the target path
-    let full_path = current_dir.join(&target_path);
+    let full_path = current_dir.join(target_path);
 
     // Get the relative path from the current directory to the target path
     let relative_path = match full_path.strip_prefix(&current_dir) {

@@ -298,7 +298,7 @@ pub fn load_cli() {
             in_place,
             output,
         }) => {
-            directive::encrypt(path, in_place.to_owned(), output.to_owned());
+            _ = directive::encrypt(path, in_place.to_owned(), output.to_owned());
         }
 
         // Decryption
@@ -320,8 +320,7 @@ pub fn load_cli() {
                         no_encrypt: _,
                     }) => {
                         dbg!(&path);
-                        let response = directive::google_upload2(path);
-                        dbg!(response);
+                        let _response = directive::google_upload2(path);
                     }
                     Some(DriveCommand::Download { path }) => google_download(path),
                     Some(DriveCommand::View { path }) => google_view(path),
@@ -420,7 +419,7 @@ pub fn test() {
     let target_path_buf = PathBuf::from(target_path);
 
     // Resolve the full path of the target path
-    let full_path = current_dir.join(&target_path_buf);
+    let full_path = current_dir.join(target_path_buf);
 
     // Get the relative path from the current directory to the target path
     let relative_path = full_path
