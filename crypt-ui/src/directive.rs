@@ -53,10 +53,7 @@ pub enum CloudError {
 /// directive.encrypt(in_place, output);
 ///```
 ///TODO: implement output
-pub fn encrypt(
-    path: &str, 
-    output: Option<String>,
-) -> Result<(), Box<dyn std::error::Error>> {
+pub fn encrypt(path: &str, output: Option<String>) -> Result<(), Box<dyn std::error::Error>> {
     // verify our path is pointing to a actual dir/file
     if !verify_path(&path) {
         send_information(vec![format!("could not find path: {}", path)]);

@@ -57,7 +57,7 @@ enum Commands {
     Encrypt {
         ///Path to File or Directory
         #[arg(required = true)]
-        path: String, 
+        path: String,
 
         ///Change the output path
         #[arg(short = 'o', long, required = false)]
@@ -289,11 +289,8 @@ pub fn load_cli() {
         }
 
         // Encryption
-        Some(Commands::Encrypt {
-            path, 
-            output,
-        }) => {
-            let res = directive::encrypt(path,  output.to_owned());
+        Some(Commands::Encrypt { path, output }) => {
+            let res = directive::encrypt(path, output.to_owned());
             println!("encrypt result: {:?}", res);
         }
 

@@ -49,7 +49,7 @@ pub fn compress(contents: &[u8], level: i32) -> Vec<u8> {
     zstd::encode_all(contents, level).expect("failed to zip contents")
 }
 
-/// Decompresses a byte slice using the Zstandard compression algorithm. 
+/// Decompresses a byte slice using the Zstandard compression algorithm.
 ///
 /// # Arguments
 /// * `contents` - A byte slice containing the compressed data.
