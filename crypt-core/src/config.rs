@@ -149,7 +149,7 @@ pub struct Config {
 /// * `ConfigTask::Retain`
 /// * `ConfigTask::Backup`
 /// * `ConfigTask::ZstdLevel`
-///```
+/// 
 pub enum ConfigOptions {
     DatabasePath,
     CryptPath,

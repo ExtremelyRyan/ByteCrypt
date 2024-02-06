@@ -5,12 +5,12 @@ edition = "2021"
 publish = false
 workspace = "../"
 
+
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-#General 
-anyhow = { workspace = true }
-logfather = { workspace = true }
+# General
 tokio = { version = "1", features = ["full"] } # Async Runtime 
 
 # CLI

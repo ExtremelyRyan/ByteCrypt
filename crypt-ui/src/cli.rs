@@ -57,11 +57,7 @@ enum Commands {
     Encrypt {
         ///Path to File or Directory
         #[arg(required = true)]
-        path: String,
-
-        ///Perform an in-place encryption
-        #[arg(short = 'p', long, default_value_t = false)]
-        in_place: bool,
+        path: String, 
 
         ///Change the output path
         #[arg(short = 'o', long, required = false)]
@@ -294,11 +290,11 @@ pub fn load_cli() {
 
         // Encryption
         Some(Commands::Encrypt {
-            path,
-            in_place,
+            path, 
             output,
         }) => {
-            _ = directive::encrypt(path, in_place.to_owned(), output.to_owned());
+            let res = directive::encrypt(path,  output.to_owned());
+            println!("encrypt result: {:?}", res);
         }
 
         // Decryption

@@ -30,7 +30,7 @@ pub fn compute_hash(contents: &[u8]) -> [u8; 32] {
     hasher.finalize().into()
 }
 
-/// compress is the Zstd compression algorithm (https://en.wikipedia.org/wiki/Zstd) to deflate file size
+/// compress is the Zstd compression algorithm <https://en.wikipedia.org/wiki/Zstd> to deflate file size
 /// prior to encryption.
 ///
 /// # Level
@@ -49,7 +49,7 @@ pub fn compress(contents: &[u8], level: i32) -> Vec<u8> {
     zstd::encode_all(contents, level).expect("failed to zip contents")
 }
 
-/// Decompresses a byte slice using the Zstandard compression algorithm.
+/// Decompresses a byte slice using the Zstandard compression algorithm. 
 ///
 /// # Arguments
 /// * `contents` - A byte slice containing the compressed data.

@@ -376,7 +376,7 @@ fn build_headers(start: u64, end: u64, total_size: u64) -> HeaderMap {
     headers
 }
 
-///Query google drive and return a Vec<String> of each item within the relevant folder
+///Query google drive and return a `Vec<String>` of each item within the relevant folder
 pub async fn g_view(user_token: &UserToken, name: &str) -> Result<Vec<String>> {
     //Get the folder id
     let mut folder_id = String::new();

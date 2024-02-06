@@ -1,4 +1,3 @@
-use anyhow;
 use std::{
     fmt::Display,
     fs::File,
@@ -464,7 +463,7 @@ pub fn get_config_folder() -> PathBuf {
 /// # Panics
 ///
 /// function can panic if either the process fails,
-/// or the conversion from Vec<u8> to String fails.
+/// or the conversion from `Vec<u8>` to String fails.
 pub fn get_crypt_folder() -> PathBuf {
     let output = if cfg!(target_os = "windows") {
         Command::new("cmd")
@@ -805,30 +804,44 @@ pub fn send_information(info: Vec<String>) {
     print_information(info);
 }
 
-/// takes in a path, and recursively walks the subdirectories and returns a vec<pathbuf>
-pub fn walk_directory(path_in: &str) -> Result<Vec<PathBuf>, anyhow::Error> {
+/// Takes in a path, and recursively walks the subdirectories and returns a `Vec<PathBuf>`
+/// The `filter_directories` parameter determines whether to filter entries based on the presence of a dot ('.')
+/// # Examples
+/// ```rust
+///  # use crate::crypt_core::common::walk_directory;
+/// // setting `filter_directories` to `false` includes directories.
+/// let res = walk_directory("test_folder", false);
+/// println!("{:#?}", res);
+///
+/// // setting `filter_directories` to `true` excludes directories.
+/// let res = walk_directory("test_folder", true);
+/// println!("{:#?}", res);
+/// ```
+pub fn walk_directory(path_in: &str, filter_directories: bool) -> Result<Vec<PathBuf>, io::Error> {
     let path = match path_in.is_empty() {
         true => std::env::current_dir()?,
         false => get_full_file_path(path_in),
     };
+
     let walker = WalkDir::new(path).into_iter();
     let mut pathlist: Vec<PathBuf> = Vec::new();
 
     for entry in walker.filter_entry(|e| !is_hidden(e)) {
-        let entry = entry.unwrap();
-        // we only want to save paths that are towards a file.
-        if entry.path().display().to_string().find('.').is_some() {
+        let entry = entry?;
+
+        if !filter_directories || entry.path().display().to_string().find('.').is_some() {
             pathlist.push(PathBuf::from(entry.path().display().to_string()));
         }
     }
+
     Ok(pathlist)
 }
 
-/// Recursively walks the subdirectories of the crypt folder and returns a Vec<PathBuf>.
+/// Recursively walks the subdirectories of the crypt folder and returns a `Vec<PathBuf>`.
 ///
 /// # Returns
 ///
-/// Returns a Result containing a Vec<PathBuf> with paths to files within the crypt folder,
+/// Returns a Result containing a `Vec<PathBuf>` with paths to files within the crypt folder,
 /// excluding certain folders such as "logs" and "decrypted". If an error occurs during the
 /// walking process, an Err variant is returned with an associated error message.
 ///
@@ -873,7 +886,7 @@ pub fn walk_crypt_folder() -> Result<Vec<PathBuf>, Box<dyn std::error::Error>> {
     Ok(pathlist)
 }
 
-/// takes in a path, and recursively walks the subdirectories and returns a vec<pathbuf>
+/// takes in a path, and recursively walks the subdirectories and returns a `vec<pathbuf>`
 pub fn walk_paths<T: AsRef<str>>(path_in: T) -> Vec<PathInfo> {
     let path = match path_in.as_ref().is_empty() {
         true => std::env::current_dir().unwrap_or_else(|err| {
@@ -903,7 +916,7 @@ pub fn walk_paths<T: AsRef<str>>(path_in: T) -> Vec<PathInfo> {
     pathlist
 }
 
-/// get full full path from a relative path
+/// get full path from a relative path
 pub fn get_full_file_path<T: AsRef<Path>>(path: T) -> PathBuf {
     let canonicalize = dunce::canonicalize(path.as_ref());
     match canonicalize {
@@ -978,7 +991,7 @@ mod tests {
     #[ignore]
     fn test_walk_directory() {
         let path = ".";
-        let res = walk_directory(path).unwrap();
+        let res = walk_directory(path, false).unwrap();
         assert_eq!(
             res[0].file_name().unwrap().to_str().unwrap(),
             "encryption_benchmark.rs"

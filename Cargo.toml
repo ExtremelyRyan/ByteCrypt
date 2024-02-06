@@ -5,24 +5,17 @@ authors = ["Ryan M", "Joshua B"]
 edition = "2021"
 
 [dependencies]
-crypt-ui = { path = "crypt-ui" }
-anyhow = {workspace = true}
-chrono = { version = "0.4.31", features = ["serde"] }
-
-
+crypt-ui = { path = "crypt-ui", version = "*"}
+anyhow = { workspace = true }
 
 [workspace]
 resolver = "2"
-members = [
-    "crypt-core",
-    "crypt-ui",
-    "crypt-cloud",
-]
+members = ["crypt-core", "crypt-ui", "crypt-cloud"]
 
 [workspace.package]
 description = "file encryption application"
 documentation = "https://github.com/ExtremelyRyan/ByteCrypt"
-homepage = "https://github.com/ExtremelyRyan/ByteCrypt"
+homepage = "https://thebytecrypt.com"
 repository = "https://github.com/ExtremelyRyan/ByteCrypt"
 readme = "README.md"
 keywords = ["encryption", "files"]
@@ -37,26 +30,26 @@ logfather = "0.2.3"
 
 # The development profile, used for `cargo build`.
 [profile.dev]
-opt-level = 0      # controls the `--opt-level` the compiler builds with.
-                   # 0-1 is good for debugging. 2 is well-optimized. Max is 3.
-debug = true       # include debug information (debug symbols). Equivalent to
-                   # `-C debuginfo=2` compiler flag.
-rpath = false      # controls whether compiler should set loader paths.
-                   # If true, passes `-C rpath` flag to the compiler.
-lto = false        # Link Time Optimization usually reduces size of binaries
-                   # and static libraries. Increases compilation time.
-                   # If true, passes `-C lto` flag to the compiler, and if a
-                   # string is specified like 'thin' then `-C lto=thin` will
-                   # be passed
+opt-level = 0 # controls the `--opt-level` the compiler builds with.
+# 0-1 is good for debugging. 2 is well-optimized. Max is 3.
+debug = true # include debug information (debug symbols). Equivalent to
+# `-C debuginfo=2` compiler flag.
+rpath = false # controls whether compiler should set loader paths.
+# If true, passes `-C rpath` flag to the compiler.
+lto = false # Link Time Optimization usually reduces size of binaries
+# and static libraries. Increases compilation time.
+# If true, passes `-C lto` flag to the compiler, and if a
+# string is specified like 'thin' then `-C lto=thin` will
+# be passed
 debug-assertions = true # controls whether debug assertions are enabled
-                   # (e.g. debug_assert!() and arithmetic overflow checks)
-codegen-units = 1  # if > 1 enables parallel code generation which improves
-                   # compile times, but prevents some optimizations.
-                   # Passes `-C codegen-units`.
-panic = 'unwind'   # panic strategy (`-C panic=...`), can also be 'abort'
-incremental = true # whether or not incremental compilation is enabled
+# (e.g. debug_assert!() and arithmetic overflow checks)
+codegen-units = 1 # if > 1 enables parallel code generation which improves
+# compile times, but prevents some optimizations.
+# Passes `-C codegen-units`.
+panic = 'unwind'       # panic strategy (`-C panic=...`), can also be 'abort'
+incremental = true     # whether or not incremental compilation is enabled
 overflow-checks = true # use overflow checks for integer arithmetic.
-                   # Passes the `-C overflow-checks=...` flag to the compiler.
+# Passes the `-C overflow-checks=...` flag to the compiler.
 
 # The release profile, used for `cargo build --release`.
 [profile.release]
@@ -88,7 +81,6 @@ debug = false
 rpath = false
 lto = false
 debug-assertions = false
-codegen-units = 1 
+codegen-units = 1
 incremental = false
 overflow-checks = false
- 

@@ -2,8 +2,8 @@ use crate::cli::{
     KeeperCommand,
     KeeperPurgeSubCommand::{Database, Token},
 };
-// use anyhow::{Ok, Result};
 
+use crypt_cloud::{crypt_core::common::verify_path, drive};
 use crypt_cloud::{
     crypt_core::{
         common::{
@@ -27,16 +27,10 @@ use crypt_cloud::{
     },
     drive::test_create_subfolders,
 };
-use crypt_cloud::{
-    crypt_core::{
-        common::{get_path_diff, verify_path},
-        filecrypt::do_file_encryption,
-    },
-    drive,
-};
 use std::{
     collections::HashMap,
-    path::{PathBuf, MAIN_SEPARATOR},
+    fs, io,
+    path::{Path, PathBuf, MAIN_SEPARATOR},
 };
 use tokio::runtime::Runtime;
 
@@ -60,8 +54,7 @@ pub enum CloudError {
 ///```
 ///TODO: implement output
 pub fn encrypt(
-    path: &str,
-    _in_place: bool,
+    path: &str, 
     output: Option<String>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     // verify our path is pointing to a actual dir/file
@@ -71,27 +64,23 @@ pub fn encrypt(
     }
 
     // get the difference between the user's current working directory, and the path they passed in.
-    let root_diff = get_path_diff(None, &path)?;
 
-    let user_path = PathBuf::from(path);
+    let mut root = PathBuf::new();
+    let user_path: PathBuf = PathBuf::from(path);
 
-    dbg!(&path, &root_diff);
     //Determine if file or directory
     match user_path.is_dir() {
         true => {
-            // get vec of dir
-            let dir = walk_directory(path);
-            dbg!(&dir);
-            match dir {
-                Ok(d) => {
-                    for p in d {
-                        send_information(vec![format!("Encrypting file: {}", p.display())]);
-                        let _file_diff =
-                            get_path_diff(Some(&root_diff), &p.parent().unwrap().to_path_buf())?;
-                        let _enc = do_file_encryption(&p.display().to_string())?;
+            if let Ok(directory) = walk_directory(path, false) {
+                for path in directory {
+                    // send_information(vec![format!("Encrypting file: {}", p.display())]);
+
+                    if path.is_dir() {
+                        root.push(path.file_name().unwrap());
+                    } else if path.is_file() {
+                        encrypt_file(path.to_str().unwrap(), &Some(root.display().to_string()));
                     }
                 }
-                Err(_) => todo!(),
             }
         }
         false => encrypt_file(path, &output),
@@ -118,7 +107,7 @@ pub fn decrypt(path: &str, _in_place: bool, output: Option<String>) {
         //if directory
         true => {
             // get vec of dir
-            let dir = walk_directory(path).expect("could not find directory!");
+            let dir = walk_directory(path, false).expect("could not find directory!");
             // dbg!(&dir);
             for path in dir {
                 if path.extension().unwrap() == "crypt" {
@@ -764,6 +753,43 @@ pub fn keeper(kc: &KeeperCommand) {
     }
 }
 
+// Function to write the file to the base file path
+pub fn merge_base_with_relative_path(
+    base_path: &Path,
+    relative_file_path: &Path,
+) -> io::Result<PathBuf> {
+    // Extract the folder structure relative to the current working directory
+    let relative_path = relative_file_path
+        // Assuming the fike path is relative to the current working directory
+        .strip_prefix(Path::new("."))
+        .unwrap_or(relative_file_path);
+
+    // Create the target path by joining the base path and the relative path
+    let mut target_path = base_path.join(relative_path);
+
+    // Create directories if they don't exist
+    if let Some(parent) = target_path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+
+    // Check if the target file already exists
+    let mut counter = 1;
+    while target_path.exists() {
+        // Modify the filename by appending a counter
+        let filename_with_counter = format!(
+            "{} ({})",
+            target_path.file_stem().unwrap().to_string_lossy(),
+            counter
+        );
+
+        // Create the new target path with the modified filename
+        target_path = target_path.with_file_name(filename_with_counter);
+        counter += 1;
+    }
+
+    Ok(target_path)
+}
+
 pub fn test() {
     // let (runtime, user_token, crypt_folder) = match google_startup() {
     //     Ok(res) => res,
@@ -771,6 +797,9 @@ pub fn test() {
     // };
     // let res = runtime.block_on(drive::test_query(&user_token, None, "", &crypt_folder));
     // println!("{:?}", res);
+
+    let res = walk_directory("test_folder", false);
+    println!("{:#?}", res);
 }
 
 pub fn ls(local: &bool, cloud: &bool) {
