@@ -817,8 +817,12 @@ pub fn send_information(info: Vec<String>) {
 /// let res = walk_directory("test_folder", true);
 /// println!("{:#?}", res);
 /// ```
-pub fn walk_directory(path_in: &str, filter_directories: bool) -> Result<Vec<PathBuf>, io::Error> {
-    let path = match path_in.is_empty() {
+pub fn walk_directory<T: AsRef<Path>>(
+    path_in: T,
+    filter_directories: bool,
+) -> Result<Vec<PathBuf>, io::Error> {
+    let path_in = path_in.as_ref();
+    let path = match path_in.to_string_lossy().is_empty() {
         true => std::env::current_dir()?,
         false => get_full_file_path(path_in),
     };

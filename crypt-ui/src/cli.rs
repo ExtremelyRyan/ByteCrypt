@@ -70,10 +70,6 @@ enum Commands {
         #[arg(required = true)]
         path: String,
 
-        ///Perform an in-place decryption
-        #[arg(short = 'p', long, default_value_t = false)]
-        in_place: bool,
-
         ///Change the output path
         #[arg(short = 'o', long, required = false)]
         output: Option<String>,
@@ -295,12 +291,8 @@ pub fn load_cli() {
         }
 
         // Decryption
-        Some(Commands::Decrypt {
-            path,
-            in_place,
-            output,
-        }) => {
-            directive::decrypt(path, in_place.to_owned(), output.to_owned());
+        Some(Commands::Decrypt { path, output }) => {
+            directive::decrypt(path, output.to_owned());
         }
 
         // Cloud commands - upload | download | view for Google Drive and TODO: Dropbox

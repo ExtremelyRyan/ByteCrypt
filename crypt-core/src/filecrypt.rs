@@ -197,31 +197,32 @@ impl FileCrypt {
 /// # Panics
 ///
 /// This function may panic in case of critical errors, but most errors are returned in the `Result`.
-pub fn decrypt_file(filename: &str, output: Option<String>) -> Result<(), FcError> {
+pub fn decrypt_file<T: AsRef<Path>>(path: T, output: String) -> Result<(), FcError> {
+    let path = path.as_ref();
     // get location of crypt folder and append "decrypted" path
     let mut crypt_folder = get_crypt_folder();
 
     // walk along crypt folder and find all files.
-    let paths = match walk_crypt_folder() {
+    let crypt_paths = match walk_crypt_folder() {
         Ok(p) => p,
         Err(e) => panic!("{e}"),
-    };
+    }; 
 
     let mut compared: Vec<PathBuf> = Vec::new();
 
     // appeasing the compiler gods
-    let binding = filename.trim().to_lowercase();
-    let filename = binding.as_str();
+    let binding = path.to_string_lossy().trim().to_lowercase();
+    let path = binding.as_str();
 
     // compare files found to filename, and keep in compared those that match
-    for p in paths.iter() {
+    for p in crypt_paths.iter() {
         // file may or may not include extension, so check for both & if filename is partial match.
-        if p.file_stem().unwrap().to_ascii_lowercase() == filename
-            || p.file_name().unwrap().to_ascii_lowercase() == filename
+        if p.file_stem().unwrap().to_ascii_lowercase() == path
+            || p.file_name().unwrap().to_ascii_lowercase() == path
             || p.to_string_lossy()
                 .to_string()
                 .to_lowercase()
-                .contains(filename)
+                .contains(path)
         {
             compared.push(p.to_owned());
         }
@@ -229,7 +230,7 @@ pub fn decrypt_file(filename: &str, output: Option<String>) -> Result<(), FcErro
 
     // if we have more than one match, prompt user to choose which file they want.
     let file_match = match compared.len() > 1 {
-        true => chooser(compared, filename),
+        true => chooser(compared, path),
         false => compared[0].to_owned(),
     };
 
@@ -245,8 +246,8 @@ pub fn decrypt_file(filename: &str, output: Option<String>) -> Result<(), FcErro
     let fc_hash: [u8; 32] = fc.hash.to_owned();
 
     // make sure we put decrypted file in the "decrypted" folder, dummy.
-    crypt_folder.push("decrypted");
-    let file = generate_output_file(&fc, output, &crypt_folder);
+    crypt_folder.push("decrypted"); 
+    let file = generate_output_file(&fc, output, &mut crypt_folder);
     dbg!(&file);
 
     let mut decrypted_content = match decrypt(fc.clone(), &contents.to_vec()) {
@@ -284,7 +285,7 @@ pub fn decrypt_contents(fc: FileCrypt, contents: Vec<u8>) -> Result<(), FcError>
     crypt_folder.push("decrypted");
 
     // get output file
-    let file = generate_output_file(&fc, None, Path::new(&crypt_folder));
+    let file = generate_output_file(&fc, String::new(), &mut PathBuf::from(&crypt_folder));
 
     // strip out uuid from contents
     let (_uuid, stripped_contents) = get_uuid(&contents)?;
@@ -362,8 +363,7 @@ pub fn encrypt_file(path: &str, output: &Option<String>) {
     match output {
         Some(o) => {
             let mut alt_path = path.clone();
-            alt_path.push(o);
-            dbg!(&alt_path, &o);
+            alt_path.push(o); 
             if !PathBuf::from(&alt_path).exists() {
                 match std::fs::create_dir_all(&alt_path) {
                     Ok(_) => (),
@@ -484,7 +484,6 @@ pub fn encrypt_contents(path: &str) -> Option<Vec<u8>> {
 ///
 /// * `fc` - A reference to a `FileCrypt` struct containing file information.
 /// * `output` - An optional string specifying an alternative output path or filename.
-/// * `parent_dir` - A reference to the parent directory where the output file will be created.
 ///
 /// # Returns
 ///
@@ -493,13 +492,50 @@ pub fn encrypt_contents(path: &str) -> Option<Vec<u8>> {
 /// # Panics
 ///
 /// The function may panic if there are issues with creating directories or manipulating file paths.
-fn generate_output_file(fc: &FileCrypt, output: Option<String>, parent_dir: &Path) -> String {
+fn generate_output_file(fc: &FileCrypt, mut output: String, parent_dir: &mut PathBuf) -> String {
     // default output case
     let mut file = format!("{}/{}{}", &parent_dir.display(), &fc.filename, &fc.ext);
 
     if !Path::new(&parent_dir).exists() {
-        _ = std::fs::create_dir(parent_dir);
-    }
+        _ = std::fs::create_dir(&parent_dir);
+    } 
+
+    // if user passes in a alternative path and or filename for us to use, use it.
+    if !output.is_empty() {
+        let rel_path = PathBuf::from(&output);  
+        parent_dir.push(rel_path.clone());
+
+        match rel_path.extension().is_some() {
+            // 'tis a file
+            true => {
+                _ = std::fs::create_dir_all(&parent_dir);
+                // get filename and ext from string
+                let name = rel_path.file_name().unwrap().to_string_lossy().to_string(); // Convert to owned String
+                let index = name.find('.').unwrap();
+                let (filename, extension) = name.split_at(index);
+                if cfg!(target_os = "windows") {
+                    file = format!("{}\\{}{}", parent_dir.display(), filename, extension);
+                } else {
+                    file = format!("{}/{}{}", parent_dir.display(), filename, extension);
+                }
+            }
+            // 'tis a new directory
+            false => {
+                _ = std::fs::create_dir_all(&parent_dir);
+
+                // check to make sure the last char isnt a / or \
+                let last = output.chars().last().unwrap();
+                if !last.is_ascii_alphabetic() {
+                    output.remove(output.len() - 1);
+                }
+                if cfg!(target_os = "windows") {
+                    file = format!("{}\\{}{}", parent_dir.display(), &fc.filename, &fc.ext);
+                } else {
+                    file = format!("{}/{}{}", parent_dir.display(), &fc.filename, &fc.ext);
+                }
+            }
+        };
+    } 
 
     // if we already have an existing file, we will loop and count up until we find a verison that is not there
     if Path::new(&file).exists() {
@@ -519,57 +555,6 @@ fn generate_output_file(fc: &FileCrypt, output: Option<String>, parent_dir: &Pat
                 break;
             }
         }
-    }
-
-    // if user passes in a alternative path and or filename for us to use, use it.
-    let mut p = String::new();
-    if output.is_some() {
-        p = output.unwrap();
-    }
-    if !p.is_empty() {
-        let rel_path = PathBuf::from(&p);
-
-        match rel_path.extension().is_some() {
-            // 'tis a file
-            true => {
-                _ = std::fs::create_dir_all(rel_path.parent().unwrap());
-                // get filename and ext from string
-                let name = rel_path.file_name().unwrap().to_string_lossy().to_string(); // Convert to owned String
-                let index = name.find('.').unwrap();
-                let (filename, extension) = name.split_at(index);
-                if cfg!(target_os = "windows") {
-                    file = format!(
-                        "{}\\{}{}",
-                        rel_path.parent().unwrap().to_string_lossy(),
-                        filename,
-                        extension
-                    );
-                } else {
-                    file = format!(
-                        "{}/{}{}",
-                        rel_path.parent().unwrap().to_string_lossy(),
-                        filename,
-                        extension
-                    );
-                }
-            }
-            // 'tis a new directory
-            false => {
-                _ = std::fs::create_dir_all(&rel_path);
-
-                // check to make sure the last char isnt a / or \
-                let last = p.chars().last().unwrap();
-                if !last.is_ascii_alphabetic() {
-                    p.remove(p.len() - 1);
-                }
-                let fp: PathBuf = PathBuf::from(p);
-                if cfg!(target_os = "windows") {
-                    file = format!("{}\\{}{}", &fp.display(), &fc.filename, &fc.ext);
-                } else {
-                    file = format!("{}/{}{}", &fp.display(), &fc.filename, &fc.ext);
-                }
-            }
-        };
     }
     file
 }

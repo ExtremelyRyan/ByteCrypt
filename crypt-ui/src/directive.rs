@@ -86,41 +86,32 @@ pub fn encrypt(path: &str, output: Option<String>) -> Result<(), Box<dyn std::er
 }
 
 ///Process the decryption directive
-///
-/// # Example
-///```ignore
-/// # use crypt_lib::util::directive::Directive;
-/// let in_place = false;
-/// let output = "desired/output/path".to_string();
-///
-/// let directive = Directive::new("relevant/file.path".to_string());
-/// directive.decrypt(in_place, output);
-///```
-///TODO: rework output for in-place
-///TODO: implement output to just change save_location
-pub fn decrypt(path: &str, _in_place: bool, output: Option<String>) {
+pub fn decrypt(path: &str, output: Option<String>) {
+    let mut crypt_folder = get_crypt_folder();
+    crypt_folder.push(path);
+
+    let mut root = PathBuf::new();
+    println!("PathBuf::from(path).is_dir(): {}", PathBuf::from(path).is_dir());
     //Determine if file or directory
     match PathBuf::from(path).is_dir() {
-        //if directory
+        //directory
         true => {
             // get vec of dir
-            let dir = walk_directory(path, false).expect("could not find directory!");
-            // dbg!(&dir);
-            for path in dir {
-                if path.extension().unwrap() == "crypt" {
-                    send_information(vec![format!("Decrypting file: {}", path.display())]);
-                    let res: std::prelude::v1::Result<
-                        (),
-                        crypt_cloud::crypt_core::filecrypt::FcError,
-                    > = decrypt_file(path.display().to_string().as_str(), output.to_owned());
-                    println!("{res:?}");
+            if let Ok(directory) = walk_directory(crypt_folder, false) {
+                for p in directory {
+                    if p.is_dir() { 
+                        root.push(p.file_name().unwrap());
+                    } else if p.is_file() { 
+                        send_information(vec![format!("Decrypting file: {}", p.display())]); 
+                        let _res = decrypt_file(p, root.display().to_string()); 
+                    }
                 }
             }
         }
-        //if file
+        // file
         false => {
-            let res = decrypt_file(path, output.to_owned());
-            println!("{res:?}");
+            let res = decrypt_file(path, output.to_owned().unwrap());
+            send_information(vec![format!("Decrypting file error: {:?}", res)]); 
         }
     };
 }
