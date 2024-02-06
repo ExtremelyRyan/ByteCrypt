@@ -217,7 +217,7 @@ pub enum KeeperCommand {
         #[command(subcommand)]
         category: Option<KeeperPurgeSubCommand>,
     },
-    /// TODO: maybe get rid of this in the future. for now, handy debugging tool for small db.
+    // TODO: maybe get rid of this in the future. for now, handy debugging tool for small db.
     /// List each file in the database
     #[command(short_flag = 'l')]
     List {},
