@@ -206,7 +206,7 @@ pub fn decrypt_file<T: AsRef<Path>>(path: T, output: String) -> Result<(), FcErr
     let crypt_paths = match walk_crypt_folder() {
         Ok(p) => p,
         Err(e) => panic!("{e}"),
-    }; 
+    };
 
     let mut compared: Vec<PathBuf> = Vec::new();
 
@@ -246,7 +246,7 @@ pub fn decrypt_file<T: AsRef<Path>>(path: T, output: String) -> Result<(), FcErr
     let fc_hash: [u8; 32] = fc.hash.to_owned();
 
     // make sure we put decrypted file in the "decrypted" folder, dummy.
-    crypt_folder.push("decrypted"); 
+    crypt_folder.push("decrypted");
     let file = generate_output_file(&fc, output, &mut crypt_folder);
     dbg!(&file);
 
@@ -363,7 +363,7 @@ pub fn encrypt_file(path: &str, output: &Option<String>) {
     match output {
         Some(o) => {
             let mut alt_path = path.clone();
-            alt_path.push(o); 
+            alt_path.push(o);
             if !PathBuf::from(&alt_path).exists() {
                 match std::fs::create_dir_all(&alt_path) {
                     Ok(_) => (),
@@ -498,11 +498,11 @@ fn generate_output_file(fc: &FileCrypt, mut output: String, parent_dir: &mut Pat
 
     if !Path::new(&parent_dir).exists() {
         _ = std::fs::create_dir(&parent_dir);
-    } 
+    }
 
     // if user passes in a alternative path and or filename for us to use, use it.
     if !output.is_empty() {
-        let rel_path = PathBuf::from(&output);  
+        let rel_path = PathBuf::from(&output);
         parent_dir.push(rel_path.clone());
 
         match rel_path.extension().is_some() {
@@ -535,7 +535,7 @@ fn generate_output_file(fc: &FileCrypt, mut output: String, parent_dir: &mut Pat
                 }
             }
         };
-    } 
+    }
 
     // if we already have an existing file, we will loop and count up until we find a verison that is not there
     if Path::new(&file).exists() {
@@ -775,7 +775,7 @@ mod test {
 
         thread::sleep(Duration::from_secs(1));
 
-        _ = decrypt_file(crypt.to_str().unwrap(), None);
+        _ = decrypt_file(crypt.to_str().unwrap(), String::from(""));
 
         let mut dracula_decypted = get_crypt_folder();
         dracula_decypted.push("decrypted");

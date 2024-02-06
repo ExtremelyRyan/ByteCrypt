@@ -91,7 +91,10 @@ pub fn decrypt(path: &str, output: Option<String>) {
     crypt_folder.push(path);
 
     let mut root = PathBuf::new();
-    println!("PathBuf::from(path).is_dir(): {}", PathBuf::from(path).is_dir());
+    println!(
+        "PathBuf::from(path).is_dir(): {}",
+        PathBuf::from(path).is_dir()
+    );
     //Determine if file or directory
     match PathBuf::from(path).is_dir() {
         //directory
@@ -99,11 +102,11 @@ pub fn decrypt(path: &str, output: Option<String>) {
             // get vec of dir
             if let Ok(directory) = walk_directory(crypt_folder, false) {
                 for p in directory {
-                    if p.is_dir() { 
+                    if p.is_dir() {
                         root.push(p.file_name().unwrap());
-                    } else if p.is_file() { 
-                        send_information(vec![format!("Decrypting file: {}", p.display())]); 
-                        let _res = decrypt_file(p, root.display().to_string()); 
+                    } else if p.is_file() {
+                        send_information(vec![format!("Decrypting file: {}", p.display())]);
+                        let _res = decrypt_file(p, root.display().to_string());
                     }
                 }
             }
@@ -111,7 +114,7 @@ pub fn decrypt(path: &str, output: Option<String>) {
         // file
         false => {
             let res = decrypt_file(path, output.to_owned().unwrap());
-            send_information(vec![format!("Decrypting file error: {:?}", res)]); 
+            send_information(vec![format!("Decrypting file error: {:?}", res)]);
         }
     };
 }

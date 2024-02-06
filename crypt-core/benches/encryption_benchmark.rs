@@ -105,14 +105,14 @@ pub fn enc_benchmark_large(c: &mut Criterion) {
 // decrypt test with 850kb file
 pub fn dec_benchmark(c: &mut Criterion) {
     c.bench_function("decrypt dracula", |b| {
-        b.iter(|| crate::filecrypt::decrypt_file(DRACULA_CRYPT, None))
+        b.iter(|| crate::filecrypt::decrypt_file(DRACULA_CRYPT, String::from("")))
     });
 }
 
 // decrypt test with 5mb file
 pub fn dec_benchmark_large(c: &mut Criterion) {
     c.bench_function("decrypt Shakespeare", |b| {
-        b.iter(|| crate::filecrypt::decrypt_file(SHAKESPEARE_CRYPT, None))
+        b.iter(|| crate::filecrypt::decrypt_file(SHAKESPEARE_CRYPT, String::from("")))
     });
 }
 
