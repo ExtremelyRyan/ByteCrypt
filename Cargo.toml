@@ -27,7 +27,7 @@ rust-version = "1.70"
 [workspace.dependencies]
 anyhow = "1.0.75"
 lazy_static = "1.4"
-logfather = "0.2.3"
+logfather = "0.2.4"
 
 # The development profile, used for `cargo build`.
 [profile.dev]

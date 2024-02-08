@@ -6,12 +6,11 @@ fn main() -> anyhow::Result<()> {
 
     Ok(())
 }
- 
 
 // fn tester() {
 //     // Example PathBuf
 //     let path_buf =
-//         PathBuf::from("C:\\Users\\ryanm\\crypt\\test_folder\\folder2\\New folder\\apples.crypt");
+// PathBuf::from("C:\\Users\\ryanm\\crypt\\test_folder\\folder2\\New folder\\apples.crypt");
 
 //     // Find the position of "crypt" in the path
 //     let crypt_position = path_buf.iter().position(|component| component == "crypt");

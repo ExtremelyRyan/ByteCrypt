@@ -107,18 +107,17 @@ pub async fn g_create_folder(
     user_token: &UserToken,
     path: Option<&PathBuf>,
     parent: &str,
-    crypt_root: &String,
 ) -> Result<String> {
     let save_path = match path {
         Some(p) => p.to_str().unwrap(),
         None => GOOGLE_FOLDER,
     };
 
-    let query = match crypt_root.is_empty() {
+    let query = match parent.is_empty() {
         false => {
             format!(
                 "name = '{}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false and '{}' in parents",
-                save_path, crypt_root
+                save_path, parent
             )
         }
         true => {
@@ -143,9 +142,10 @@ pub async fn g_create_folder(
     //If folder exists, break out
     let folders = response.json::<Value>().await?;
     for item in folders["files"].as_array().unwrap_or(&vec![]) {
-        dbg!(&item);
+        // dbg!(&item);
         if item["name"].as_str() == Some(save_path) {
             if let Some(id) = item["id"].as_str() {
+                dbg!(&path, &parent, &id.to_string());
                 return Ok(id.to_string());
             }
         }
@@ -173,7 +173,7 @@ pub async fn g_create_folder(
     // println!("folder creation result: {}", creation_result.text().await?);
 
     //Re-query to get folder id
-    let query = match crypt_root.is_empty() {
+    let query = match parent.is_empty() {
         false => {
             format!(
                 "name = '{}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false and '{}' in parents",
@@ -201,6 +201,7 @@ pub async fn g_create_folder(
     for item in folders["files"].as_array().unwrap_or(&vec![]) {
         if item["name"].as_str() == Some(save_path) {
             if let Some(id) = item["id"].as_str() {
+                dbg!(&path, &parent, &id.to_string());
                 return Ok(id.to_string());
             }
         }
@@ -247,8 +248,6 @@ pub async fn g_upload(user_token: &UserToken, path: &str, parent: &str) -> Resul
     let file_name = Path::new(path).file_name().unwrap().to_str().unwrap();
 
     let file_size = std::fs::metadata(path)?.len();
-
-    // dbg!(&file_name, &parent);
 
     let client = reqwest::Client::new();
     let response = client
@@ -646,7 +645,6 @@ pub fn test_create_subfolders(
         &user_token,
         Some(&PathBuf::from(root_folder_name)),
         &crypt_folder,
-        &crypt_folder,
     ));
     println!("Creating root result : {:?}", id);
 
@@ -661,7 +659,6 @@ pub fn test_create_subfolders(
                     &user_token,
                     Some(&PathBuf::from(sub.clone())),
                     &sub_folder_id,
-                    &crypt_folder,
                 ))
                 .expect("Could not create directory in google drive");
 
@@ -698,14 +695,13 @@ pub fn google_startup() -> Result<(Runtime, UserToken, String), CloudError> {
     let user_token = UserToken::new_google();
 
     //Access google drive and ensure a crypt folder exists, create if doesn't
-    let crypt_folder: String =
-        match runtime.block_on(g_create_folder(&user_token, None, "", &"".to_string())) {
-            core::result::Result::Ok(folder_id) => folder_id,
-            Err(error) => {
-                send_information(vec![format!("{}", error)]);
-                return Err(CloudError::CryptFolderError);
-            }
-        };
+    let crypt_folder: String = match runtime.block_on(g_create_folder(&user_token, None, "")) {
+        core::result::Result::Ok(folder_id) => folder_id,
+        Err(error) => {
+            send_information(vec![format!("{}", error)]);
+            return Err(CloudError::CryptFolderError);
+        }
+    };
 
     std::result::Result::Ok((runtime, user_token, crypt_folder))
 }

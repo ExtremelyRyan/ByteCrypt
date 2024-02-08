@@ -141,12 +141,8 @@ pub fn google_startup() -> Result<(Runtime, UserToken, String), CloudError> {
     let user_token = UserToken::new_google();
 
     //Access google drive and ensure a crypt folder exists, create if doesn't
-    let crypt_folder: String = match runtime.block_on(drive::g_create_folder(
-        &user_token,
-        None,
-        "",
-        &"".to_string(),
-    )) {
+    let crypt_folder: String = match runtime.block_on(drive::g_create_folder(&user_token, None, ""))
+    {
         core::result::Result::Ok(folder_id) => folder_id,
         Err(error) => {
             send_information(vec![format!("{}", error)]);
@@ -192,7 +188,7 @@ pub fn google_upload2(path: &str) -> Result<(), Box<dyn std::error::Error>> {
             fc.drive_id = runtime.block_on(drive::g_upload(
                 &user_token,
                 &user_result.display().to_string(),
-                &crypt_folder
+                &crypt_folder,
             ))?;
 
             // 3. update database.
@@ -221,14 +217,36 @@ pub fn google_upload2(path: &str) -> Result<(), Box<dyn std::error::Error>> {
 
             // get all our file paths from folder
             let (files, _) = get_filenames_from_subdirectories(&crypt_root)?;
+            dbg!(&files);
 
             for file in files {
+                // get FileCrypt information from keeper
+                let mut fc = match get_uuid_from_file(file.as_path()) {
+                    Ok(uuid) => db::query_crypt(uuid).unwrap(),
+                    Err(_) => continue,
+                };
+
+                // if our file already exists on the Drive, update it instead.
+                if !fc.drive_id.is_empty() {
+                    let id = runtime.block_on(drive::g_update(
+                        &user_token,
+                        file.to_str().unwrap(),
+                        &file.to_string_lossy().to_string(),
+                    ))?;
+                    // not sure if this would happen, but check for it anyway.
+                    // if updated file id does not match, update FileCrypt DriveID
+                    if fc.drive_id != id {
+                        fc.drive_id = id;
+                    }
+                }
+
                 // Find the position of "crypt" in the path
                 let crypt_position = file.iter().position(|component| component == "crypt");
 
                 if let Some(index) = crypt_position {
                     // Collect the components after "crypt"
                     let remaining_components: Vec<_> = file.iter().skip(index + 1).collect();
+                    dbg!(&remaining_components);
 
                     let len = remaining_components.len() - 1;
 
@@ -251,19 +269,20 @@ pub fn google_upload2(path: &str) -> Result<(), Box<dyn std::error::Error>> {
                                 &user_token,
                                 Some(&PathBuf::from(component)),
                                 &parent,
-                                &crypt_folder,
                             ))?;
+                            println!("{:?} : {}", component, current);
                             parent = current.clone();
-                        }
-                        if num == len {
+                        } else {
                             println!("file! : {:?}", component);
                             current = runtime.block_on(drive::g_upload(
                                 &user_token,
                                 file.to_str().unwrap(),
                                 &current,
                             ))?;
+                            fc.drive_id = current.clone();
                         }
-                       
+                        // 3. update database.
+                        db::insert_crypt(&fc)?;
                     }
                 }
             }
@@ -323,7 +342,6 @@ pub fn google_upload2(path: &str) -> Result<(), Box<dyn std::error::Error>> {
 
     Ok(())
 }
-
 
 pub fn google_download(path: &String) {
     let (runtime, user_token, _) = match google_startup() {

@@ -251,7 +251,7 @@
 // //     let mut result = String::new();
 // //     //Root directory
 // //     if depth == 0 {
-// //         result.push_str(&format! {"{}\n",
+// //         result.push_str( {"{}\n",
 // //             directory.path.full_path.file_name().unwrap().to_str().unwrap()
 // //         });
 // //     }
@@ -274,12 +274,12 @@
 // //         let mut prefix = String::new();
 // //         if depth == 0 {
 // //             //for item that immediately follows root contents
-// //             prefix.push_str(&format!("{}", connector));
+// //             prefix.push_str(("{}", connector));
 // //         }
 // //         if depth > 0 {
 // //             //Non-root
 // //             prefix.push_str(&" ".repeat(depth * 4));
-// //             prefix.push_str(&format! {"{}", connector});
+// //             prefix.push_str( {"{}", connector});
 // //         }
 
 // //         let text = match entity {

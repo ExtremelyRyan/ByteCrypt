@@ -105,7 +105,7 @@ pub fn export_keeper(alt_path: Option<&str>) -> Result<()> {
         }
     };
 
-    info!(&format!("writing export to {}", &path.display()));
+    info!("writing export to {}", &path.display());
 
     if let Some(ap) = alt_path {
         write_contents_to_file(ap, data)?;
@@ -125,17 +125,14 @@ pub fn import_keeper(path: &String) -> Result<()> {
         let record: StringRecord = match result {
             Ok(it) => it,
             Err(err) => {
-                error!(&format!("Failed to convert csv to StringRecord!: {}", err));
+                error!("Failed to convert csv to StringRecord!: {}", err);
                 continue;
             } // TODO: Fix with more elegant handling.
         };
         let fc: FileCrypt = match record.deserialize(None) {
             Ok(it) => it,
             Err(err) => {
-                error!(&format!(
-                    "Failed to convert StringRecord to FileCrypt!: {}",
-                    err
-                ));
+                error!("Failed to convert StringRecord to FileCrypt!: {}", err);
                 FileCrypt::default()
             } // TODO: Fix with more elegant handling.
         };
