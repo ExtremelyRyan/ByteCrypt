@@ -1,17 +1,18 @@
 use anyhow::{anyhow, Result};
 use csv::*;
 use lazy_static::lazy_static;
-use log::*;
+use logfather::*;
 use r2d2::Pool;
 use r2d2_sqlite::SqliteConnectionManager;
 use rusqlite::{params, Connection, Error as rusqliteError};
 use std::{
     fs,
     path::{Path, PathBuf},
+    str::FromStr,
 };
 
 use crate::{
-    common::{get_crypt_folder, write_contents_to_file},
+    common::{get_config_folder, write_contents_to_file},
     config::get_config,
     encryption::{KEY_SIZE, NONCE_SIZE},
     filecrypt::FileCrypt,
@@ -68,26 +69,50 @@ fn init_keeper(conn: &Connection) -> Result<()> {
     Ok(())
 }
 
-///Exports ALL content within the `crypt_keeper` database to a csv for easy sharing.
-/// Exports `crypt_export.csv` to crypt folder
+/// Export data from the keeper and write it to a CSV file.
+///
+/// # Arguments
+///
+/// * `alt_path`: An optional alternative path where the CSV file should be saved.
+///
+/// # Returns
+///
+/// Returns a `Result` or `Error` indicating success or failure.
 pub fn export_keeper(alt_path: Option<&str>) -> Result<()> {
     // https://rust-lang-nursery.github.io/rust-cookbook/encoding/csv.html
-    let db_crypts = query_keeper_crypt().unwrap();
+
+    // Query keeper crypts
+    let db_crypts = query_keeper_crypt()?;
+
+    // Create CSV writer
     let mut wtr = WriterBuilder::new().has_headers(false).from_writer(vec![]);
+
+    // Serialize crypts to CSV
     for crypt in db_crypts {
         wtr.serialize(crypt)?;
     }
-    let data = String::from_utf8(wtr.into_inner()?)?;
 
-    // get crypt dir "C:\\users\\USER\\crypt"
-    let mut path = get_crypt_folder();
-    path.push("crypt_export.csv");
+    // Get CSV data as bytes
+    let data = wtr.into_inner()?;
+
+    // get crypt dir "C:\\users\\USER\\crypt_config"
+    let path: PathBuf = match alt_path {
+        Some(p) => PathBuf::from_str(p)?,
+        None => {
+            let mut p = get_config_folder();
+            p.push("crypt_export.csv");
+            p
+        }
+    };
 
     info!("writing export to {}", &path.display());
-    match alt_path.is_some() {
-        true => write_contents_to_file(alt_path.unwrap(), data.into_bytes()),
-        false => write_contents_to_file(path.to_str().unwrap(), data.into_bytes()),
+
+    if let Some(ap) = alt_path {
+        write_contents_to_file(ap, data)?;
+    } else {
+        write_contents_to_file(path, data)?;
     }
+    Ok(())
 }
 
 /// Imports csv into database. <b>WARNING</b>, overrides may occur!
@@ -100,14 +125,14 @@ pub fn import_keeper(path: &String) -> Result<()> {
         let record: StringRecord = match result {
             Ok(it) => it,
             Err(err) => {
-                error!("Failed to convert csv to StringRecord!: {err}");
+                error!("Failed to convert csv to StringRecord!: {}", err);
                 continue;
             } // TODO: Fix with more elegant handling.
         };
         let fc: FileCrypt = match record.deserialize(None) {
             Ok(it) => it,
             Err(err) => {
-                error!("Failed to convert StringRecord to FileCrypt!: {err}");
+                error!("Failed to convert StringRecord to FileCrypt!: {}", err);
                 FileCrypt::default()
             } // TODO: Fix with more elegant handling.
         };

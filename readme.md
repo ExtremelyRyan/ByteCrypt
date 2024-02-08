@@ -3,6 +3,10 @@
 <h1 align="center">ByteCrypt</h1>
 </p>
 <br/>
+
+[![Crates.io](https://img.shields.io/crates/v/ByteCrypt.svg)](https://crates.io/crates/ByteCrypt)
+[![Docs.rs](https://docs.rs/ByteCrypt/badge.svg)](https://docs.rs/ByteCrypt)
+[![CI](https://github.com/ExtremelyRyan/ByteCrypt/workflows/CI/badge.svg)](https://github.com/ExtremelyRyan/ByteCrypt/actions)
  
 Encryption command line application on single file or entire directories.
 
@@ -29,13 +33,27 @@ by default, we store a backup `.crypt` when encrypting, so you can be sure to al
 
 ## Getting Started
 
+### Getting Google Service Account
+
+Becuase this is a public source repository, we are unable to place our `client ID` and `client secret` in the repo. because of this, you will have to go out and create a service account (free) to enable ByteCrypt access to use your Google Drive. 
+
+[service account instructions](https://developers.google.com/identity/protocols/oauth2/service-account#creatinganaccount)
+
+after following the instructions, please download the json file (named `google.json` !) to: <br>
+
+Windows: `C:/Users/USER/crypt_config/.config/google.json` <br>
+
+Linux: `~/home/USER/crypt_config/.config/google.json`
+
 ### Dependencies
 
 currently being tested on windows 10,11, wsl(ubuntu), and Arch linux.
 requires minimum Rust version > 1.70.
 
 ### Installing
-
+* Install the rust toolchain in order to have cargo installed by following
+  [this](https://www.rust-lang.org/tools/install) guide.
+* go to our [release](https://github.com/ExtremelyRyan/ByteCrypt/releases) page and download the latest 
 * Clone the repository, and go to the root project directory. Run `cargo install --path .`
 
 
@@ -45,12 +63,7 @@ By default, we will create a new file (file<b>.crypt</b>) with the encrypted con
 ```bash 
 crypt encrypt file.ext
 ```
-
-Encrypt a file in-place
-```bash
-crypt encrypt -p file.ext
-```
-
+ 
 Encrypt a whole directory with a path! even include hidden files with `-i`
 ```bash
 crypt encrypt /some/dir

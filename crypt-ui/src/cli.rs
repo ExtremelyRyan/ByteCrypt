@@ -1,13 +1,14 @@
+use std::path::PathBuf;
+
 use clap::{Parser, Subcommand};
 use crypt_cloud::crypt_core::{
-    common::send_information,
+    common::{get_machine_name, send_information},
     config::{self, ConfigTask, ItemsTask},
     db::import_keeper,
 };
 
 use crate::directive::{
-    self, dropbox_download, dropbox_upload, dropbox_view, google_download, google_upload,
-    google_view,
+    self, dropbox_download, dropbox_upload, dropbox_view, google_download, google_view,
 };
 // use crate::tui::load_tui;
 
@@ -24,9 +25,11 @@ pub struct CommandLineArgs {
     #[arg(long, hide = true)]
     md: bool,
 
-    ///TUI mode
-    #[arg(short, long, default_value_t = false)]
-    pub tui: bool,
+    // ///TUI mode
+    // #[arg(short, long, default_value_t = false)]
+    // pub tui: bool,
+    #[arg(short, default_value_t = false)]
+    pub test: bool,
 
     ///Subcommands
     #[command(subcommand)]
@@ -56,10 +59,6 @@ enum Commands {
         #[arg(required = true)]
         path: String,
 
-        ///Perform an in-place encryption
-        #[arg(short = 'p', long, default_value_t = false)]
-        in_place: bool,
-
         ///Change the output path
         #[arg(short = 'o', long, required = false)]
         output: Option<String>,
@@ -71,10 +70,6 @@ enum Commands {
         #[arg(required = true)]
         path: String,
 
-        ///Perform an in-place decryption
-        #[arg(short = 'p', long, default_value_t = false)]
-        in_place: bool,
-
         ///Change the output path
         #[arg(short = 'o', long, required = false)]
         output: Option<String>,
@@ -85,6 +80,17 @@ enum Commands {
         /// Categories
         #[command(subcommand)]
         category: Option<KeeperCommand>,
+    },
+
+    /// show local / cloud crypt folder
+    Ls {
+        ///Show all files contained in the local crypt folder
+        #[arg(short = 'l', long, default_value_t = false)]
+        local: bool,
+
+        ///Show all files contained in the cloud folder
+        #[arg(short = 'c', long, default_value_t = false)]
+        cloud: bool,
     },
 }
 
@@ -149,6 +155,14 @@ pub enum ConfigCommand {
         path: String,
     },
 
+    /// View or update the crypt folder path
+    #[command(short_flag = 'c')]
+    CryptPath {
+        /// Database path; if empty, prints current path
+        #[arg(required = false, default_value_t = String::from(""))]
+        path: String,
+    },
+
     /// View or change which directories and/or filetypes are to be ignored
     #[command(short_flag = 'i')]
     IgnoreItems {
@@ -161,21 +175,9 @@ pub enum ConfigCommand {
         item: String,
     },
 
-    /// Update whether to retain original files after encryption or decryption
-    #[command(short_flag = 'r')]
-    Retain {
-        /// Configure retaining original file: kept if true
-        #[arg(required = false, default_value_t = String::from(""))]
-        choice: String,
-    },
-
-    /// Update whether to retain original files after encryption or decryption
-    #[command(short_flag = 'b')]
-    Backup {
-        /// Configure retaining original file: kept if true
-        #[arg(required = false, default_value_t = String::from(""))]
-        choice: String,
-    },
+    /// View or change current pc name associated with the cloud.
+    #[command()]
+    Hwid {},
 
     /// View or change the compression level (-7 to 22) -- higher is more compression
     #[command(short_flag = 'z')]
@@ -215,7 +217,7 @@ pub enum KeeperCommand {
         #[command(subcommand)]
         category: Option<KeeperPurgeSubCommand>,
     },
-    /// TODO: maybe get rid of this in the future. for now, handy debugging tool for small db.
+    // TODO: maybe get rid of this in the future. for now, handy debugging tool for small db.
     /// List each file in the database
     #[command(short_flag = 'l')]
     List {},
@@ -248,6 +250,8 @@ impl KeeperCommand {
 
 /// Runs the CLI and returns a directive to be processed
 pub fn load_cli() {
+    config::init(config::Interface::CLI);
+
     // Run the cli and get responses
     let cli = CommandLineArgs::parse();
 
@@ -262,8 +266,12 @@ pub fn load_cli() {
     }
 
     // Call TUI if flag was passed
-    if cli.tui {
-        // load_tui().expect("failed to load TUI");
+    // if cli.tui {
+    //     // load_tui().expect("failed to load TUI");
+    // }
+
+    if cli.test {
+        directive::test();
     }
 
     // Process the command passed by the user
@@ -271,33 +279,33 @@ pub fn load_cli() {
         // Nothing passed (Help screen printed)
         None => (),
 
+        // ls
+        Some(Commands::Ls { local, cloud }) => {
+            directive::ls(local, cloud);
+        }
+
         // Encryption
-        Some(Commands::Encrypt {
-            path,
-            in_place,
-            output,
-        }) => {
-            directive::encrypt(path, in_place.to_owned(), output.to_owned());
+        Some(Commands::Encrypt { path, output }) => {
+            let res = directive::encrypt(path, output.to_owned());
+            println!("encrypt result: {:?}", res);
         }
 
         // Decryption
-        Some(Commands::Decrypt {
-            path,
-            in_place,
-            output,
-        }) => {
-            directive::decrypt(path, in_place.to_owned(), output.to_owned());
+        Some(Commands::Decrypt { path, output }) => {
+            directive::decrypt(path, output.to_owned());
         }
 
-        // Cloud
-
-        // TODO: This needs to be torn apart. Each command needs to be called to a seperate function
-        // TODO: Trying to add the no_ecrypt flag pretty much breaks this entirely.
+        // Cloud commands - upload | download | view for Google Drive and TODO: Dropbox
         Some(Commands::Cloud { category }) => match category {
+            // Google
             Some(CloudCommand::Google { task }) => {
                 match task {
-                    Some(DriveCommand::Upload { path, no_encrypt }) => {
-                        google_upload(path, no_encrypt)
+                    Some(DriveCommand::Upload {
+                        path,
+                        no_encrypt: _,
+                    }) => {
+                        dbg!(&path);
+                        let _response = directive::google_upload2(path);
                     }
                     Some(DriveCommand::Download { path }) => google_download(path),
                     Some(DriveCommand::View { path }) => google_view(path),
@@ -319,9 +327,7 @@ pub fn load_cli() {
                 };
             }
 
-            None => {
-                todo!();
-            }
+            None => {}
         },
         // Keeper
         Some(Commands::Keeper { category }) => {
@@ -336,6 +342,10 @@ pub fn load_cli() {
                     directive::config(path, ConfigTask::DatabasePath);
                 }
 
+                Some(ConfigCommand::CryptPath { path }) => {
+                    directive::config(path, ConfigTask::CryptPath);
+                }
+
                 // IgnoreItems
                 Some(ConfigCommand::IgnoreItems { add_remove, item }) => {
                     let add_remove = match add_remove.to_lowercase().as_str() {
@@ -347,30 +357,15 @@ pub fn load_cli() {
                     directive::config("", ConfigTask::IgnoreItems(add_remove, item.to_owned()));
                 }
 
-                // Retain
-                Some(ConfigCommand::Retain { choice }) => {
-                    let choice = match choice.to_lowercase().as_str() {
-                        "true" | "t" => true,
-                        "false" | "f" => false,
-                        _ => panic!("Unable to parse passed value"),
-                    };
-                    directive::config("", ConfigTask::Retain(choice));
-                }
-
-                // Backup
-                Some(ConfigCommand::Backup { choice }) => {
-                    let choice = match choice.to_lowercase().as_str() {
-                        "true" | "t" => true,
-                        "false" | "f" => false,
-                        _ => panic!("Unable to parse passed value"),
-                    };
-                    directive::config("", ConfigTask::Backup(choice));
-                }
-
                 // ZstdLevel
                 Some(ConfigCommand::ZstdLevel { level }) => {
                     let level: i32 = level.parse().expect("Could not interpret passed value");
                     directive::config("", ConfigTask::ZstdLevel(level));
+                }
+
+                //Hwid
+                Some(ConfigCommand::Hwid {}) => {
+                    send_information(vec![format!("machine name: {}", get_machine_name())]);
                 }
 
                 // LoadDefault
@@ -380,8 +375,8 @@ pub fn load_cli() {
 
                 None => (),
             }
-            let config = config::get_config();
-            println!("{}", config);
+            // let config = config::get_config();
+            // println!("{}", config);
         }
     }
 }
@@ -391,11 +386,32 @@ fn debug_mode() {
 }
 
 pub fn test() {
-    let crypts = crypt_cloud::crypt_core::db::query_keeper_for_files_with_drive_id().unwrap();
+    // let crypts = crypt_cloud::crypt_core::db::query_keeper_for_files_with_drive_id().unwrap();
 
-    for crypt in crypts {
-        println!("file: {}{}", crypt.filename, crypt.ext);
-        println!("full path: {}", crypt.full_path.display());
-        println!("drive ID: {}\n", crypt.drive_id);
-    }
+    // for crypt in crypts {
+    //     println!("file: {}{}", crypt.filename, crypt.ext);
+    //     println!("full path: {}", crypt.full_path.display());
+    //     println!("drive ID: {}\n", crypt.drive_id);
+    // }
+
+    // Get the current working directory
+    let current_dir = std::env::current_dir().expect("Failed to get current directory");
+
+    // Specify the file or directory for which you want to find the relative path
+    let target_path = "test_folder\\folder2\\file3.txt";
+
+    // Create a PathBuf for the target path
+    let target_path_buf = PathBuf::from(target_path);
+
+    // Resolve the full path of the target path
+    let full_path = current_dir.join(target_path_buf);
+
+    // Get the relative path from the current directory to the target path
+    let relative_path = full_path
+        .strip_prefix(&current_dir)
+        .expect("Failed to calculate relative path");
+
+    println!("Current Directory: {:?}", current_dir);
+    println!("Full Path: {:?}", full_path);
+    println!("Relative Path: {:?}", relative_path);
 }

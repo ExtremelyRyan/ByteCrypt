@@ -2,8 +2,7 @@ use anyhow::{Error, Ok, Result};
 use async_recursion::async_recursion;
 use crypt_core::{
     common::DirInfo,
-    common::{FileInfo, FsNode},
-    filecrypt::encrypt_contents,
+    common::{send_information, FileInfo, FsNode},
     token::UserToken,
 };
 use reqwest::{
@@ -11,12 +10,14 @@ use reqwest::{
     Client, Response,
 };
 use serde_json::Value;
-use std::path::{Path, PathBuf};
-use tokio::{fs::File, io::AsyncReadExt};
+use std::{
+    collections::HashMap,
+    fmt,
+    path::{Path, PathBuf},
+};
+use tokio::{fs::File, io::AsyncReadExt, runtime::Runtime};
 
 const GOOGLE_FOLDER: &str = "Crypt";
-pub const GOOGLE_CLIENT_ID: &str =
-    "1006603075663-bi4o75nk6opljg7bicdiuden76s3v18f.apps.googleusercontent.com";
 const CHUNK_SIZE: usize = 5_242_880; //5MB
 
 /// <b>Asynchronously</b> sends an HTTP GET request to the specified URL with the provided user credentials.
@@ -71,6 +72,36 @@ pub async fn g_id_exists(user_token: &UserToken, id: &str) -> Result<bool> {
     }
 }
 
+pub async fn test_query(
+    user_token: &UserToken,
+    path: Option<&PathBuf>,
+    _parent: &str,
+    _crypt_root_id: &str,
+) -> Result<()> {
+    let _save_path = match path {
+        Some(p) => p.to_str().unwrap(),
+        None => GOOGLE_FOLDER,
+    };
+
+    //Check if the folder exists
+    let query = format!(
+        "mimeType = 'application/vnd.google-apps.folder' and trashed = false and '{}' in parents",
+        "1fqr6ko5-73QeqnMM6ySE3gzp5M-MN5KS"
+    );
+    let url = format!("https://www.googleapis.com/drive/v3/files?q={}", query);
+    //Send the url and get the response
+    let response = request_url(&url, user_token).await?;
+
+    //If drive query failed, break out and print error
+    if !response.status().is_success() {
+        return Err(Error::msg(format!("ERROR {:?}", response.text().await?)));
+    }
+
+    println!("\n\n{:?}", response.text().await?);
+
+    Ok(())
+}
+
 ///Parse the drive and create the folder if it doesn't exist
 pub async fn g_create_folder(
     user_token: &UserToken,
@@ -82,24 +113,39 @@ pub async fn g_create_folder(
         None => GOOGLE_FOLDER,
     };
 
-    //Check if the folder exists
-    let query = format!(
-        "name = '{}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false",
-        save_path
-    );
+    let query = match parent.is_empty() {
+        false => {
+            format!(
+                "name = '{}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false and '{}' in parents",
+                save_path, parent
+            )
+        }
+        true => {
+            format!(
+                "name = '{}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false",
+                save_path
+            )
+        }
+    };
+
     let url = format!("https://www.googleapis.com/drive/v3/files?q={}", query);
+
     //Send the url and get the response
     let response = request_url(&url, user_token).await?;
 
     //If drive query failed, break out and print error
     if !response.status().is_success() {
-        return Err(Error::msg(format!("{:?}", response.text().await?)));
+        let e = Error::msg(format!("{:?}", response.text().await?));
+        println!("{}", &e);
+        return Err(e);
     }
     //If folder exists, break out
     let folders = response.json::<Value>().await?;
     for item in folders["files"].as_array().unwrap_or(&vec![]) {
+        // dbg!(&item);
         if item["name"].as_str() == Some(save_path) {
             if let Some(id) = item["id"].as_str() {
+                dbg!(&path, &parent, &id.to_string());
                 return Ok(id.to_string());
             }
         }
@@ -117,17 +163,30 @@ pub async fn g_create_folder(
         }),
     };
     //If folder doesn't exist, create new folder
-    let _ = Client::new()
+    let _creation_result = Client::new()
         .post("https://www.googleapis.com/drive/v3/files")
         .bearer_auth(&user_token.access_token)
         .json(&json)
         .send()
         .await?;
+
+    // println!("folder creation result: {}", creation_result.text().await?);
+
     //Re-query to get folder id
-    let query = format!(
-        "name = '{}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false",
-        save_path
-    );
+    let query = match parent.is_empty() {
+        false => {
+            format!(
+                "name = '{}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false and '{}' in parents",
+                save_path, parent
+            )
+        }
+        true => {
+            format!(
+                "name = '{}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false",
+                save_path
+            )
+        }
+    };
     let url = format!("https://www.googleapis.com/drive/v3/files?q={}", query);
 
     //Send the url and get the response
@@ -142,6 +201,7 @@ pub async fn g_create_folder(
     for item in folders["files"].as_array().unwrap_or(&vec![]) {
         if item["name"].as_str() == Some(save_path) {
             if let Some(id) = item["id"].as_str() {
+                dbg!(&path, &parent, &id.to_string());
                 return Ok(id.to_string());
             }
         }
@@ -181,25 +241,11 @@ pub async fn g_update(user_token: &UserToken, id: &str, path: &str) -> Result<St
 }
 
 ///Uploads a file to google drive
-pub async fn g_upload(
-    user_token: &UserToken,
-    path: &str,
-    parent: &str,
-    no_encrypt: &bool,
-) -> Result<String> {
+pub async fn g_upload(user_token: &UserToken, path: &str, parent: &str) -> Result<String> {
     //Get file content
-    // dbg!(&no_encrypt);
     let mut file = File::open(path).await?;
-    let mut tmp; // to appease the compiler gods
-    let mut file_name = Path::new(path).file_name().unwrap().to_str().unwrap();
-
-    // if we are encrypting the file, get just the filename and append ".crypt"
-    if !no_encrypt {
-        file_name = Path::new(path).file_stem().unwrap().to_str().unwrap();
-        tmp = String::from(file_name);
-        tmp.push_str(".crypt");
-        file_name = &tmp;
-    }
+    // let mut tmp; // to appease the compiler gods
+    let file_name = Path::new(path).file_name().unwrap().to_str().unwrap();
 
     let file_size = std::fs::metadata(path)?.len();
 
@@ -211,7 +257,8 @@ pub async fn g_upload(
             "name": file_name,
             "parents": [parent]
         }))
-        .header("X-Upload-Content-Type", "application/x-crypt") //application/octet-stream for unknown file types
+        //application/octet-stream for unknown file types
+        .header("X-Upload-Content-Type", "application/x-crypt")
         .send()
         .await?;
 
@@ -221,12 +268,6 @@ pub async fn g_upload(
         .ok_or_else(|| Error::msg("Location header missing"))?
         .to_str()?
         .to_string();
-
-    // if the `no_encrypt` flag IS NOT true, assume we are encrypting contents to send.
-    if !no_encrypt {
-        let encrypted_content = encrypt_contents(path);
-        return Ok(upload_content_chunks(&session_uri, &encrypted_content).await?);
-    }
 
     return Ok(upload_chunks(&session_uri, &mut file, file_size).await?);
 }
@@ -277,7 +318,7 @@ async fn upload_chunks(session_uri: &str, file: &mut File, file_size: u64) -> Re
     return Err(anyhow::Error::msg("File upload not successful"));
 }
 
-async fn upload_content_chunks(session_uri: &str, data: &[u8]) -> Result<String> {
+async fn _upload_content_chunks(session_uri: &str, data: &[u8]) -> Result<String> {
     let client = reqwest::Client::new();
     let data_size = data.len() as u64;
 
@@ -344,20 +385,20 @@ fn build_headers(start: u64, end: u64, total_size: u64) -> HeaderMap {
         CONTENT_RANGE,
         HeaderValue::from_str(&content_range).unwrap(),
     );
-    dbg!(&end, &start, &total_size);
+    // dbg!(&end, &start, &total_size);
     // Ensure no overflow by adding first and then subtracting
     let content_length = end.checked_add(1).and_then(|e| e.checked_sub(start));
+    // dbg!(&content_length);
     if let Some(length) = content_length {
         headers.insert(CONTENT_LENGTH, HeaderValue::from(length));
     } else {
         // TODO: find better way to handle this
         panic!("Overflow when calculating content length");
     }
-
     headers
 }
 
-///Query google drive and return a Vec<String> of each item within the relevant folder
+///Query google drive and return a `Vec<String>` of each item within the relevant folder
 pub async fn g_view(user_token: &UserToken, name: &str) -> Result<Vec<String>> {
     //Get the folder id
     let mut folder_id = String::new();
@@ -438,6 +479,36 @@ pub async fn g_walk(user_token: &UserToken, name: &str) -> Result<DirInfo> {
     return Err(Error::msg("Folder not found"));
 }
 
+///
+pub async fn google_query_crypt_folder_id(user_token: &UserToken) -> Option<String> {
+    //Get the folder id
+    let query: String =
+        "name = 'Crypt' and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
+            .to_string();
+    let url = format!("https://www.googleapis.com/drive/v3/files?q={}", query);
+
+    //Send the url and get the response
+    let response = request_url(&url, user_token).await.unwrap();
+
+    //If drive query failed, break out and print error
+    if !response.status().is_success() {
+        return None;
+    }
+
+    let resp = response.json::<Value>().await.unwrap();
+
+    if let Some(id_value) = resp
+        .get("files")
+        .and_then(|files| files.get(0))
+        .and_then(|file| file.get("id"))
+        .and_then(Value::as_str)
+    {
+        return Some(id_value.to_string());
+    }
+
+    return None;
+}
+
 /// Query google using file_id and download contents
 ///
 /// TEMP: downloading
@@ -447,7 +518,7 @@ pub async fn google_query_file(user_token: &UserToken, file_id: &str) -> Result<
         file_id
     );
     //Send the url and get the response
-    let response = request_url(&url, &user_token).await?;
+    let response = request_url(&url, user_token).await?;
 
     //If drive query failed, break out and print error
     if !response.status().is_success() {
@@ -456,9 +527,6 @@ pub async fn google_query_file(user_token: &UserToken, file_id: &str) -> Result<
 
     let bytes = &response.bytes().await?;
     let text = bytes.to_vec();
-    // TODO: Move somewhere else.
-    // TODO: Also, get name from file and use that instead of "downloaded".
-    // _ = std::fs::write("downloaded.crypt", text);
     Ok(text)
 }
 
@@ -554,4 +622,86 @@ pub async fn g_drive_info(user_token: &UserToken) -> Result<Vec<Value>> {
         }
     }
     Ok(values)
+}
+
+pub fn test_create_subfolders(
+    root_folder_name: &str,
+    subfolder_names: Option<Vec<String>>,
+) -> Result<HashMap<String, String>> {
+    let (runtime, user_token, crypt_folder) = match google_startup() {
+        std::result::Result::Ok(res) => res,
+        Err(err) => {
+            eprintln!("error: {}", err);
+            return Err(err.into());
+        }
+    };
+
+    let mut hmap: HashMap<String, String> = HashMap::new();
+    hmap.insert("Crypt".to_string(), crypt_folder.clone());
+
+    println!("Creating root folder : {}", root_folder_name);
+
+    let id = runtime.block_on(g_create_folder(
+        &user_token,
+        Some(&PathBuf::from(root_folder_name)),
+        &crypt_folder,
+    ));
+    println!("Creating root result : {:?}", id);
+
+    let mut sub_folder_id: String = id.unwrap();
+    hmap.insert(root_folder_name.to_string(), sub_folder_id.clone());
+
+    if let Some(names) = subfolder_names {
+        for sub in names {
+            println!("Creating sub folder : {}", sub);
+            sub_folder_id = runtime
+                .block_on(g_create_folder(
+                    &user_token,
+                    Some(&PathBuf::from(sub.clone())),
+                    &sub_folder_id,
+                ))
+                .expect("Could not create directory in google drive");
+
+            hmap.insert(sub, sub_folder_id.clone());
+        }
+    }
+    Ok(hmap)
+}
+
+#[derive(Debug)]
+pub enum CloudError {
+    ///Error accessing Crypt "root" folder
+    CryptFolderError,
+    RuntimeError,
+}
+
+impl fmt::Display for CloudError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            CloudError::CryptFolderError => write!(f, "Error accessing Crypt 'root' folder"),
+            CloudError::RuntimeError => write!(f, "Runtime error"),
+        }
+    }
+}
+
+impl std::error::Error for CloudError {}
+
+pub fn google_startup() -> Result<(Runtime, UserToken, String), CloudError> {
+    let runtime = match Runtime::new() {
+        core::result::Result::Ok(it) => it,
+        Err(_err) => return Err(CloudError::RuntimeError),
+    };
+
+    let user_token = UserToken::new_google();
+
+    //Access google drive and ensure a crypt folder exists, create if doesn't
+    let crypt_folder: String = match runtime.block_on(g_create_folder(&user_token, None, "")) {
+        core::result::Result::Ok(folder_id) => folder_id,
+        Err(error) => {
+            send_information(vec![format!("{}", error)]);
+            return Err(CloudError::CryptFolderError);
+        }
+    };
+
+    std::result::Result::Ok((runtime, user_token, crypt_folder))
 }
