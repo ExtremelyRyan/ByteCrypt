@@ -149,7 +149,6 @@ pub fn google_startup() -> Result<(Runtime, UserToken, String), CloudError> {
             return Err(CloudError::CryptFolderError);
         }
     };
-
     Ok((runtime, user_token, crypt_folder))
 }
 
