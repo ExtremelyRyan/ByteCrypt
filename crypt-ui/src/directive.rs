@@ -231,7 +231,7 @@ pub fn google_upload2(path: &str) -> Result<(), Box<dyn std::error::Error>> {
                     let id = runtime.block_on(drive::g_update(
                         &user_token,
                         file.to_str().unwrap(),
-                        &file.to_string_lossy().to_string(),
+                        file.to_string_lossy().as_ref(),
                     ))?;
                     // not sure if this would happen, but check for it anyway.
                     // if updated file id does not match, update FileCrypt DriveID

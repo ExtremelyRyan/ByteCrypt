@@ -482,9 +482,9 @@ pub async fn g_walk(user_token: &UserToken, name: &str) -> Result<DirInfo> {
 ///
 pub async fn google_query_crypt_folder_id(user_token: &UserToken) -> Option<String> {
     //Get the folder id
-    let query: String = format!(
+    let query: String =
         "name = 'Crypt' and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
-    );
+            .to_string();
     let url = format!("https://www.googleapis.com/drive/v3/files?q={}", query);
 
     //Send the url and get the response
