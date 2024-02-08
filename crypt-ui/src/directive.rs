@@ -3,32 +3,22 @@ use crate::cli::{
     KeeperPurgeSubCommand::{Database, Token},
 };
 
-use crypt_cloud::{crypt_core::common::verify_path, drive};
-use crypt_cloud::{
-    crypt_core::{
-        common::{
-            build_tree, chooser, get_crypt_folder, get_filenames_from_subdirectories,
-            get_full_file_path, send_information, walk_crypt_folder, walk_directory, walk_paths,
-            PathInfo,
-        },
-        config::{self, Config, ConfigTask, ItemsTask},
-        db::{
-            self, delete_keeper, export_keeper, query_crypt, query_keeper_by_file_name,
-            query_keeper_crypt,
-        },
-        filecrypt::{
-            decrypt_contents, decrypt_file, encrypt_file, get_uuid, get_uuid_from_file, FileCrypt,
-        },
-        filetree::{
-            tree::{dir_walk, is_not_hidden, sort_by_name, Directory},
-            treeprint::print_tree,
-        },
-        token::{purge_tokens, UserToken},
+use crypt_cloud::crypt_core::{
+    common::{
+        build_tree, chooser, get_crypt_folder, get_filenames_from_subdirectories,
+        get_full_file_path, send_information, walk_crypt_folder, walk_directory,
     },
-    drive::test_create_subfolders,
+    config::{self, Config, ConfigTask, ItemsTask},
+    db::{self, delete_keeper, export_keeper, query_keeper_by_file_name, query_keeper_crypt},
+    filecrypt::{decrypt_contents, decrypt_file, encrypt_file, get_uuid_from_file},
+    filetree::{
+        tree::{dir_walk, is_not_hidden, sort_by_name, Directory},
+        treeprint::print_tree,
+    },
+    token::{purge_tokens, UserToken},
 };
+use crypt_cloud::{crypt_core::common::verify_path, drive};
 use std::{
-    collections::HashMap,
     fs, io,
     path::{Path, PathBuf, MAIN_SEPARATOR},
 };
@@ -113,8 +103,13 @@ pub fn decrypt(path: &str, output: Option<String>) {
         }
         // file
         false => {
-            let res = decrypt_file(path, output.to_owned().unwrap());
-            send_information(vec![format!("Decrypting file error: {:?}", res)]);
+            let res;
+            if let Some(o) = output {
+                res = decrypt_file(path, o);
+            } else {
+                res = decrypt_file(path, "".to_string());
+            }
+            println!("decrypt result: {:?}", res);
         }
     };
 }
@@ -146,8 +141,12 @@ pub fn google_startup() -> Result<(Runtime, UserToken, String), CloudError> {
     let user_token = UserToken::new_google();
 
     //Access google drive and ensure a crypt folder exists, create if doesn't
-    let crypt_folder: String = match runtime.block_on(drive::g_create_folder(&user_token, None, ""))
-    {
+    let crypt_folder: String = match runtime.block_on(drive::g_create_folder(
+        &user_token,
+        None,
+        "",
+        &"".to_string(),
+    )) {
         core::result::Result::Ok(folder_id) => folder_id,
         Err(error) => {
             send_information(vec![format!("{}", error)]);
@@ -193,8 +192,7 @@ pub fn google_upload2(path: &str) -> Result<(), Box<dyn std::error::Error>> {
             fc.drive_id = runtime.block_on(drive::g_upload(
                 &user_token,
                 &user_result.display().to_string(),
-                &crypt_folder,
-                &false,
+                &crypt_folder
             ))?;
 
             // 3. update database.
@@ -219,144 +217,106 @@ pub fn google_upload2(path: &str) -> Result<(), Box<dyn std::error::Error>> {
                     crypt_root.push(p);
                 }
             }
+            dbg!(&crypt_root);
 
             // get all our file paths from folder
             let (files, _) = get_filenames_from_subdirectories(&crypt_root)?;
 
-            let mut crypts: Vec<FileCrypt> = Vec::new();
+            for file in files {
+                // Find the position of "crypt" in the path
+                let crypt_position = file.iter().position(|component| component == "crypt");
 
-            // query all files to upload from the keeper, and get their crypts
-            for f in &files {
-                let uuid = get_uuid_from_file(f.as_path()).unwrap();
-                let fc = db::query_crypt(uuid).unwrap();
-                crypts.push(fc);
-            }
+                if let Some(index) = crypt_position {
+                    // Collect the components after "crypt"
+                    let remaining_components: Vec<_> = file.iter().skip(index + 1).collect();
 
-            // let mut components: Vec<String> = files[0].components().map(|comp| comp.as_os_str().to_string_lossy().to_string()).collect();
-            // // remove everything up to and including the "crypt" directory
-            // for c in components.clone().iter() {
-            //     match c.deref() == "crypt" {
-            //         true => {
-            //             components.remove(0);
-            //             break;
-            //         }
-            //         false => components.remove(0),
-            //     };
-            // }
-            // remove the filename from path
-            // components.remove(components.len()-1);
+                    let len = remaining_components.len() - 1;
 
-            // // println!("{:?}", components);
-            // let tmp = crypt_root.clone();
-            // let root = tmp.parent().unwrap().file_name().unwrap().to_str().unwrap();
-            // let c = vec![String::from("dumb1"),String::from("dumb2"),String::from("dumb3")];
+                    // Check if there are remaining components
+                    if remaining_components.is_empty() {
+                        println!("No remaining components after 'crypt'.");
+                        continue;
+                    }
 
-            // // let mut folder_id: HashMap<String, String> = if components.len() > 1 {
-            // //     let root =  components.remove(0);
-            //     let res = test_create_subfolders(&root, Some(c));
-            //     println!("result: {:?}",res);
+                    // our parent directory ID
+                    let mut parent: String = crypt_folder.clone();
+                    // our current directory ID
+                    let mut current: String = String::new();
 
-            // } else {
-            // match test_create_subfolders(root, None){
-            //     Ok(r) => r,
-            //     Err(err) => {
-            //         println!("error: {}",err);
-            //         return Ok(());
-            //     },
-            // };
-            // };
-
-            // upload each file one by one, and save drive_id to their perspective crypt
-            for file in files.clone().into_iter() {
-                // create temp to shred apart
-                let mut temp_file = file.clone();
-                // store parts of the path we want
-                let mut path_parts: Vec<String> = Vec::new();
-                // read top-most slice of path. until we get to "crypt", add to path_parts, then pop top off stack.
-                loop {
-                    match temp_file.file_name().unwrap() == "crypt" {
-                        true => break,
-                        false => {
-                            path_parts
-                                .push(temp_file.file_name().unwrap().to_string_lossy().to_string());
-                            temp_file.pop();
+                    // Iterate over each remaining component
+                    for (num, component) in remaining_components.iter().enumerate() {
+                        if num != len {
+                            println!("directory: {:?}", component);
+                            current = runtime.block_on(drive::g_create_folder(
+                                &user_token,
+                                Some(&PathBuf::from(component)),
+                                &parent,
+                                &crypt_folder,
+                            ))?;
+                            parent = current.clone();
                         }
-                    };
-                }
-                dbg!(&path_parts);
-
-                // reverse vec so we have it in correct order.
-                path_parts.reverse();
-                // remove filename from list.
-                path_parts.remove(path_parts.len() - 1);
-                println!("path_parts: {:#?}", path_parts);
-
-                // remove "root" folder
-                let root = path_parts.remove(0);
-
-                match path_parts.is_empty() {
-                    true => {
-                        let result = test_create_subfolders(&root, None)?;
-                        println!("result: {:#?}", result);
-                    }
-                    false => {
-                        let result = test_create_subfolders(&root, Some(path_parts))?;
-                        println!("result: {:#?}", result);
+                        if num == len {
+                            println!("file! : {:?}", component);
+                            current = runtime.block_on(drive::g_upload(
+                                &user_token,
+                                file.to_str().unwrap(),
+                                &current,
+                            ))?;
+                        }
+                       
                     }
                 }
-
-                // let res = crypt_cloud::drive::test_create_subfolders(base, v);
-
-                // println!("\n\n{:#?}", res);
-
-                //     // clone full file path to chop up.
-                //     let mut f_str = f.clone().to_string_lossy().to_string();
-                //     // find where "crypt" name is, so we can only get folders past crypt root.
-                //     let index = f_str.find("crypt").unwrap();
-                //     // remove "crypt" from string
-                //     f_str.drain(0..index + 5);
-
-                //     f_str = if let Some(s) = f_str.strip_prefix(MAIN_SEPARATOR) {
-                //         s.to_string()
-                //     } else {
-                //         f_str
-                //     };
-
-                //     dbg!(&f_str);
-
-                //     let mut collection: Vec<&str> = f_str.split(MAIN_SEPARATOR).collect();
-                //     // remove the last index, which is the "filename.extension"
-                //     collection.remove(collection.len() - 1);
-
-                //     let child_id: String;
-
-                //     if collection.len() > 1 {
-                //         let (root, subfolders) = collection.split_at(1);
-
-                //         let sub = Some(subfolders.to_vec());
-
-                //         dbg!(&collection);
-
-                //         child_id = test_create_subfolders(root.get(0).unwrap(), sub)?;
-                //     } else {
-                //         child_id = test_create_subfolders(collection[0], None)?;
-                //     }
-
-                //     let file: &str = files.get(i).unwrap().to_str().unwrap();
-                //     // upload file to specified folder
-                //     let file_id =
-                //         runtime.block_on(drive::g_upload(&user_token, file, &child_id, &false))?;
-
-                //     // this only works because we get the crypts in the same order
-                //     // assign drive id to the filecrypt
-                //     let mut fc = crypts.get(i).unwrap().to_owned();
-                //     fc.set_drive_id(file_id);
             }
 
-            // // update crypts in keeper
-            // for c in crypts {
-            //     println!("name: {}, drive id: {}", &c.filename, &c.drive_id);
-            //     let _saved = db::insert_crypt(&c);
+            // let result = test_create_subfolders(&crypt_folder, Some(path_parts))?;
+            // println!("result: {:#?}", result);
+
+            // let mut crypts: Vec<FileCrypt> = Vec::new();
+
+            // // query all files to upload from the keeper, and get their crypts
+            // for f in &files {
+            //     let uuid = get_uuid_from_file(f.as_path()).unwrap();
+            //     let fc = db::query_crypt(uuid).unwrap();
+            //     crypts.push(fc);
+            // }
+
+            // // upload each file one by one, and save drive_id to their perspective crypt
+            // for file in files.clone().into_iter() {
+            //     // create temp to shred apart
+            //     let mut temp_file = file.clone();
+            //     // store parts of the path we want
+            //     let mut path_parts: Vec<String> = Vec::new();
+            //     // read top-most slice of path. until we get to "crypt", add to path_parts, then pop top off stack.
+            //     loop {
+            //         match temp_file.file_name().unwrap() == "crypt" {
+            //             true => break,
+            //             false => {
+            //                 path_parts
+            //                     .push(temp_file.file_name().unwrap().to_string_lossy().to_string());
+            //                 temp_file.pop();
+            //             }
+            //         };
+            //     }
+            //     dbg!(&path_parts);
+
+            //     // reverse vec so we have it in correct order.
+            //     path_parts.reverse();
+            //     // remove filename from list.
+            //     path_parts.remove(path_parts.len() - 1);
+            //     println!("path_parts: {:#?}", path_parts);
+
+            //     // remove "root" folder
+            //     let root = path_parts.remove(0);
+            //     match path_parts.is_empty() {
+            //         true => {
+            //             let result = test_create_subfolders(&root, None)?;
+            //             println!("result: {:#?}", result);
+            //         }
+            //         false => {
+            //             let result = test_create_subfolders(&root, Some(path_parts))?;
+            //             println!("result: {:#?}", result);
+            //         }
+            //     }
             // }
         }
     }
@@ -364,153 +324,6 @@ pub fn google_upload2(path: &str) -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-pub fn google_upload(path: &str, no_encrypt: &bool) {
-    let (runtime, user_token, crypt_folder) = match google_startup() {
-        Ok(res) => res,
-        Err(_) => todo!(), // TODO: do we handle this here? or do we pass back to CLI?
-    };
-
-    //Track all folder ids
-    let mut folder_ids: HashMap<String, String> = HashMap::new();
-
-    //Get walk path given and build a list of PathInfos
-    let path_info = PathInfo::new(path);
-    let paths: Vec<PathInfo> = walk_paths(path)
-        .into_iter()
-        .filter(|p| p.is_dir || p.name.contains(".crypt"))
-        .collect();
-    let (mut folders, files): (Vec<_>, Vec<_>) = paths.into_iter().partition(|p| p.is_dir);
-    folders.sort_by(|a, b| a.full_path.cmp(&b.full_path));
-
-    //Create a hashmap relating PathInfo to FileCrypt for relevant .crypt files
-    let mut crypts: HashMap<PathInfo, FileCrypt> = HashMap::new();
-    for file in files.clone().iter() {
-        let contents = &std::fs::read(file.full_path.display().to_string().as_str()).unwrap();
-        let (uuid, _) = get_uuid(contents).expect("Could not retrieve UUID from the file");
-        let filecrypt = query_crypt(uuid).expect("Could not query keeper");
-        crypts.insert(file.to_owned(), filecrypt);
-    }
-
-    //Remove the root directory
-    let folders: Vec<PathInfo> = folders
-        .into_iter()
-        .filter(|p| p.name != path_info.name)
-        .collect();
-
-    //Match if directory or file
-    match path_info.is_dir {
-        // Full directory upload
-        true => {
-            //Create the root directory
-            folder_ids.insert(
-                path_info.full_path.display().to_string(),
-                runtime
-                    .block_on(drive::g_create_folder(
-                        &user_token,
-                        Some(&PathBuf::from(&path_info.name)),
-                        &crypt_folder,
-                    ))
-                    .expect("Could not create directory in google drive"),
-            );
-            println!("Created root directory: {}", path_info.name);
-            //Create all folders relative to the root directory
-            for folder in folders {
-                let parent_path = folder.parent.display().to_string();
-
-                let parent_id = folder_ids
-                    .get(&parent_path)
-                    .expect("Could not retrieve parent ID")
-                    .to_string();
-
-                dbg!("creating folders", &parent_path, &parent_id, &folder.name);
-
-                folder_ids.insert(
-                    folder.full_path.display().to_string(),
-                    runtime
-                        .block_on(drive::g_create_folder(
-                            &user_token,
-                            Some(&PathBuf::from(&folder.name)),
-                            &parent_id,
-                        ))
-                        .expect("Could not create directory in google drive"),
-                );
-            }
-            //Upload every file to their respective parent directory
-            for file in files {
-                //Get the parent folder path
-                let parent_path = file.parent.display().to_string();
-                let parent_id = folder_ids
-                    .get(&parent_path)
-                    .expect("Could not retrieve parent ID")
-                    .to_string();
-                dbg!("uploading files", &file, &parent_path, &parent_id,);
-
-                //Determine if the file already exists in the google drive
-                let drive_id = &crypts.get(&file).unwrap().drive_id;
-                let exists = if !drive_id.is_empty() {
-                    runtime
-                        .block_on(drive::g_id_exists(&user_token, drive_id))
-                        .expect("Could not query Google Drive")
-                } else {
-                    false
-                };
-
-                //Only if the file doesn't exist should it be uploaded
-                if !exists {
-                    let file_id = runtime.block_on(drive::g_upload(
-                        &user_token,
-                        &file.full_path.display().to_string(),
-                        &parent_id,
-                        no_encrypt,
-                    ));
-                    //Update the FileCrypt's drive_id
-                    crypts
-                        .entry(file.clone())
-                        .and_modify(|fc| fc.drive_id = file_id.unwrap());
-                } else {
-                    let _ = runtime.block_on(drive::g_update(
-                        &user_token,
-                        drive_id,
-                        &file.full_path.display().to_string(),
-                    ));
-                }
-            }
-        }
-        //Individual file(s)
-        false => {
-            let file_id = runtime.block_on(drive::g_upload(
-                &user_token,
-                &path_info.full_path.display().to_string(),
-                &crypt_folder,
-                no_encrypt,
-            ));
-            //Update the FileCrypt's drive_id
-            if path_info.name.contains(".crypt") {
-                crypts
-                    .entry(path_info)
-                    .and_modify(|fc| fc.drive_id = file_id.unwrap());
-            }
-        }
-    }
-    //Update the keeper with any changes to FileCrypts
-    for (_, value) in crypts {
-        let _ = db::insert_crypt(&value);
-        println!("{:?}", value);
-    }
-
-    // TESTING PORPISES
-    let after_upload_keeper = db::query_keeper_crypt().unwrap();
-    for item in after_upload_keeper {
-        println!("file: {}{}", item.filename, item.ext);
-        println!("full path: {}", item.full_path.display());
-        println!("drive ID: {}", item.drive_id);
-    }
-    //Print the directory
-    let cloud_directory = runtime
-        .block_on(drive::g_walk(&user_token, "Crypt"))
-        .expect("Could not view directory information");
-    send_information(build_tree(&cloud_directory));
-}
 
 pub fn google_download(path: &String) {
     let (runtime, user_token, _) = match google_startup() {
@@ -781,18 +594,6 @@ pub fn merge_base_with_relative_path(
     Ok(target_path)
 }
 
-pub fn test() {
-    // let (runtime, user_token, crypt_folder) = match google_startup() {
-    //     Ok(res) => res,
-    //     Err(_) => todo!(), // TODO: do we handle this here? or do we pass back to CLI?
-    // };
-    // let res = runtime.block_on(drive::test_query(&user_token, None, "", &crypt_folder));
-    // println!("{:?}", res);
-
-    let res = walk_directory("test_folder", false);
-    println!("{:#?}", res);
-}
-
 pub fn ls(local: &bool, cloud: &bool) {
     let crypt_root = get_crypt_folder();
 
@@ -806,4 +607,23 @@ pub fn ls(local: &bool, cloud: &bool) {
         // display cloud only
         (_, true) => google_view("Crypt"),
     };
+}
+
+// ===========================================================
+// DANGER ZONE ===============================================
+// ===========================================================
+
+pub fn test() {
+    let (runtime, user_token, _crypt_folderr) = match google_startup() {
+        Ok(res) => res,
+        Err(_) => todo!(), // TODO: do we handle this here? or do we pass back to CLI?
+    };
+    // let res = runtime.block_on(drive::g_view(&user_token, "Crypt"));
+    // println!("{:#?}", res);
+
+    // let res = walk_directory("test_folder", false);
+    // println!("{:#?}", res);
+
+    let res = runtime.block_on(drive::g_view(&user_token, "Crypt"));
+    println!("{:#?}", res);
 }

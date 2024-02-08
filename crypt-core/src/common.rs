@@ -536,32 +536,19 @@ pub fn get_filenames_from_subdirectories<T: AsRef<Path>>(
     dir_path: T,
 ) -> Result<(Vec<PathBuf>, Vec<PathBuf>), std::io::Error> {
     let walker = WalkDir::new(&dir_path).into_iter();
-    let folder_walker = WalkDir::new(&dir_path).into_iter();
 
-    let filenames: Vec<PathBuf> = walker
-        .filter_map(|entry| {
-            entry.ok().and_then(|e| {
-                let path = e.path();
-                if path.is_file() {
-                    Some(path.to_path_buf())
-                } else {
-                    None
-                }
-            })
-        })
+    let (filenames, folders): (Vec<_>, Vec<_>) = walker
+        .filter_map(|entry| entry.ok())
+        .filter(|entry| entry.path().is_file() || entry.path().is_dir())
+        .partition(|entry| entry.path().is_file());
+
+    let filenames: Vec<_> = filenames
+        .into_iter()
+        .map(|entry| entry.path().to_path_buf())
         .collect();
-
-    let folders: Vec<PathBuf> = folder_walker
-        .filter_map(|entry| {
-            entry.ok().and_then(|e| {
-                let path = e.path();
-                if path.is_dir() {
-                    Some(path.to_path_buf())
-                } else {
-                    None
-                }
-            })
-        })
+    let folders: Vec<_> = folders
+        .into_iter()
+        .map(|entry| entry.path().to_path_buf())
         .collect();
 
     Ok((filenames, folders))
