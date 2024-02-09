@@ -132,7 +132,10 @@ pub fn import_keeper(path: &String) -> Result<()> {
         let fc: FileCrypt = match record.deserialize(None) {
             Ok(it) => it,
             Err(err) => {
-                error!("Failed to convert StringRecord to FileCrypt!: {}", err);
+                error!(
+                    "Failed to convert StringRecord to FileCrypt!: {}",
+                    err
+                );
                 FileCrypt::default()
             } // TODO: Fix with more elegant handling.
         };
@@ -149,7 +152,8 @@ pub fn import_keeper(path: &String) -> Result<()> {
 /// let conn = get_keeper()?;
 /// conn.execute("SELECT * FROM *");
 ///```
-pub fn get_keeper() -> Result<r2d2::PooledConnection<r2d2_sqlite::SqliteConnectionManager>> {
+pub fn get_keeper(
+) -> Result<r2d2::PooledConnection<r2d2_sqlite::SqliteConnectionManager>> {
     //Returns the static connection
     KEEPER.get().map_err(|e| e.into())
 }
@@ -321,7 +325,9 @@ pub fn query_token(service: CloudService) -> anyhow::Result<UserToken> {
 /// let path = PathBuf::from("path/to/file.txt");
 /// let fc = insert_crypt(path);
 ///```
-pub fn query_keeper_for_existing_file(full_path: PathBuf) -> Result<FileCrypt> {
+pub fn query_keeper_for_existing_file(
+    full_path: PathBuf,
+) -> Result<FileCrypt> {
     //Get the connection
     let conn = get_keeper()?;
 

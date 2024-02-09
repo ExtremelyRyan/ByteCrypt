@@ -8,7 +8,8 @@ use crypt_cloud::crypt_core::{
 };
 
 use crate::directive::{
-    self, dropbox_download, dropbox_upload, dropbox_view, google_download, google_view,
+    self, dropbox_download, dropbox_upload, dropbox_view, google_download,
+    google_view,
 };
 // use crate::tui::load_tui;
 
@@ -25,9 +26,10 @@ pub struct CommandLineArgs {
     #[arg(long, hide = true)]
     md: bool,
 
-    // ///TUI mode
+    ///TUI mode
     // #[arg(short, long, default_value_t = false)]
     // pub tui: bool,
+
     #[arg(short, default_value_t = false)]
     pub test: bool,
 
@@ -305,9 +307,11 @@ pub fn load_cli() {
                         no_encrypt: _,
                     }) => {
                         dbg!(&path);
-                        let _response = directive::google_upload2(path);
+                        let _response = directive::google_upload(path);
                     }
-                    Some(DriveCommand::Download { path }) => google_download(path),
+                    Some(DriveCommand::Download { path }) => {
+                        google_download(path)
+                    }
                     Some(DriveCommand::View { path }) => google_view(path),
                     None => panic!("invalid input"),
                 };
@@ -321,7 +325,9 @@ pub fn load_cli() {
                         path,
                         no_encrypt: _,
                     }) => dropbox_upload(path),
-                    Some(DriveCommand::Download { path }) => dropbox_download(path),
+                    Some(DriveCommand::Download { path }) => {
+                        dropbox_download(path)
+                    }
                     Some(DriveCommand::View { path }) => dropbox_view(path),
                     None => panic!("invalid input"),
                 };
@@ -354,18 +360,26 @@ pub fn load_cli() {
                         _ => panic!("invalid input"),
                     };
 
-                    directive::config("", ConfigTask::IgnoreItems(add_remove, item.to_owned()));
+                    directive::config(
+                        "",
+                        ConfigTask::IgnoreItems(add_remove, item.to_owned()),
+                    );
                 }
 
                 // ZstdLevel
                 Some(ConfigCommand::ZstdLevel { level }) => {
-                    let level: i32 = level.parse().expect("Could not interpret passed value");
+                    let level: i32 = level
+                        .parse()
+                        .expect("Could not interpret passed value");
                     directive::config("", ConfigTask::ZstdLevel(level));
                 }
 
                 //Hwid
                 Some(ConfigCommand::Hwid {}) => {
-                    send_information(vec![format!("machine name: {}", get_machine_name())]);
+                    send_information(vec![format!(
+                        "machine name: {}",
+                        get_machine_name()
+                    )]);
                 }
 
                 // LoadDefault
@@ -395,7 +409,8 @@ pub fn test() {
     // }
 
     // Get the current working directory
-    let current_dir = std::env::current_dir().expect("Failed to get current directory");
+    let current_dir =
+        std::env::current_dir().expect("Failed to get current directory");
 
     // Specify the file or directory for which you want to find the relative path
     let target_path = "test_folder\\folder2\\file3.txt";

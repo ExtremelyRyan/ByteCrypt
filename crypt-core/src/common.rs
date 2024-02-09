@@ -149,7 +149,12 @@ pub struct DirInfo {
 }
 
 impl DirInfo {
-    pub fn new(name: String, path: String, expanded: bool, contents: Vec<FsNode>) -> Self {
+    pub fn new(
+        name: String,
+        path: String,
+        expanded: bool,
+        contents: Vec<FsNode>,
+    ) -> Self {
         Self {
             name,
             path,
@@ -245,7 +250,10 @@ pub fn verify_path(path: &impl AsRef<Path>) -> bool {
 ///     Ok(())
 /// }
 /// ```
-pub fn get_path_diff<T>(root: Option<&T>, target_path: &T) -> Result<PathBuf, std::io::Error>
+pub fn get_path_diff<T>(
+    root: Option<&T>,
+    target_path: &T,
+) -> Result<PathBuf, std::io::Error>
 where
     T: AsRef<Path>,
 {
@@ -345,8 +353,10 @@ fn tree_recursion(dir_info: &DirInfo, path: String, tree: &mut Vec<String>) {
     let bracket_color = Color::White.bold();
 
     //Set up the formatted values
-    let joint = format!(" {}{}{}", char_set.joint, char_set.h_line, char_set.h_line);
-    let node = format!(" {}{}{}", char_set.node, char_set.h_line, char_set.h_line);
+    let joint =
+        format!(" {}{}{}", char_set.joint, char_set.h_line, char_set.h_line);
+    let node =
+        format!(" {}{}{}", char_set.node, char_set.h_line, char_set.h_line);
     let vline = format!(" {}  ", char_set.v_line);
 
     //Iterate through contents and add them to the tree
@@ -355,7 +365,8 @@ fn tree_recursion(dir_info: &DirInfo, path: String, tree: &mut Vec<String>) {
         //Determine if the current entity is last
         let is_last = index == contents_len - 1;
         //Create the prefix
-        let prefix = format!("{}{}", path, if is_last { &node } else { &joint });
+        let prefix =
+            format!("{}{}", path, if is_last { &node } else { &joint });
 
         match entity {
             FsNode::File(file) => tree.push(prefix.clone() + " " + &file.name),
@@ -406,7 +417,10 @@ pub fn get_file_contents<T: AsRef<Path>>(path: T) -> Result<Vec<u8>, String> {
 ///
 /// Returns a `Result` indicating whether the write operation was successful.
 ///
-pub fn write_contents_to_file<T: AsRef<Path>>(file: T, contents: Vec<u8>) -> Result<(), io::Error> {
+pub fn write_contents_to_file<T: AsRef<Path>>(
+    file: T,
+    contents: Vec<u8>,
+) -> Result<(), io::Error> {
     let mut f = OpenOptions::new()
         .write(true)
         .create(true)
@@ -436,7 +450,8 @@ pub fn get_config_folder() -> PathBuf {
     };
 
     let stdout = output.stdout;
-    let mut path = PathBuf::from(String::from_utf8(stdout).expect("ERROR").trim());
+    let mut path =
+        PathBuf::from(String::from_utf8(stdout).expect("ERROR").trim());
     path.push("crypt_config");
 
     if !path.exists() {
@@ -479,7 +494,8 @@ pub fn get_crypt_folder() -> PathBuf {
     };
 
     let stdout = output.stdout;
-    let mut path = PathBuf::from(String::from_utf8(stdout).expect("ERROR").trim());
+    let mut path =
+        PathBuf::from(String::from_utf8(stdout).expect("ERROR").trim());
     path.push("crypt");
 
     if !path.exists() {
@@ -587,13 +603,23 @@ pub fn chooser(mut list: Vec<PathBuf>, item: &str) -> PathBuf {
     // if item we are looking for is empty, we will just show all files in crypt folder.
     match item.is_empty() {
         true => {
-            println!("please choose from the following items: (or 0 to abort)\n");
-            println!("{0: <3} {1: <45} {2: <14}", "#", "files", "last modified");
+            println!(
+                "please choose from the following items: (or 0 to abort)\n"
+            );
+            println!(
+                "{0: <3} {1: <45} {2: <14}",
+                "#", "files", "last modified"
+            );
         }
         false => {
             println!("\nmultiple values found for {item}");
-            println!("please choose from the following matches: (or 0 to abort)\n");
-            println!("{0: <3} {1: <45} {2: <14}", "#", "files", "last modified");
+            println!(
+                "please choose from the following matches: (or 0 to abort)\n"
+            );
+            println!(
+                "{0: <3} {1: <45} {2: <14}",
+                "#", "files", "last modified"
+            );
 
             let mut compared: Vec<PathBuf> = Vec::new();
 
@@ -617,7 +643,9 @@ pub fn chooser(mut list: Vec<PathBuf>, item: &str) -> PathBuf {
 
     let mut folders: Vec<PathBuf> = Vec::new();
 
-    println!("----------------------------------------------------------------");
+    println!(
+        "----------------------------------------------------------------"
+    );
     for item in list.clone().into_iter() {
         let meta = item.metadata().unwrap();
 
@@ -651,14 +679,18 @@ pub fn chooser(mut list: Vec<PathBuf>, item: &str) -> PathBuf {
     if !folders.is_empty() {
         println!("----------------------------------------------------------------\n");
         println!("{0: <3} {1: <45} ", "#", "folders",);
-        println!("----------------------------------------------------------------");
+        println!(
+            "----------------------------------------------------------------"
+        );
 
         folders.sort();
         for i in &folders {
             println!("{0: <3} {1: <45}", count, i.display());
             count += 1;
         }
-        println!("----------------------------------------------------------------");
+        println!(
+            "----------------------------------------------------------------"
+        );
 
         list.append(&mut folders);
     }
@@ -820,7 +852,9 @@ pub fn walk_directory<T: AsRef<Path>>(
     for entry in walker.filter_entry(|e| !is_hidden(e)) {
         let entry = entry?;
 
-        if !filter_directories || entry.path().display().to_string().find('.').is_some() {
+        if !filter_directories
+            || entry.path().display().to_string().find('.').is_some()
+        {
             pathlist.push(PathBuf::from(entry.path().display().to_string()));
         }
     }
@@ -853,7 +887,8 @@ pub fn walk_directory<T: AsRef<Path>>(
 ///     Err(err) => eprintln!("Error: {}", err),
 /// }
 /// ```
-pub fn walk_crypt_folder() -> Result<Vec<PathBuf>, Box<dyn std::error::Error>> {
+pub fn walk_crypt_folder() -> Result<Vec<PathBuf>, Box<dyn std::error::Error>>
+{
     let crypt_folder = get_crypt_folder().to_str().unwrap().to_string();
 
     // folders to avoid

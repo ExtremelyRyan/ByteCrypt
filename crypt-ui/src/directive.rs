@@ -5,12 +5,18 @@ use crate::cli::{
 
 use crypt_cloud::crypt_core::{
     common::{
-        build_tree, chooser, get_crypt_folder, get_filenames_from_subdirectories,
-        get_full_file_path, send_information, walk_crypt_folder, walk_directory,
+        build_tree, chooser, get_crypt_folder,
+        get_filenames_from_subdirectories, get_full_file_path,
+        send_information, walk_crypt_folder, walk_directory,
     },
     config::{self, Config, ConfigTask, ItemsTask},
-    db::{self, delete_keeper, export_keeper, query_keeper_by_file_name, query_keeper_crypt},
-    filecrypt::{decrypt_contents, decrypt_file, encrypt_file, get_uuid_from_file},
+    db::{
+        self, delete_keeper, export_keeper, query_keeper_by_file_name,
+        query_keeper_crypt,
+    },
+    filecrypt::{
+        decrypt_contents, decrypt_file, encrypt_file, get_uuid_from_file,
+    },
     filetree::{
         tree::{dir_walk, is_not_hidden, sort_by_name, Directory},
         treeprint::print_tree,
@@ -43,7 +49,10 @@ pub enum CloudError {
 /// directive.encrypt(in_place, output);
 ///```
 ///TODO: implement output
-pub fn encrypt(path: &str, output: Option<String>) -> Result<(), Box<dyn std::error::Error>> {
+pub fn encrypt(
+    path: &str,
+    output: Option<String>,
+) -> Result<(), Box<dyn std::error::Error>> {
     // verify our path is pointing to a actual dir/file
     if !verify_path(&path) {
         send_information(vec![format!("could not find path: {}", path)]);
@@ -65,7 +74,10 @@ pub fn encrypt(path: &str, output: Option<String>) -> Result<(), Box<dyn std::er
                     if path.is_dir() {
                         root.push(path.file_name().unwrap());
                     } else if path.is_file() {
-                        encrypt_file(path.to_str().unwrap(), &Some(root.display().to_string()));
+                        encrypt_file(
+                            path.to_str().unwrap(),
+                            &Some(root.display().to_string()),
+                        );
                     }
                 }
             }
@@ -95,7 +107,10 @@ pub fn decrypt(path: &str, output: Option<String>) {
                     if p.is_dir() {
                         root.push(p.file_name().unwrap());
                     } else if p.is_file() {
-                        send_information(vec![format!("Decrypting file: {}", p.display())]);
+                        send_information(vec![format!(
+                            "Decrypting file: {}",
+                            p.display()
+                        )]);
                         let _res = decrypt_file(p, root.display().to_string());
                     }
                 }
@@ -123,7 +138,11 @@ struct Google {
 
 impl Google {
     /// Creates a new [`Google`].
-    fn _new(runtime: Runtime, token: UserToken, cloud_root_folder: String) -> Self {
+    fn _new(
+        runtime: Runtime,
+        token: UserToken,
+        cloud_root_folder: String,
+    ) -> Self {
         Self {
             runtime,
             token,
@@ -141,8 +160,11 @@ pub fn google_startup() -> Result<(Runtime, UserToken, String), CloudError> {
     let user_token = UserToken::new_google();
 
     //Access google drive and ensure a crypt folder exists, create if doesn't
-    let crypt_folder: String = match runtime.block_on(drive::g_create_folder(&user_token, None, ""))
-    {
+    let crypt_folder: String = match runtime.block_on(drive::g_create_folder(
+        &user_token,
+        None,
+        "",
+    )) {
         core::result::Result::Ok(folder_id) => folder_id,
         Err(error) => {
             send_information(vec![format!("{}", error)]);
@@ -152,7 +174,7 @@ pub fn google_startup() -> Result<(Runtime, UserToken, String), CloudError> {
     Ok((runtime, user_token, crypt_folder))
 }
 
-pub fn google_upload2(path: &str) -> Result<(), Box<dyn std::error::Error>> {
+pub fn google_upload(path: &str) -> Result<(), Box<dyn std::error::Error>> {
     let mut crypt_root: PathBuf = get_crypt_folder();
     let dir = walk_crypt_folder().unwrap_or_default();
 
@@ -240,11 +262,13 @@ pub fn google_upload2(path: &str) -> Result<(), Box<dyn std::error::Error>> {
                 }
 
                 // Find the position of "crypt" in the path
-                let crypt_position = file.iter().position(|component| component == "crypt");
+                let crypt_position =
+                    file.iter().position(|component| component == "crypt");
 
                 if let Some(index) = crypt_position {
                     // Collect the components after "crypt"
-                    let remaining_components: Vec<_> = file.iter().skip(index + 1).collect();
+                    let remaining_components: Vec<_> =
+                        file.iter().skip(index + 1).collect();
                     dbg!(&remaining_components);
 
                     let len = remaining_components.len() - 1;
@@ -261,14 +285,17 @@ pub fn google_upload2(path: &str) -> Result<(), Box<dyn std::error::Error>> {
                     let mut current: String = String::new();
 
                     // Iterate over each remaining component
-                    for (num, component) in remaining_components.iter().enumerate() {
+                    for (num, component) in
+                        remaining_components.iter().enumerate()
+                    {
                         if num != len {
                             println!("directory: {:?}", component);
-                            current = runtime.block_on(drive::g_create_folder(
-                                &user_token,
-                                Some(&PathBuf::from(component)),
-                                &parent,
-                            ))?;
+                            current =
+                                runtime.block_on(drive::g_create_folder(
+                                    &user_token,
+                                    Some(&PathBuf::from(component)),
+                                    &parent,
+                                ))?;
                             println!("{:?} : {}", component, current);
                             parent = current.clone();
                         } else {
@@ -285,57 +312,6 @@ pub fn google_upload2(path: &str) -> Result<(), Box<dyn std::error::Error>> {
                     }
                 }
             }
-
-            // let result = test_create_subfolders(&crypt_folder, Some(path_parts))?;
-            // println!("result: {:#?}", result);
-
-            // let mut crypts: Vec<FileCrypt> = Vec::new();
-
-            // // query all files to upload from the keeper, and get their crypts
-            // for f in &files {
-            //     let uuid = get_uuid_from_file(f.as_path()).unwrap();
-            //     let fc = db::query_crypt(uuid).unwrap();
-            //     crypts.push(fc);
-            // }
-
-            // // upload each file one by one, and save drive_id to their perspective crypt
-            // for file in files.clone().into_iter() {
-            //     // create temp to shred apart
-            //     let mut temp_file = file.clone();
-            //     // store parts of the path we want
-            //     let mut path_parts: Vec<String> = Vec::new();
-            //     // read top-most slice of path. until we get to "crypt", add to path_parts, then pop top off stack.
-            //     loop {
-            //         match temp_file.file_name().unwrap() == "crypt" {
-            //             true => break,
-            //             false => {
-            //                 path_parts
-            //                     .push(temp_file.file_name().unwrap().to_string_lossy().to_string());
-            //                 temp_file.pop();
-            //             }
-            //         };
-            //     }
-            //     dbg!(&path_parts);
-
-            //     // reverse vec so we have it in correct order.
-            //     path_parts.reverse();
-            //     // remove filename from list.
-            //     path_parts.remove(path_parts.len() - 1);
-            //     println!("path_parts: {:#?}", path_parts);
-
-            //     // remove "root" folder
-            //     let root = path_parts.remove(0);
-            //     match path_parts.is_empty() {
-            //         true => {
-            //             let result = test_create_subfolders(&root, None)?;
-            //             println!("result: {:#?}", result);
-            //         }
-            //         false => {
-            //             let result = test_create_subfolders(&root, Some(path_parts))?;
-            //             println!("result: {:#?}", result);
-            //         }
-            //     }
-            // }
         }
     }
 
@@ -455,7 +431,10 @@ pub fn config(path: &str, config_task: ConfigTask) {
             match path.to_lowercase().as_str() {
                 "" => {
                     let path = get_full_file_path(&config.crypt_path);
-                    send_information(vec![format!("Current crypt Path:\n  {}", path.display())]);
+                    send_information(vec![format!(
+                        "Current crypt Path:\n  {}",
+                        path.display()
+                    )]);
                 }
                 _ => {
                     send_information(vec![format!(
@@ -466,7 +445,8 @@ pub fn config(path: &str, config_task: ConfigTask) {
 
                     //TODO: Modify to properly handle tui/gui interactions
                     let mut s = String::new();
-                    while s.to_lowercase() != *"y" || s.to_lowercase() != *"n" {
+                    while s.to_lowercase() != *"y" || s.to_lowercase() != *"n"
+                    {
                         std::io::stdin()
                             .read_line(&mut s)
                             .expect("Did not enter a correct string");
@@ -493,12 +473,19 @@ pub fn config(path: &str, config_task: ConfigTask) {
         },
 
         ConfigTask::ZstdLevel(level) => match config.set_zstd_level(level) {
-            true => send_information(vec![format!("Zstd Level value changed to: {}", level)]),
-            false => send_information(vec![format!("Error occured, please verify parameters")]),
+            true => send_information(vec![format!(
+                "Zstd Level value changed to: {}",
+                level
+            )]),
+            false => send_information(vec![format!(
+                "Error occured, please verify parameters"
+            )]),
         },
 
         ConfigTask::LoadDefault => match config.restore_default() {
-            true => send_information(vec![format!("Default configuration has been restored")]),
+            true => send_information(vec![format!(
+                "Default configuration has been restored"
+            )]),
             false => send_information(vec![format!(
                 "An error has occured attmepting to load defaults"
             )]),
@@ -506,9 +493,15 @@ pub fn config(path: &str, config_task: ConfigTask) {
         ConfigTask::IgnoreHidden(_) => todo!(),
         ConfigTask::Hwid => {
             if path.is_empty() {
-                send_information(vec![format!("{}", config.get_system_name())]);
+                send_information(vec![format!(
+                    "{}",
+                    config.get_system_name()
+                )]);
             } else {
-                send_information(vec![format!("changing system name to: {}", path)]);
+                send_information(vec![format!(
+                    "changing system name to: {}",
+                    path
+                )]);
             }
             config.set_system_name(path);
         }
@@ -614,7 +607,8 @@ pub fn merge_base_with_relative_path(
 pub fn ls(local: &bool, cloud: &bool) {
     let crypt_root = get_crypt_folder();
 
-    let dir: Directory = dir_walk(&crypt_root.clone(), is_not_hidden, sort_by_name).unwrap();
+    let dir: Directory =
+        dir_walk(&crypt_root.clone(), is_not_hidden, sort_by_name).unwrap();
 
     match (local, cloud) {
         // display both
@@ -631,7 +625,7 @@ pub fn ls(local: &bool, cloud: &bool) {
 // ===========================================================
 
 pub fn test() {
-    let (runtime, user_token, _crypt_folderr) = match google_startup() {
+    let (runtime, user_token, _crypt_folder) = match google_startup() {
         Ok(res) => res,
         Err(_) => todo!(), // TODO: do we handle this here? or do we pass back to CLI?
     };
@@ -641,6 +635,6 @@ pub fn test() {
     // let res = walk_directory("test_folder", false);
     // println!("{:#?}", res);
 
-    let res = runtime.block_on(drive::g_view(&user_token, "Crypt"));
+    let res = runtime.block_on(drive::g_walk(&user_token, "Crypt"));
     println!("{:#?}", res);
 }

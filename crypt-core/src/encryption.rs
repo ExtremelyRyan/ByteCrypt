@@ -71,8 +71,10 @@ pub fn decompress(contents: &[u8]) -> Result<Vec<u8>, std::io::Error> {
 /// and the second array is the randomly generated nonce.
 ///
 pub fn generate_seeds() -> ([u8; KEY_SIZE], [u8; NONCE_SIZE]) {
-    let key: [u8; KEY_SIZE] = ChaCha20Poly1305::generate_key(&mut OsRng).into();
-    let nonce: [u8; NONCE_SIZE] = ChaCha20Poly1305::generate_nonce(&mut OsRng).into();
+    let key: [u8; KEY_SIZE] =
+        ChaCha20Poly1305::generate_key(&mut OsRng).into();
+    let nonce: [u8; NONCE_SIZE] =
+        ChaCha20Poly1305::generate_nonce(&mut OsRng).into();
     (key, nonce)
 }
 
@@ -92,7 +94,10 @@ pub fn generate_seeds() -> ([u8; KEY_SIZE], [u8; NONCE_SIZE]) {
 /// # Panics
 ///
 /// Panics if the decryption process encounters a critical error.
-pub fn decrypt(fc: FileCrypt, contents: &Vec<u8>) -> Result<Vec<u8>, chacha20poly1305::Error> {
+pub fn decrypt(
+    fc: FileCrypt,
+    contents: &Vec<u8>,
+) -> Result<Vec<u8>, chacha20poly1305::Error> {
     info!("decrypting contents");
     let k = Key::from_slice(&fc.key);
     let n = Nonce::from_slice(&fc.nonce);
@@ -113,7 +118,10 @@ pub fn decrypt(fc: FileCrypt, contents: &Vec<u8>) -> Result<Vec<u8>, chacha20pol
 ///
 /// # Panics
 /// The function panics if encryption using ChaCha20-Poly1305 fails.
-pub fn encrypt(fc: &FileCrypt, contents: &[u8]) -> Result<Vec<u8>, chacha20poly1305::Error> {
+pub fn encrypt(
+    fc: &FileCrypt,
+    contents: &[u8],
+) -> Result<Vec<u8>, chacha20poly1305::Error> {
     info!("encrypting file contents");
     let k = Key::from_slice(&fc.key);
     let n = Nonce::from_slice(&fc.nonce);
@@ -132,8 +140,9 @@ mod test {
         let contents = b"hello there";
         let res = compute_hash(contents);
         let hash_contents: [u8; 32] = [
-            79, 124, 186, 26, 222, 68, 179, 58, 201, 141, 84, 168, 242, 8, 48, 130, 131, 223, 134,
-            150, 210, 132, 93, 249, 24, 62, 200, 173, 167, 129, 67, 242,
+            79, 124, 186, 26, 222, 68, 179, 58, 201, 141, 84, 168, 242, 8, 48,
+            130, 131, 223, 134, 150, 210, 132, 93, 249, 24, 62, 200, 173, 167,
+            129, 67, 242,
         ];
         assert_eq!(hash_contents, res);
     }

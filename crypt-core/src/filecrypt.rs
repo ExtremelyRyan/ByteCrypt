@@ -1,13 +1,14 @@
 use crate::{
     common::get_full_file_path,
     common::{
-        chooser, get_crypt_folder, get_file_contents, get_vec_file_bytes, walk_crypt_folder,
-        write_contents_to_file,
+        chooser, get_crypt_folder, get_file_contents, get_vec_file_bytes,
+        walk_crypt_folder, write_contents_to_file,
     },
     config::get_config,
     db::{insert_crypt, query_crypt},
     encryption::{
-        compress, compute_hash, decompress, decrypt, encrypt, generate_seeds, KEY_SIZE, NONCE_SIZE,
+        compress, compute_hash, decompress, decrypt, encrypt, generate_seeds,
+        KEY_SIZE, NONCE_SIZE,
     },
 };
 use anyhow::Result;
@@ -125,7 +126,8 @@ pub struct FileCrypt {
 }
 
 impl FileCrypt {
-    /// Creates a new `FileCrypt` instance with the provided parameters. Generates random `key`, `nonce`, and `UUID` during creation.
+    /// Creates a new `FileCrypt` instance with the provided parameters. \
+    /// Generates random `key`, `nonce`, and `UUID` during creation.
     ///
     /// # Arguments
     ///
@@ -197,7 +199,10 @@ impl FileCrypt {
 /// # Panics
 ///
 /// This function may panic in case of critical errors, but most errors are returned in the `Result`.
-pub fn decrypt_file<T: AsRef<Path>>(path: T, output: String) -> Result<(), FcError> {
+pub fn decrypt_file<T: AsRef<Path>>(
+    path: T,
+    output: String,
+) -> Result<(), FcError> {
     let path = path.as_ref();
     // get location of crypt folder and append "decrypted" path
     let mut crypt_folder = get_crypt_folder();
@@ -234,7 +239,8 @@ pub fn decrypt_file<T: AsRef<Path>>(path: T, output: String) -> Result<(), FcErr
         false => compared[0].to_owned(),
     };
 
-    let content = read(file_match).map_err(|e| FcError::FileError(e.to_string()))?;
+    let content =
+        read(file_match).map_err(|e| FcError::FileError(e.to_string()))?;
 
     let (uuid, contents) = get_uuid(&content)?;
 
@@ -277,7 +283,10 @@ pub fn decrypt_file<T: AsRef<Path>>(path: T, output: String) -> Result<(), FcErr
     Ok(())
 }
 
-pub fn decrypt_contents(fc: FileCrypt, contents: Vec<u8>) -> Result<(), FcError> {
+pub fn decrypt_contents(
+    fc: FileCrypt,
+    contents: Vec<u8>,
+) -> Result<(), FcError> {
     let fc_hash: [u8; 32] = fc.hash.to_owned();
 
     // get location of crypt folder and append "decrypted" path
@@ -285,14 +294,19 @@ pub fn decrypt_contents(fc: FileCrypt, contents: Vec<u8>) -> Result<(), FcError>
     crypt_folder.push("decrypted");
 
     // get output file
-    let file = generate_output_file(&fc, String::new(), &mut PathBuf::from(&crypt_folder));
+    let file = generate_output_file(
+        &fc,
+        String::new(),
+        &mut PathBuf::from(&crypt_folder),
+    );
 
     // strip out uuid from contents
     let (_uuid, stripped_contents) = get_uuid(&contents)?;
 
     // Decrypt contents
     let mut decrypted_content =
-        decrypt(fc.clone(), &stripped_contents.to_vec()).expect("failed decryption");
+        decrypt(fc.clone(), &stripped_contents.to_vec())
+            .expect("failed decryption");
 
     // unzip contents
     decrypted_content = decompress(&decrypted_content)?;
@@ -383,7 +397,10 @@ pub fn encrypt_file(path: &str, output: &Option<String>) {
         .expect("failed to write contents to file!");
 }
 
-pub fn create_file_crypt<T: AsRef<Path>>(path: T, contents: &[u8]) -> FileCrypt {
+pub fn create_file_crypt<T: AsRef<Path>>(
+    path: T,
+    contents: &[u8],
+) -> FileCrypt {
     let path = path.as_ref();
     // parse out file path
     let (fp, _, filename, extension) = get_file_info(path);
@@ -416,12 +433,16 @@ pub fn do_file_encryption<T: AsRef<Path>>(path: T) -> Result<Vec<u8>, String> {
 
     let compressed_contents: Vec<u8> = match zip_contents(&contents) {
         Ok(c) => c,
-        Err(error) => return Err(format!("Error compressing file contents: {}", error)),
+        Err(error) => {
+            return Err(format!("Error compressing file contents: {}", error))
+        }
     };
 
     let mut encrypted_contents = match encrypt(&fc, &compressed_contents) {
         Ok(e) => e,
-        Err(error) => return Err(format!("File encryption failed: {}", error)),
+        Err(error) => {
+            return Err(format!("File encryption failed: {}", error))
+        }
     };
 
     // prepend uuid to contents
@@ -463,7 +484,10 @@ pub fn encrypt_contents(path: &str) -> Option<Vec<u8>> {
     path.push(format!("{}{}", fc.filename, ".crypt"));
 
     // TODO: fix this later.
-    match write_contents_to_file(path.to_str().unwrap(), encrypted_contents.clone()) {
+    match write_contents_to_file(
+        path.to_str().unwrap(),
+        encrypted_contents.clone(),
+    ) {
         Ok(_) => (),
         Err(_) => todo!(),
     }
@@ -492,9 +516,14 @@ pub fn encrypt_contents(path: &str) -> Option<Vec<u8>> {
 /// # Panics
 ///
 /// The function may panic if there are issues with creating directories or manipulating file paths.
-fn generate_output_file(fc: &FileCrypt, mut output: String, parent_dir: &mut PathBuf) -> String {
+fn generate_output_file(
+    fc: &FileCrypt,
+    mut output: String,
+    parent_dir: &mut PathBuf,
+) -> String {
     // default output case
-    let mut file = format!("{}/{}{}", &parent_dir.display(), &fc.filename, &fc.ext);
+    let mut file =
+        format!("{}/{}{}", &parent_dir.display(), &fc.filename, &fc.ext);
 
     if !Path::new(&parent_dir).exists() {
         _ = std::fs::create_dir(&parent_dir);
@@ -510,13 +539,27 @@ fn generate_output_file(fc: &FileCrypt, mut output: String, parent_dir: &mut Pat
             true => {
                 _ = std::fs::create_dir_all(&parent_dir);
                 // get filename and ext from string
-                let name = rel_path.file_name().unwrap().to_string_lossy().to_string(); // Convert to owned String
+                let name = rel_path
+                    .file_name()
+                    .unwrap()
+                    .to_string_lossy()
+                    .to_string(); // Convert to owned String
                 let index = name.find('.').unwrap();
                 let (filename, extension) = name.split_at(index);
                 if cfg!(target_os = "windows") {
-                    file = format!("{}\\{}{}", parent_dir.display(), filename, extension);
+                    file = format!(
+                        "{}\\{}{}",
+                        parent_dir.display(),
+                        filename,
+                        extension
+                    );
                 } else {
-                    file = format!("{}/{}{}", parent_dir.display(), filename, extension);
+                    file = format!(
+                        "{}/{}{}",
+                        parent_dir.display(),
+                        filename,
+                        extension
+                    );
                 }
             }
             // 'tis a new directory
@@ -529,9 +572,19 @@ fn generate_output_file(fc: &FileCrypt, mut output: String, parent_dir: &mut Pat
                     output.remove(output.len() - 1);
                 }
                 if cfg!(target_os = "windows") {
-                    file = format!("{}\\{}{}", parent_dir.display(), &fc.filename, &fc.ext);
+                    file = format!(
+                        "{}\\{}{}",
+                        parent_dir.display(),
+                        &fc.filename,
+                        &fc.ext
+                    );
                 } else {
-                    file = format!("{}/{}{}", parent_dir.display(), &fc.filename, &fc.ext);
+                    file = format!(
+                        "{}/{}{}",
+                        parent_dir.display(),
+                        &fc.filename,
+                        &fc.ext
+                    );
                 }
             }
         };
@@ -584,9 +637,12 @@ pub fn generate_uuid() -> String {
     let mut random_bytes = [0u8; 10];
     chacha20poly1305::aead::OsRng.fill_bytes(&mut random_bytes);
 
-    uuid::Builder::from_unix_timestamp_millis(ts.as_millis().try_into().unwrap(), &random_bytes)
-        .into_uuid()
-        .to_string()
+    uuid::Builder::from_unix_timestamp_millis(
+        ts.as_millis().try_into().unwrap(),
+        &random_bytes,
+    )
+    .into_uuid()
+    .to_string()
 }
 
 /// Extracts a UUID and the remaining contents from a byte slice.
@@ -628,7 +684,8 @@ pub fn get_uuid(contents: &[u8]) -> Result<(String, Vec<u8>), String> {
 
     let (uuid, contents) = contents.split_at(36);
     Ok((
-        String::from_utf8(uuid.to_vec()).unwrap_or(String::from_utf8_lossy(uuid).to_string()),
+        String::from_utf8(uuid.to_vec())
+            .unwrap_or(String::from_utf8_lossy(uuid).to_string()),
         contents.to_vec(),
     ))
 }
@@ -666,7 +723,9 @@ pub fn get_uuid(contents: &[u8]) -> Result<(String, Vec<u8>), String> {
 ///     Ok(())
 /// }
 /// ```
-pub fn get_uuid_from_file<T: AsRef<Path>>(file: T) -> Result<String, Box<dyn std::error::Error>> {
+pub fn get_uuid_from_file<T: AsRef<Path>>(
+    file: T,
+) -> Result<String, Box<dyn std::error::Error>> {
     let path = file.as_ref();
 
     // Check if the file has the expected extension
@@ -674,13 +733,19 @@ pub fn get_uuid_from_file<T: AsRef<Path>>(file: T) -> Result<String, Box<dyn std
         Some(ext) => match ext == "crypt" {
             true => (),
             false => {
-                return Err(
-                    io::Error::new(io::ErrorKind::InvalidData, "Invalid file extension").into(),
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "Invalid file extension",
                 )
+                .into())
             }
         },
         None => {
-            return Err(io::Error::new(io::ErrorKind::InvalidData, "File has no extension").into())
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "File has no extension",
+            )
+            .into())
         }
     }
 
@@ -689,7 +754,12 @@ pub fn get_uuid_from_file<T: AsRef<Path>>(file: T) -> Result<String, Box<dyn std
 
     // Extract UUID (assuming it is the first 36 characters)
     let uuid = String::from_utf8(contents.clone().drain(0..36).collect())
-        .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, format!("Invalid UTF-8: {}", e)))?;
+        .map_err(|e| {
+            io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!("Invalid UTF-8: {}", e),
+            )
+        })?;
 
     Ok(uuid)
 }
@@ -740,7 +810,9 @@ pub fn prepend_uuid(uuid: &str, encrypted_contents: &mut [u8]) -> Vec<u8> {
 /// assert_eq!(filename,  "file");
 /// assert_eq!(extension, ".txt");
 /// ```
-pub fn get_file_info<T: AsRef<Path>>(path: T) -> (PathBuf, PathBuf, String, String) {
+pub fn get_file_info<T: AsRef<Path>>(
+    path: T,
+) -> (PathBuf, PathBuf, String, String) {
     let path = path.as_ref();
 
     // get filename, extension, and full path info
@@ -789,12 +861,12 @@ mod test {
     #[test]
     fn test_get_uuid() {
         let contents: Vec<u8> = vec![
-            1, 2, 3, 4, 5, 1, 2, 3, 4, 5, 1, 2, 3, 4, 5, 1, 2, 3, 4, 5, 1, 2, 3, 4, 5, 1, 2, 3, 4,
-            5, 1, 2, 3, 4, 5, 1, 2, 3, 4, 5,
+            1, 2, 3, 4, 5, 1, 2, 3, 4, 5, 1, 2, 3, 4, 5, 1, 2, 3, 4, 5, 1, 2,
+            3, 4, 5, 1, 2, 3, 4, 5, 1, 2, 3, 4, 5, 1, 2, 3, 4, 5,
         ];
         let uuid_test: String = String::from_utf8(vec![
-            1, 2, 3, 4, 5, 1, 2, 3, 4, 5, 1, 2, 3, 4, 5, 1, 2, 3, 4, 5, 1, 2, 3, 4, 5, 1, 2, 3, 4,
-            5, 1, 2, 3, 4, 5, 1,
+            1, 2, 3, 4, 5, 1, 2, 3, 4, 5, 1, 2, 3, 4, 5, 1, 2, 3, 4, 5, 1, 2,
+            3, 4, 5, 1, 2, 3, 4, 5, 1, 2, 3, 4, 5, 1,
         ])
         .unwrap();
         let (uuid, _) = get_uuid(&contents).unwrap();
