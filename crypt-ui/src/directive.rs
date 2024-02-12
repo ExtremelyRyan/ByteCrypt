@@ -29,11 +29,16 @@ use std::{
     path::{Path, PathBuf, MAIN_SEPARATOR},
 };
 use tokio::runtime::Runtime;
+use thiserror::Error;
 
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum CloudError {
-    ///Error accessing Crypt "root" folder
+    /// Error accessing Crypt "root" folder
+    #[error("Error accessing Crypt 'root' folder")]
     CryptFolderError,
+
+    /// Runtime error
+    #[error("Runtime error")]
     RuntimeError,
 }
 
@@ -174,27 +179,60 @@ pub fn google_startup() -> Result<(Runtime, UserToken, String), CloudError> {
     Ok((runtime, user_token, crypt_folder))
 }
 
-pub fn google_upload(path: &str) -> Result<(), Box<dyn std::error::Error>> {
+
+
+#[derive(Debug, Error)]
+pub enum UploadError {
+    #[error("Failed to get crypt folder")]
+    CryptFolderError,
+    
+    #[error("Failed to walk crypt folder")]
+    WalkCryptFolderError,
+
+    #[error("User aborted the operation")]
+    UserAbortedError,
+
+    #[error("no files were found in the directory provided")]
+    NoCryptFilesFound,
+
+    /// Cloud-related errors
+    #[error("Cloud error: {0}")]
+    CloudError(#[from] CloudError),
+
+    #[error("An unexpected error occurred: {0}")]
+    OtherError(#[from] Box<dyn std::error::Error>),
+
+    #[error("An unexpected error occurred: {0}")]
+    AltError(#[from] anyhow::Error),
+}
+
+// You can add more specific errors as needed.
+
+impl From<std::io::Error> for UploadError {
+    fn from(err: std::io::Error) -> Self {
+        UploadError::OtherError(Box::new(err))
+    }
+}
+// Add more conversion implementations as needed.
+
+pub fn google_upload(path: &str) -> Result<(), UploadError> {
     let mut crypt_root: PathBuf = get_crypt_folder();
     let dir = walk_crypt_folder().unwrap_or_default();
 
     // if there are no files in the crypt folder, return
     if dir.is_empty() {
-        return Ok(());
+        return Err(UploadError::NoCryptFilesFound);
     }
     let user_result = chooser(dir, path);
-
+    dbg!(&user_result);
     // user aborted
     if user_result.to_string_lossy() == "" {
-        return Ok(());
+        return Err(UploadError::UserAbortedError);
     }
 
     dbg!("{}", user_result.display());
 
-    let (runtime, user_token, crypt_folder) = match google_startup() {
-        Ok(res) => res,
-        Err(_) => todo!(), // TODO: do we handle this here? or do we pass back to CLI?
-    };
+    let (runtime, user_token, crypt_folder) = google_startup()?;
 
     // determine if path picked is a file or path
     match user_result.is_file() {
