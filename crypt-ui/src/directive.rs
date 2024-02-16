@@ -3,20 +3,15 @@ use crate::cli::{
     KeeperPurgeSubCommand::{Database, Token},
 };
 
+// use anyhow::Ok;
 use crypt_cloud::crypt_core::{
     common::{
-        build_tree, chooser, get_crypt_folder,
-        get_filenames_from_subdirectories, get_full_file_path,
-        send_information, walk_crypt_folder, walk_directory,
+        build_tree, chooser, get_crypt_folder, get_filenames_from_subdirectories,
+        get_full_file_path, send_information, walk_crypt_folder, walk_directory,
     },
     config::{self, Config, ConfigTask, ItemsTask},
-    db::{
-        self, delete_keeper, export_keeper, query_keeper_by_file_name,
-        query_keeper_crypt,
-    },
-    filecrypt::{
-        decrypt_contents, decrypt_file, encrypt_file, get_uuid_from_file,
-    },
+    db::{self, delete_keeper, export_keeper, query_crypt, query_keeper_crypt},
+    filecrypt::{decrypt_contents, decrypt_file, encrypt_file, get_uuid_from_file, FcError},
     filetree::{
         tree::{dir_walk, is_not_hidden, sort_by_name, Directory},
         treeprint::print_tree,
@@ -28,8 +23,8 @@ use std::{
     fs, io,
     path::{Path, PathBuf, MAIN_SEPARATOR},
 };
-use tokio::runtime::Runtime;
 use thiserror::Error;
+use tokio::runtime::Runtime;
 
 #[derive(Debug, Error)]
 pub enum CloudError {
@@ -54,10 +49,7 @@ pub enum CloudError {
 /// directive.encrypt(in_place, output);
 ///```
 ///TODO: implement output
-pub fn encrypt(
-    path: &str,
-    output: Option<String>,
-) -> Result<(), Box<dyn std::error::Error>> {
+pub fn encrypt(path: &str, output: Option<String>) -> Result<(), Box<dyn std::error::Error>> {
     // verify our path is pointing to a actual dir/file
     if !verify_path(&path) {
         send_information(vec![format!("could not find path: {}", path)]);
@@ -79,10 +71,7 @@ pub fn encrypt(
                     if path.is_dir() {
                         root.push(path.file_name().unwrap());
                     } else if path.is_file() {
-                        encrypt_file(
-                            path.to_str().unwrap(),
-                            &Some(root.display().to_string()),
-                        );
+                        encrypt_file(path.to_str().unwrap(), &Some(root.display().to_string()));
                     }
                 }
             }
@@ -112,10 +101,7 @@ pub fn decrypt(path: &str, output: Option<String>) {
                     if p.is_dir() {
                         root.push(p.file_name().unwrap());
                     } else if p.is_file() {
-                        send_information(vec![format!(
-                            "Decrypting file: {}",
-                            p.display()
-                        )]);
+                        send_information(vec![format!("Decrypting file: {}", p.display())]);
                         let _res = decrypt_file(p, root.display().to_string());
                     }
                 }
@@ -143,11 +129,7 @@ struct Google {
 
 impl Google {
     /// Creates a new [`Google`].
-    fn _new(
-        runtime: Runtime,
-        token: UserToken,
-        cloud_root_folder: String,
-    ) -> Self {
+    fn _new(runtime: Runtime, token: UserToken, cloud_root_folder: String) -> Self {
         Self {
             runtime,
             token,
@@ -165,11 +147,8 @@ pub fn google_startup() -> Result<(Runtime, UserToken, String), CloudError> {
     let user_token = UserToken::new_google();
 
     //Access google drive and ensure a crypt folder exists, create if doesn't
-    let crypt_folder: String = match runtime.block_on(drive::g_create_folder(
-        &user_token,
-        None,
-        "",
-    )) {
+    let crypt_folder: String = match runtime.block_on(drive::g_create_folder(&user_token, None, ""))
+    {
         core::result::Result::Ok(folder_id) => folder_id,
         Err(error) => {
             send_information(vec![format!("{}", error)]);
@@ -179,13 +158,11 @@ pub fn google_startup() -> Result<(Runtime, UserToken, String), CloudError> {
     Ok((runtime, user_token, crypt_folder))
 }
 
-
-
 #[derive(Debug, Error)]
 pub enum UploadError {
     #[error("Failed to get crypt folder")]
     CryptFolderError,
-    
+
     #[error("Failed to walk crypt folder")]
     WalkCryptFolderError,
 
@@ -205,150 +182,132 @@ pub enum UploadError {
     #[error("An unexpected error occurred: {0}")]
     AltError(#[from] anyhow::Error),
 }
-
-// You can add more specific errors as needed.
-
 impl From<std::io::Error> for UploadError {
     fn from(err: std::io::Error) -> Self {
         UploadError::OtherError(Box::new(err))
     }
 }
-// Add more conversion implementations as needed.
 
-pub fn google_upload(path: &str) -> Result<(), UploadError> {
+pub fn google_upload() -> Result<(), UploadError> {
     let mut crypt_root: PathBuf = get_crypt_folder();
-    let dir = walk_crypt_folder().unwrap_or_default();
+    let dir = walk_crypt_folder()?;
 
     // if there are no files in the crypt folder, return
     if dir.is_empty() {
         return Err(UploadError::NoCryptFilesFound);
     }
-    let user_result = chooser(dir, path);
-    dbg!(&user_result);
+    let user_result = chooser(dir, "");
+
     // user aborted
-    if user_result.to_string_lossy() == "" {
+    if user_result.to_string_lossy().is_empty() {
         return Err(UploadError::UserAbortedError);
     }
-
-    dbg!("{}", user_result.display());
 
     let (runtime, user_token, crypt_folder) = google_startup()?;
 
     // determine if path picked is a file or path
-    match user_result.is_file() {
-        true => {
-            // 1. get crypt info from pathbuf
-            let mut fc = match get_uuid_from_file(user_result.clone()) {
-                Ok(uuid) => db::query_crypt(uuid)?,
-                Err(err) => panic!("{}", err),
+    if user_result.is_file() {
+        // 1. get crypt info from pathbuf
+        let mut fc = match get_uuid_from_file(user_result.clone()) {
+            Ok(uuid) => db::query_crypt(uuid)?,
+            Err(err) => return Err(UploadError::OtherError(Box::new(err))),
+        };
+
+        // 2. upload file to cloud, saving drive id to crypt
+        fc.drive_id = runtime.block_on(drive::g_upload(
+            &user_token,
+            &user_result.display().to_string(),
+            &crypt_folder,
+        ))?;
+
+        // 3. update database.
+        db::insert_crypt(&fc)?;
+
+        // 4. show cloud directory
+        let cloud_directory = runtime
+            .block_on(drive::g_walk(&user_token, "Crypt"))
+            .expect("Could not view directory information");
+        send_information(build_tree(&cloud_directory));
+    } else {
+        // iterate over parts of folder path passed from user
+        for p in user_result.as_path().iter() {
+            // have to do this if result has leading "\\", like "\\test_folder"
+            if p.to_string_lossy().to_string().contains(MAIN_SEPARATOR) {
+                continue;
+            }
+            crypt_root.push(p);
+        }
+
+        // get all our file paths from folder
+        let (files, _) = get_filenames_from_subdirectories(&crypt_root)?;
+
+        for file in files {
+            // get FileCrypt information from keeper
+            let mut fc = match get_uuid_from_file(file.as_path()) {
+                Ok(uuid) => db::query_crypt(uuid).unwrap(),
+                Err(_) => continue,
             };
 
-            // 2. upload file to cloud, saving drive id to crypt
-            fc.drive_id = runtime.block_on(drive::g_upload(
-                &user_token,
-                &user_result.display().to_string(),
-                &crypt_folder,
-            ))?;
+            // check if we have a drive id in the filecrypt & if it exists in google drive
+            // if so: we will update the file instead of overwriting it.
+            // if we fail, blank out the FC drive id and fall through to upload.
+            if !fc.drive_id.is_empty()
+                && runtime
+                    .block_on(drive::g_id_exists(&user_token, &fc.drive_id))
+                    .is_ok_and(|x| x)
+            {
+                fc.drive_id = runtime
+                    .block_on(drive::g_update(
+                        &user_token,
+                        &fc.drive_id,
+                        &file.to_string_lossy(),
+                    ))
+                    .unwrap_or_else(|_| "".to_string());
 
-            // 3. update database.
-            db::insert_crypt(&fc)?;
-
-            // 4. show cloud directory
-            let cloud_directory = runtime
-                .block_on(drive::g_walk(&user_token, "Crypt"))
-                .expect("Could not view directory information");
-            send_information(build_tree(&cloud_directory));
-        }
-        // user chose to upload a directory
-        false => {
-            // pop "crypt" from path, since res will have it already.
-            crypt_root.pop();
-
-            // iterate over parts of folder path passed from user
-            for p in user_result.as_path().iter() {
-                if p.to_string_lossy().to_string().contains(MAIN_SEPARATOR) {
+                if !fc.drive_id.is_empty() {
                     continue;
-                } else {
-                    crypt_root.push(p);
                 }
             }
-            dbg!(&crypt_root);
 
-            // get all our file paths from folder
-            let (files, _) = get_filenames_from_subdirectories(&crypt_root)?;
-            dbg!(&files);
+            // Find the position of "crypt" in the path
+            if let Some(index) = file.iter().position(|component| component == "crypt") {
+                // Collect the components after "crypt"
+                let remaining_components: Vec<_> = file.iter().skip(index + 1).collect();
 
-            for file in files {
-                // get FileCrypt information from keeper
-                let mut fc = match get_uuid_from_file(file.as_path()) {
-                    Ok(uuid) => db::query_crypt(uuid).unwrap(),
-                    Err(_) => continue,
-                };
-
-                // if our file already exists on the Drive, update it instead.
-                if !fc.drive_id.is_empty() {
-                    let id = runtime.block_on(drive::g_update(
-                        &user_token,
-                        file.to_str().unwrap(),
-                        file.to_string_lossy().as_ref(),
-                    ))?;
-                    // not sure if this would happen, but check for it anyway.
-                    // if updated file id does not match, update FileCrypt DriveID
-                    if fc.drive_id != id {
-                        fc.drive_id = id;
-                    }
+                // Check if there are remaining components
+                if remaining_components.is_empty() {
+                    continue;
                 }
 
-                // Find the position of "crypt" in the path
-                let crypt_position =
-                    file.iter().position(|component| component == "crypt");
+                // our parent directory ID
+                let mut parent: String = crypt_folder.clone();
 
-                if let Some(index) = crypt_position {
-                    // Collect the components after "crypt"
-                    let remaining_components: Vec<_> =
-                        file.iter().skip(index + 1).collect();
-                    dbg!(&remaining_components);
+                // our current directory ID
+                let mut current: String = String::new();
 
-                    let len = remaining_components.len() - 1;
+                // length of remaining components
+                let len = remaining_components.len() - 1;
 
-                    // Check if there are remaining components
-                    if remaining_components.is_empty() {
-                        println!("No remaining components after 'crypt'.");
-                        continue;
-                    }
-
-                    // our parent directory ID
-                    let mut parent: String = crypt_folder.clone();
-                    // our current directory ID
-                    let mut current: String = String::new();
-
-                    // Iterate over each remaining component
-                    for (num, component) in
-                        remaining_components.iter().enumerate()
-                    {
-                        if num != len {
-                            println!("directory: {:?}", component);
-                            current =
-                                runtime.block_on(drive::g_create_folder(
-                                    &user_token,
-                                    Some(&PathBuf::from(component)),
-                                    &parent,
-                                ))?;
-                            println!("{:?} : {}", component, current);
-                            parent = current.clone();
-                        } else {
-                            println!("file! : {:?}", component);
-                            current = runtime.block_on(drive::g_upload(
-                                &user_token,
-                                file.to_str().unwrap(),
-                                &current,
-                            ))?;
-                            fc.drive_id = current.clone();
-                        }
-                        // 3. update database.
-                        db::insert_crypt(&fc)?;
+                // Iterate over each remaining component
+                for (num, component) in remaining_components.iter().enumerate() {
+                    if num != len {
+                        current = runtime.block_on(drive::g_create_folder(
+                            &user_token,
+                            Some(&PathBuf::from(component)),
+                            &parent,
+                        ))?;
+                        parent = current.clone();
+                    } else {
+                        current = runtime.block_on(drive::g_upload(
+                            &user_token,
+                            file.to_str().unwrap(),
+                            &current,
+                        ))?;
+                        fc.drive_id = current.clone();
                     }
                 }
+                // 3. update database.
+                db::insert_crypt(&fc)?;
             }
         }
     }
@@ -356,48 +315,78 @@ pub fn google_upload(path: &str) -> Result<(), UploadError> {
     Ok(())
 }
 
-pub fn google_download(path: &String) {
-    let (runtime, user_token, _) = match google_startup() {
-        Ok(res) => res,
-        Err(_) => todo!(), // TODO: do we handle this here? or do we pass back to CLI?
-    };
+#[derive(Debug, Error)]
+pub enum DownloadError {
+    #[error("An IO error occurred: {0}")]
+    IoError(String),
+
+    /// Cloud-related errors
+    #[error("Cloud error: {0}")]
+    CloudError(#[from] CloudError),
+
+    #[error("failed to query database: {0}")]
+    DbError(#[from] anyhow::Error),
+
+    #[error("failed to decrypt contents: {0}")]
+    DecryptError(#[from] FcError),
+}
+
+impl From<std::io::Error> for DownloadError {
+    fn from(err: std::io::Error) -> Self {
+        DownloadError::IoError(err.to_string())
+    }
+}
+
+pub fn google_download(path: &str) -> Result<(), DownloadError> {
+    let (runtime, user_token, _crypt_folder_id) = google_startup()?;
 
     // TODO: how do we handle paths that do not match / misspelled / mis-cased?
     // TODO:
+    let crypt_folder = get_crypt_folder();
+    let (files, _) = get_filenames_from_subdirectories(crypt_folder)?;
 
-    // OK, so what are we wanting to do here? we are looking at the list of files on the cloud
-    // from running `crypt cloud -g view`
+    let file_choice = chooser(files, path);
+    dbg!(&file_choice);
 
-    // `path` that we are getting from the user is the filename (should not have ext, but might)
-    // so we can query for that from the db.
+    if file_choice.is_file() {
+        // get uuid from file
+        let uuid = get_uuid_from_file(&file_choice)?;
 
-    // Step 1: get path from the user and verify it exists in our database.
-    println!("path {}", path);
-    let fc = query_keeper_by_file_name(path).unwrap();
+        // Step 1: get path from the user and verify it exists in our database.
+        let fc = query_crypt(uuid)?;
+        dbg!(&fc);
 
-    // TODO: Step 1.1: if multiple filecrypts exist for the same filename, then perhaps it's just easier
-    // if we download the file, and check uuid.
-    // thought about having user select, but based off what? filename, the "fullpath" we have in the db?
+        // TODO: Step 1.1: if multiple filecrypts exist for the same filename, then perhaps it's just easier
+        // if we download the file, and check uuid.
+        // thought about having user select, but based off what? filename, the "fullpath" we have in the db?
 
-    // step 2: get drive id and query file, retreve contents
+        // step 2: get drive id and query file, retreve contents
 
-    let bytes = runtime
-        .block_on(drive::google_query_file(&user_token, &fc.drive_id))
-        .unwrap_or(vec![]);
+        let bytes = runtime
+            .block_on(drive::google_query_file(&user_token, &fc.drive_id))
+            .unwrap_or(vec![]);
 
-    // TODO: if something went wrong, what do?
-    if bytes.is_empty() {
-        send_information(vec![format!(
-            "Failed to get contents of cloud file. Please try again."
-        )]);
-        std::process::exit(2);
+        // TODO: if something went wrong, what do?
+        if bytes.is_empty() {
+            send_information(vec![format!(
+                "Failed to get contents of cloud file. Please try again."
+            )]);
+            std::process::exit(2);
+        }
+
+        // Step 2.5: unzip / decrypt contents / write to file.
+        decrypt_contents(fc, bytes)?;
+    }
+    // otherwise we assume it is a folder
+    else {
+        // query google drive for folder and get all files
+
+        // iterate through files and get drive id's
+
+        // download each file.
     }
 
-    // Step 2.5: unzip / decrypt contents / write to file.
-    _ = decrypt_contents(fc, bytes);
-
-    // let res = runtime.block_on(g_walk(&user_token, "Crypt")).unwrap();
-    // println!("{res:#?}");
+    Ok(())
 }
 
 pub fn google_view(path: &str) {
@@ -469,10 +458,7 @@ pub fn config(path: &str, config_task: ConfigTask) {
             match path.to_lowercase().as_str() {
                 "" => {
                     let path = get_full_file_path(&config.crypt_path);
-                    send_information(vec![format!(
-                        "Current crypt Path:\n  {}",
-                        path.display()
-                    )]);
+                    send_information(vec![format!("Current crypt Path:\n  {}", path.display())]);
                 }
                 _ => {
                     send_information(vec![format!(
@@ -483,8 +469,7 @@ pub fn config(path: &str, config_task: ConfigTask) {
 
                     //TODO: Modify to properly handle tui/gui interactions
                     let mut s = String::new();
-                    while s.to_lowercase() != *"y" || s.to_lowercase() != *"n"
-                    {
+                    while s.to_lowercase() != *"y" || s.to_lowercase() != *"n" {
                         std::io::stdin()
                             .read_line(&mut s)
                             .expect("Did not enter a correct string");
@@ -511,19 +496,12 @@ pub fn config(path: &str, config_task: ConfigTask) {
         },
 
         ConfigTask::ZstdLevel(level) => match config.set_zstd_level(level) {
-            true => send_information(vec![format!(
-                "Zstd Level value changed to: {}",
-                level
-            )]),
-            false => send_information(vec![format!(
-                "Error occured, please verify parameters"
-            )]),
+            true => send_information(vec![format!("Zstd Level value changed to: {}", level)]),
+            false => send_information(vec![format!("Error occured, please verify parameters")]),
         },
 
         ConfigTask::LoadDefault => match config.restore_default() {
-            true => send_information(vec![format!(
-                "Default configuration has been restored"
-            )]),
+            true => send_information(vec![format!("Default configuration has been restored")]),
             false => send_information(vec![format!(
                 "An error has occured attmepting to load defaults"
             )]),
@@ -531,15 +509,9 @@ pub fn config(path: &str, config_task: ConfigTask) {
         ConfigTask::IgnoreHidden(_) => todo!(),
         ConfigTask::Hwid => {
             if path.is_empty() {
-                send_information(vec![format!(
-                    "{}",
-                    config.get_system_name()
-                )]);
+                send_information(vec![format!("{}", config.get_system_name())]);
             } else {
-                send_information(vec![format!(
-                    "changing system name to: {}",
-                    path
-                )]);
+                send_information(vec![format!("changing system name to: {}", path)]);
             }
             config.set_system_name(path);
         }
@@ -645,8 +617,7 @@ pub fn merge_base_with_relative_path(
 pub fn ls(local: &bool, cloud: &bool) {
     let crypt_root = get_crypt_folder();
 
-    let dir: Directory =
-        dir_walk(&crypt_root.clone(), is_not_hidden, sort_by_name).unwrap();
+    let dir: Directory = dir_walk(&crypt_root.clone(), is_not_hidden, sort_by_name).unwrap();
 
     match (local, cloud) {
         // display both
@@ -663,7 +634,7 @@ pub fn ls(local: &bool, cloud: &bool) {
 // ===========================================================
 
 pub fn test() {
-    let (runtime, user_token, _crypt_folder) = match google_startup() {
+    let (runtime, user_token, crypt_folder) = match google_startup() {
         Ok(res) => res,
         Err(_) => todo!(), // TODO: do we handle this here? or do we pass back to CLI?
     };
@@ -673,6 +644,9 @@ pub fn test() {
     // let res = walk_directory("test_folder", false);
     // println!("{:#?}", res);
 
-    let res = runtime.block_on(drive::g_walk(&user_token, "Crypt"));
+    // let res = runtime.block_on(drive::google_query_folders(&user_token, "testerer_folderer",&crypt_folder));
+    // println!("{:#?}", res);
+
+    let res = runtime.block_on(drive::google_query(&user_token, &crypt_folder));
     println!("{:#?}", res);
 }

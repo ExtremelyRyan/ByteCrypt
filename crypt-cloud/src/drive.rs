@@ -6,9 +6,7 @@ use crypt_core::{
     token::UserToken,
 };
 use reqwest::{
-    header::{
-        HeaderMap, HeaderValue, CONTENT_LENGTH, CONTENT_RANGE, LOCATION,
-    },
+    header::{HeaderMap, HeaderValue, CONTENT_LENGTH, CONTENT_RANGE, LOCATION},
     Client, Response,
 };
 use serde_json::Value;
@@ -36,10 +34,7 @@ const CHUNK_SIZE: usize = 5_242_880; //5MB
 /// # Panics
 ///
 /// This function could panic if `reqwest` crate fails to create a new `Client`
-pub async fn request_url(
-    url: &str,
-    creds: &UserToken,
-) -> Result<Response, Error> {
+pub async fn request_url(url: &str, creds: &UserToken) -> Result<Response, Error> {
     let client = reqwest::Client::new();
     let response = client
         .get(url)
@@ -77,36 +72,6 @@ pub async fn g_id_exists(user_token: &UserToken, id: &str) -> Result<bool> {
     }
 }
 
-pub async fn test_query(
-    user_token: &UserToken,
-    path: Option<&PathBuf>,
-    _parent: &str,
-    _crypt_root_id: &str,
-) -> Result<()> {
-    let _save_path = match path {
-        Some(p) => p.to_str().unwrap(),
-        None => GOOGLE_FOLDER,
-    };
-
-    //Check if the folder exists
-    let query = format!(
-        "mimeType = 'application/vnd.google-apps.folder' and trashed = false and '{}' in parents",
-        "1fqr6ko5-73QeqnMM6ySE3gzp5M-MN5KS"
-    );
-    let url = format!("https://www.googleapis.com/drive/v3/files?q={}", query);
-    //Send the url and get the response
-    let response = request_url(&url, user_token).await?;
-
-    //If drive query failed, break out and print error
-    if !response.status().is_success() {
-        return Err(Error::msg(format!("ERROR {:?}", response.text().await?)));
-    }
-
-    println!("\n\n{:?}", response.text().await?);
-
-    Ok(())
-}
-
 ///Parse the drive and create the folder if it doesn't exist
 pub async fn g_create_folder(
     user_token: &UserToken,
@@ -117,6 +82,8 @@ pub async fn g_create_folder(
         Some(p) => p.to_str().unwrap(),
         None => GOOGLE_FOLDER,
     };
+
+    dbg!(&save_path);
 
     let query = match parent.is_empty() {
         false => {
@@ -141,7 +108,7 @@ pub async fn g_create_folder(
     //If drive query failed, break out and print error
     if !response.status().is_success() {
         let e = Error::msg(format!("{:?}", response.text().await?));
-        println!("{}", &e);
+        println!("ERROR {}", &e);
         return Err(e);
     }
     //If folder exists, break out
@@ -150,7 +117,7 @@ pub async fn g_create_folder(
         // dbg!(&item);
         if item["name"].as_str() == Some(save_path) {
             if let Some(id) = item["id"].as_str() {
-                dbg!(&path, &parent, &id.to_string());
+                // dbg!(&path, &parent, &id.to_string());
                 return Ok(id.to_string());
             }
         }
@@ -168,59 +135,18 @@ pub async fn g_create_folder(
         }),
     };
     //If folder doesn't exist, create new folder
-    let _creation_result = Client::new()
+    return Ok(Client::new()
         .post("https://www.googleapis.com/drive/v3/files")
         .bearer_auth(&user_token.access_token)
         .json(&json)
         .send()
-        .await?;
-
-    // println!("folder creation result: {}", creation_result.text().await?);
-
-    //Re-query to get folder id
-    let query = match parent.is_empty() {
-        false => {
-            format!(
-                "name = '{}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false and '{}' in parents",
-                save_path, parent
-            )
-        }
-        true => {
-            format!(
-                "name = '{}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false",
-                save_path
-            )
-        }
-    };
-    let url = format!("https://www.googleapis.com/drive/v3/files?q={}", query);
-
-    //Send the url and get the response
-    let response = request_url(&url, user_token).await?;
-
-    //If drive query failed, break out and print error
-    if !response.status().is_success() {
-        return Err(Error::msg(format!("{:?}", response.text().await?)));
-    }
-    //Search through and return id
-    let folders = response.json::<Value>().await?;
-    for item in folders["files"].as_array().unwrap_or(&vec![]) {
-        if item["name"].as_str() == Some(save_path) {
-            if let Some(id) = item["id"].as_str() {
-                dbg!(&path, &parent, &id.to_string());
-                return Ok(id.to_string());
-            }
-        }
-    }
-    // println!("Error creating folder: {:?}", response.text().await?);
-    return Err(Error::msg("Could not create folder".to_string()));
+        .await?
+        .text()
+        .await?);
 }
 
 ///Updates a file that already exists on google drive
-pub async fn g_update(
-    user_token: &UserToken,
-    id: &str,
-    path: &str,
-) -> Result<String> {
+pub async fn g_update(user_token: &UserToken, id: &str, path: &str) -> Result<String> {
     //Get file content
     let mut file = tokio::fs::File::open(path).await?;
     let file_size = std::fs::metadata(path)?.len();
@@ -239,6 +165,7 @@ pub async fn g_update(
         .await?
         .error_for_status()?;
 
+    dbg!(&response);
     let session_uri = response
         .headers()
         .get(LOCATION)
@@ -250,11 +177,7 @@ pub async fn g_update(
 }
 
 ///Uploads a file to google drive
-pub async fn g_upload(
-    user_token: &UserToken,
-    path: &str,
-    parent: &str,
-) -> Result<String> {
+pub async fn g_upload(user_token: &UserToken, path: &str, parent: &str) -> Result<String> {
     //Get file content
     let mut file = File::open(path).await?;
     // let mut tmp; // to appease the compiler gods
@@ -286,11 +209,7 @@ pub async fn g_upload(
 }
 
 ///Helper function that performs the upload of file information
-async fn upload_chunks(
-    session_uri: &str,
-    file: &mut File,
-    file_size: u64,
-) -> Result<String> {
+async fn upload_chunks(session_uri: &str, file: &mut File, file_size: u64) -> Result<String> {
     let client = reqwest::Client::new();
 
     let mut start = 0;
@@ -325,10 +244,7 @@ async fn upload_chunks(
             }
             //TODO: Deal with HTTP 401 Unauthorized Error
             status => {
-                return Err(Error::msg(format!(
-                    "Failed to upload: {}",
-                    status
-                )));
+                return Err(Error::msg(format!("Failed to upload: {}", status)));
             }
         }
 
@@ -336,53 +252,6 @@ async fn upload_chunks(
     }
 
     return Err(anyhow::Error::msg("File upload not successful"));
-}
-
-async fn _upload_content_chunks(
-    session_uri: &str,
-    data: &[u8],
-) -> Result<String> {
-    let client = reqwest::Client::new();
-    let data_size = data.len() as u64;
-
-    let mut start = 0;
-    while start < data_size {
-        let end = (start + CHUNK_SIZE as u64).min(data_size);
-        let chunk = &data[start as usize..end as usize];
-
-        let inner_response = client
-            .put(session_uri)
-            .headers(build_headers(start, end - 1, data_size))
-            .body(chunk.to_vec())
-            .send()
-            .await?;
-
-        match inner_response.status().as_u16() {
-            308 => {
-                // Incomplete continue
-                // If log, place log here
-            }
-            200 | 201 => {
-                let body = inner_response.json::<serde_json::Value>().await?;
-                if let Some(id) = body["id"].as_str() {
-                    return Ok(id.to_string());
-                } else {
-                    return Err(Error::msg("Failed to retrieve file ID"));
-                }
-            }
-            // TODO: Deal with HTTP 401 Unauthorized Error
-            status => {
-                return Err(Error::msg(format!(
-                    "Failed to upload: {}",
-                    status
-                )));
-            }
-        }
-
-        start = end;
-    }
-
-    Err(anyhow::Error::msg("File upload not successful"))
 }
 
 /// Builds and returns a set of HTTP headers for a partial content range request.
@@ -425,10 +294,7 @@ fn build_headers(start: u64, end: u64, total_size: u64) -> HeaderMap {
 }
 
 ///Query google drive and return a `Vec<String>` of each item within the relevant folder
-pub async fn g_view(
-    user_token: &UserToken,
-    name: &str,
-) -> Result<Vec<String>> {
+pub async fn g_view(user_token: &UserToken, name: &str) -> Result<Vec<String>> {
     //Get the folder id
     let mut folder_id = String::new();
     let query = format!(
@@ -509,44 +375,104 @@ pub async fn g_walk(user_token: &UserToken, name: &str) -> Result<DirInfo> {
 }
 
 ///
-pub async fn google_query_crypt_folder_id(
+pub async fn google_query_folders(
     user_token: &UserToken,
-) -> Option<String> {
-    //Get the folder id
-    let query: String =
-        "name = 'Crypt' and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
-            .to_string();
+    folder_name: &str,
+    crypt_folder: &String,
+) -> Option<Vec<(String, String)>> {
+    // Get the folder ids
+    let query: String = format!(
+        "name = '{}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false and '{}' in parents",
+        folder_name, crypt_folder
+    );
+
     let url = format!("https://www.googleapis.com/drive/v3/files?q={}", query);
 
-    //Send the url and get the response
+    // Send the url and get the response
     let response = request_url(&url, user_token).await.unwrap();
 
-    //If drive query failed, break out and print error
+    // If drive query failed, break out and print error
     if !response.status().is_success() {
         return None;
     }
 
     let resp = response.json::<Value>().await.unwrap();
 
-    if let Some(id_value) = resp
-        .get("files")
-        .and_then(|files| files.get(0))
-        .and_then(|file| file.get("id"))
-        .and_then(Value::as_str)
-    {
-        return Some(id_value.to_string());
+    dbg!(&resp);
+
+    if let Some(files) = resp.get("files").and_then(Value::as_array) {
+        let folders: Vec<(String, String)> = files
+            .iter()
+            .filter_map(|file| {
+                dbg!(&file);
+                if let (Some(id), Some(name)) = (
+                    file.get("name").and_then(Value::as_str),
+                    file.get("id").and_then(Value::as_str),
+                ) {
+                    Some((id.to_string(), name.to_string()))
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        if !folders.is_empty() {
+            return Some(folders);
+        }
     }
 
-    return None;
+    None
+}
+
+pub async fn google_query(
+    user_token: &UserToken,
+    crypt_folder: &str,
+) -> Option<Vec<(String, String)>> {
+    // Get the folder ids
+    let query: String = format!("'{}' in parents and trashed = false", crypt_folder);
+
+    let url = format!("https://www.googleapis.com/drive/v3/files?q={}", query);
+
+    // Send the url and get the response
+    let response = request_url(&url, user_token).await.unwrap();
+
+    // If drive query failed, break out and print error
+    if !response.status().is_success() {
+        return None;
+    }
+
+    let resp = response.json::<Value>().await.unwrap();
+
+    dbg!(&resp);
+
+    if let Some(files) = resp.get("files").and_then(Value::as_array) {
+        let folders: Vec<(String, String)> = files
+            .iter()
+            .filter_map(|file| {
+                dbg!(&file);
+                if let (Some(id), Some(name)) = (
+                    file.get("name").and_then(Value::as_str),
+                    file.get("id").and_then(Value::as_str),
+                ) {
+                    Some((id.to_string(), name.to_string()))
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        if !folders.is_empty() {
+            return Some(folders);
+        }
+    }
+
+    None
 }
 
 /// Query google using file_id and download contents
 ///
 /// TEMP: downloading
-pub async fn google_query_file(
-    user_token: &UserToken,
-    file_id: &str,
-) -> Result<Vec<u8>> {
+pub async fn google_query_file(user_token: &UserToken, file_id: &str) -> Result<Vec<u8>> {
     let url = format!(
         "https://www.googleapis.com/drive/v3/files/{}?alt=media&source=downloadUrl",
         file_id
@@ -599,8 +525,7 @@ async fn walk_cloud(
         }
     }
 
-    let url =
-        format!("https://www.googleapis.com/drive/v3/files/{}", folder_id);
+    let url = format!("https://www.googleapis.com/drive/v3/files/{}", folder_id);
 
     let dir_name = client
         .get(&url)
@@ -733,14 +658,13 @@ pub fn google_startup() -> Result<(Runtime, UserToken, String), CloudError> {
     let user_token = UserToken::new_google();
 
     //Access google drive and ensure a crypt folder exists, create if doesn't
-    let crypt_folder: String =
-        match runtime.block_on(g_create_folder(&user_token, None, "")) {
-            core::result::Result::Ok(folder_id) => folder_id,
-            Err(error) => {
-                send_information(vec![format!("{}", error)]);
-                return Err(CloudError::CryptFolderError);
-            }
-        };
+    let crypt_folder: String = match runtime.block_on(g_create_folder(&user_token, None, "")) {
+        core::result::Result::Ok(folder_id) => folder_id,
+        Err(error) => {
+            send_information(vec![format!("{}", error)]);
+            return Err(CloudError::CryptFolderError);
+        }
+    };
 
     std::result::Result::Ok((runtime, user_token, crypt_folder))
 }

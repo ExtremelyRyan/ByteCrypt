@@ -1,8 +1,5 @@
 use crate::{
-    common::{
-        get_config_folder, get_crypt_folder, parse_json_token,
-        send_information,
-    },
+    common::{get_config_folder, get_crypt_folder, parse_json_token, send_information},
     config::get_config,
     db,
     encryption::{compress, decompress, generate_seeds},
@@ -11,9 +8,8 @@ use crate::{
 use chacha20poly1305::{aead::Aead, ChaCha20Poly1305, Key, KeyInit, Nonce};
 use lazy_static::lazy_static;
 use oauth2::{
-    basic::BasicClient, reqwest::http_client, AuthUrl, AuthorizationCode,
-    ClientId, ClientSecret, CsrfToken, PkceCodeChallenge, RedirectUrl, Scope,
-    TokenResponse, TokenUrl,
+    basic::BasicClient, reqwest::http_client, AuthUrl, AuthorizationCode, ClientId, ClientSecret,
+    CsrfToken, PkceCodeChallenge, RedirectUrl, Scope, TokenResponse, TokenUrl,
 };
 use serde::{Deserialize, Serialize};
 use std::{
@@ -166,18 +162,14 @@ impl UserToken {
             env::var("GOOGLE_CLIENT_ID")
                 .expect("Missing the GOOGLE_CLIENT_ID environment variable."),
         );
-        let google_client_secret =
-            ClientSecret::new(env::var("GOOGLE_CLIENT_SECRET").expect(
-                "Missing the GOOGLE_CLIENT_SECRET environment variable.",
-            ));
-        let auth_url = AuthUrl::new(
-            "https://accounts.google.com/o/oauth2/v2/auth".to_string(),
-        )
-        .expect("Invalid authorization endpoint URL");
-        let token_url = TokenUrl::new(
-            "https://www.googleapis.com/oauth2/v3/token".to_string(),
-        )
-        .expect("Invalid token endpoint URL");
+        let google_client_secret = ClientSecret::new(
+            env::var("GOOGLE_CLIENT_SECRET")
+                .expect("Missing the GOOGLE_CLIENT_SECRET environment variable."),
+        );
+        let auth_url = AuthUrl::new("https://accounts.google.com/o/oauth2/v2/auth".to_string())
+            .expect("Invalid authorization endpoint URL");
+        let token_url = TokenUrl::new("https://www.googleapis.com/oauth2/v3/token".to_string())
+            .expect("Invalid token endpoint URL");
 
         // Set up the config for the Google OAuth2 process.
         let client = BasicClient::new(
@@ -199,8 +191,7 @@ impl UserToken {
 
         // Google supports Proof Key for Code Exchange (PKCE - https://oauth.net/2/pkce/).
         // Create a PKCE code verifier and SHA-256 encode it as a code challenge.
-        let (pkce_code_challenge, pkce_code_verifier) =
-            PkceCodeChallenge::new_random_sha256();
+        let (pkce_code_challenge, pkce_code_verifier) = PkceCodeChallenge::new_random_sha256();
 
         // Generate the authorization URL to which we'll redirect the user.
         let (authorize_url, _csrf_state) = client
@@ -227,12 +218,8 @@ impl UserToken {
                     let mut request_line = String::new();
                     reader.read_line(&mut request_line).unwrap();
 
-                    let redirect_url =
-                        request_line.split_whitespace().nth(1).unwrap();
-                    let url = Url::parse(
-                        &("http://localhost".to_string() + redirect_url),
-                    )
-                    .unwrap();
+                    let redirect_url = request_line.split_whitespace().nth(1).unwrap();
+                    let url = Url::parse(&("http://localhost".to_string() + redirect_url)).unwrap();
 
                     let code_pair = url
                         .query_pairs()
@@ -316,18 +303,13 @@ impl UserToken {
         let client = BasicClient::new(
             ClientId::new(client_id),
             None,
-            AuthUrl::new(
-                "https://www.dropbox.com/oauth2/authorize".to_string(),
-            )
-            .expect("Invalid authorization endpoint URL"),
+            AuthUrl::new("https://www.dropbox.com/oauth2/authorize".to_string())
+                .expect("Invalid authorization endpoint URL"),
             None,
         )
-        .set_redirect_uri(
-            RedirectUrl::new("http://localhost:3000".to_string()).unwrap(),
-        );
+        .set_redirect_uri(RedirectUrl::new("http://localhost:3000".to_string()).unwrap());
 
-        let (_authorize_url, _csrf_state) =
-            client.authorize_url(CsrfToken::new_random).url();
+        let (_authorize_url, _csrf_state) = client.authorize_url(CsrfToken::new_random).url();
 
         todo!()
     }
@@ -357,8 +339,7 @@ fn get_access_token(service: CloudService) -> Option<UserToken> {
 
             match user_token.expiration > current_time {
                 true => {
-                    user_token.access_token =
-                        decrypt_token(&user_token, access_token);
+                    user_token.access_token = decrypt_token(&user_token, access_token);
                     Some(user_token)
                 }
                 false => None,

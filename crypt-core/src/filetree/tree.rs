@@ -35,10 +35,8 @@ pub fn is_not_hidden(name: &str) -> bool {
 }
 
 pub fn sort_by_name(a: &fs::DirEntry, b: &fs::DirEntry) -> Ordering {
-    let a_name: String =
-        a.path().file_name().unwrap().to_str().unwrap().into();
-    let b_name: String =
-        b.path().file_name().unwrap().to_str().unwrap().into();
+    let a_name: String = a.path().file_name().unwrap().to_str().unwrap().into();
+    let b_name: String = b.path().file_name().unwrap().to_str().unwrap().into();
     a_name.cmp(&b_name)
 }
 
@@ -65,15 +63,10 @@ pub fn dir_walk(
             }
             path if path.is_symlink() => FileTree::LinkNode(Symlink {
                 name,
-                target: fs::read_link(path)
-                    .unwrap()
-                    .to_string_lossy()
-                    .to_string(),
+                target: fs::read_link(path).unwrap().to_string_lossy().to_string(),
                 metadata,
             }),
-            path if path.is_file() => {
-                FileTree::FileNode(File { name, metadata })
-            }
+            path if path.is_file() => FileTree::FileNode(File { name, metadata }),
             _ => unreachable!(),
         };
         directory.push(node);

@@ -1,6 +1,5 @@
-max_width = 79
+max_width = 100
 reorder_imports = true
-use_try_shorthand = true
 # where_single_line = true # unstable
 # wrap_comments = true     # unstable
 # fn_single_line = true    # unstable

@@ -4,7 +4,6 @@ use std::{
     io::{self, BufReader},
     path::{Path, PathBuf},
     process::Command,
-    str::FromStr,
     time::SystemTime,
     {fs::OpenOptions, io::Write},
 };
@@ -149,12 +148,7 @@ pub struct DirInfo {
 }
 
 impl DirInfo {
-    pub fn new(
-        name: String,
-        path: String,
-        expanded: bool,
-        contents: Vec<FsNode>,
-    ) -> Self {
+    pub fn new(name: String, path: String, expanded: bool, contents: Vec<FsNode>) -> Self {
         Self {
             name,
             path,
@@ -250,10 +244,7 @@ pub fn verify_path(path: &impl AsRef<Path>) -> bool {
 ///     Ok(())
 /// }
 /// ```
-pub fn get_path_diff<T>(
-    root: Option<&T>,
-    target_path: &T,
-) -> Result<PathBuf, std::io::Error>
+pub fn get_path_diff<T>(root: Option<&T>, target_path: &T) -> Result<PathBuf, std::io::Error>
 where
     T: AsRef<Path>,
 {
@@ -353,10 +344,8 @@ fn tree_recursion(dir_info: &DirInfo, path: String, tree: &mut Vec<String>) {
     let bracket_color = Color::White.bold();
 
     //Set up the formatted values
-    let joint =
-        format!(" {}{}{}", char_set.joint, char_set.h_line, char_set.h_line);
-    let node =
-        format!(" {}{}{}", char_set.node, char_set.h_line, char_set.h_line);
+    let joint = format!(" {}{}{}", char_set.joint, char_set.h_line, char_set.h_line);
+    let node = format!(" {}{}{}", char_set.node, char_set.h_line, char_set.h_line);
     let vline = format!(" {}  ", char_set.v_line);
 
     //Iterate through contents and add them to the tree
@@ -365,8 +354,7 @@ fn tree_recursion(dir_info: &DirInfo, path: String, tree: &mut Vec<String>) {
         //Determine if the current entity is last
         let is_last = index == contents_len - 1;
         //Create the prefix
-        let prefix =
-            format!("{}{}", path, if is_last { &node } else { &joint });
+        let prefix = format!("{}{}", path, if is_last { &node } else { &joint });
 
         match entity {
             FsNode::File(file) => tree.push(prefix.clone() + " " + &file.name),
@@ -417,10 +405,7 @@ pub fn get_file_contents<T: AsRef<Path>>(path: T) -> Result<Vec<u8>, String> {
 ///
 /// Returns a `Result` indicating whether the write operation was successful.
 ///
-pub fn write_contents_to_file<T: AsRef<Path>>(
-    file: T,
-    contents: Vec<u8>,
-) -> Result<(), io::Error> {
+pub fn write_contents_to_file<T: AsRef<Path>>(file: T, contents: Vec<u8>) -> Result<(), io::Error> {
     let mut f = OpenOptions::new()
         .write(true)
         .create(true)
@@ -450,8 +435,7 @@ pub fn get_config_folder() -> PathBuf {
     };
 
     let stdout = output.stdout;
-    let mut path =
-        PathBuf::from(String::from_utf8(stdout).expect("ERROR").trim());
+    let mut path = PathBuf::from(String::from_utf8(stdout).expect("ERROR").trim());
     path.push("crypt_config");
 
     if !path.exists() {
@@ -494,8 +478,7 @@ pub fn get_crypt_folder() -> PathBuf {
     };
 
     let stdout = output.stdout;
-    let mut path =
-        PathBuf::from(String::from_utf8(stdout).expect("ERROR").trim());
+    let mut path = PathBuf::from(String::from_utf8(stdout).expect("ERROR").trim());
     path.push("crypt");
 
     if !path.exists() {
@@ -597,118 +580,107 @@ pub fn get_filenames_from_subdirectories<T: AsRef<Path>>(
 /// let selected_path = chooser(paths, "file");
 /// println!("Selected Path: {:?}", selected_path);
 /// ```
+
 pub fn chooser(mut list: Vec<PathBuf>, item: &str) -> PathBuf {
     let mut count = 1;
 
-    // if item we are looking for is empty, we will just show all files in crypt folder.
+    // Show header based on item being empty or not
     match item.is_empty() {
         true => {
-            println!(
-                "please choose from the following items: (or 0 to abort)\n"
-            );
-            println!(
-                "{0: <3} {1: <45} {2: <14}",
-                "#", "files", "last modified"
-            );
+            println!("\nplease choose from the following items: (or 0 to abort)\n");
+            println!("{: <3} {: <45} {: <14}", "#", "files", "last modified");
         }
         false => {
-            println!("\nmultiple values found for {item}");
-            println!(
-                "please choose from the following matches: (or 0 to abort)\n"
-            );
-            println!(
-                "{0: <3} {1: <45} {2: <14}",
-                "#", "files", "last modified"
-            );
+            println!("\nmultiple values found for {}", item);
+            println!("please choose from the following matches: (or 0 to abort)\n");
+            println!("{: <3} {: <45} {: <14}", "#", "files", "last modified");
 
-            let mut compared: Vec<PathBuf> = Vec::new();
-
-            // compare files found to filename, and keep in compared those that match
-            for p in list.iter() {
-                // file may or may not include extension, so check for both & if filename is partial match.
-                if p.file_stem()
-                    .unwrap()
-                    .to_ascii_lowercase()
-                    .to_string_lossy()
-                    .contains(item)
-                    || p.file_name().unwrap().to_ascii_lowercase() == item
-                {
-                    compared.push(p.to_owned());
-                }
-            }
-
-            list = compared;
+            // Filter list based on item
+            list.retain(|p| {
+                p.file_stem()
+                    .map(|stem| stem.to_ascii_lowercase().to_string_lossy().contains(item))
+                    .unwrap_or(false)
+                    || p.file_name()
+                        .map(|name| name.to_ascii_lowercase() == item)
+                        .unwrap_or(false)
+            });
         }
     };
 
     let mut folders: Vec<PathBuf> = Vec::new();
 
-    println!(
-        "----------------------------------------------------------------"
-    );
-    for item in list.clone().into_iter() {
-        let meta = item.metadata().unwrap();
+    println!("----------------------------------------------------------------");
+    for item in &list {
+        let item_str = item.display().to_string();
 
-        let found = item.display().to_string().find(r#"\crypt"#).unwrap();
+        let found = item_str.find(r#"\crypt"#).unwrap_or(0);
 
-        let str_item = item.display().to_string();
+        // split at "found" + 6 to get rid of '\crypt' to save space
+        let right = item_str.split_at(found + 6).1;
 
-        let (_left, right) = str_item.split_at(found);
-        let mut cropped_path = PathBuf::from_str(right).unwrap();
+        let cropped_str = Path::new(right).to_string_lossy().to_string();
+
+        // since our main width is 45 characters, crop path so we look nice and neat.
+        let display_path = match cropped_str.len() > 45 {
+            true => &cropped_str[cropped_str.len() - 45..],
+            false => cropped_str.as_ref(),
+        };
+
         println!(
-            "{0: <3} {1: <45} {2: <14}",
+            "{: <3} {: <45} {: <14}",
             count,
-            cropped_path.display(),
-            get_sys_time_timestamp(meta.modified().unwrap())
+            display_path,
+            get_sys_time_timestamp(item.metadata().unwrap().modified().unwrap())
         );
+
         count += 1;
 
-        // see if any directories past crypt are present in current path
-        while cropped_path.display().to_string().len() > 6 {
-            cropped_path.pop();
-            match cropped_path.display().to_string().len() > 6 {
-                true => {
-                    if !folders.contains(&cropped_path) {
-                        folders.push(cropped_path.clone());
-                    }
-                }
-                false => break,
+        // Extract directories past crypt
+        let mut remaining_path = PathBuf::from(cropped_str);
+        while remaining_path.components().count() > 1 {
+            remaining_path.pop();
+            if !folders.contains(&remaining_path) {
+                folders.push(remaining_path.clone());
             }
         }
     }
+
     if !folders.is_empty() {
         println!("----------------------------------------------------------------\n");
-        println!("{0: <3} {1: <45} ", "#", "folders",);
-        println!(
-            "----------------------------------------------------------------"
-        );
+        println!("{: <3} {: <45} ", "#", "folders",);
+        println!("----------------------------------------------------------------");
 
         folders.sort();
         for i in &folders {
-            println!("{0: <3} {1: <45}", count, i.display());
+            if i.display().to_string() == std::path::MAIN_SEPARATOR_STR {
+                continue;
+            }
+            println!("{: <3} {: <45}", count, i.display());
             count += 1;
         }
-        println!(
-            "----------------------------------------------------------------"
-        );
+        println!("----------------------------------------------------------------");
 
         list.append(&mut folders);
     }
 
-    // get input
+    // Get input
     loop {
         let mut number = String::new();
-        let _n = io::stdin().read_line(&mut number).unwrap();
+        if io::stdin().read_line(&mut number).is_err() {
+            println!("Error reading input. Please try again.");
+            continue;
+        }
 
-        let num: usize = number.trim().parse().unwrap();
-
+        let num: usize = number.trim().parse().unwrap_or_default();
         if num == 0 {
             return PathBuf::from("");
         }
-
-        if num <= list.len() {
-            return list.get(num - 1).unwrap().to_owned();
+        if num > list.len() {
+            println!("invalid selection. please try again.");
+            continue;
         }
+
+        return list[num - 1].to_owned();
     }
 }
 
@@ -852,9 +824,7 @@ pub fn walk_directory<T: AsRef<Path>>(
     for entry in walker.filter_entry(|e| !is_hidden(e)) {
         let entry = entry?;
 
-        if !filter_directories
-            || entry.path().display().to_string().find('.').is_some()
-        {
+        if !filter_directories || entry.path().display().to_string().find('.').is_some() {
             pathlist.push(PathBuf::from(entry.path().display().to_string()));
         }
     }
@@ -887,8 +857,7 @@ pub fn walk_directory<T: AsRef<Path>>(
 ///     Err(err) => eprintln!("Error: {}", err),
 /// }
 /// ```
-pub fn walk_crypt_folder() -> Result<Vec<PathBuf>, Box<dyn std::error::Error>>
-{
+pub fn walk_crypt_folder() -> Result<Vec<PathBuf>, Box<dyn std::error::Error>> {
     let crypt_folder = get_crypt_folder().to_str().unwrap().to_string();
 
     // folders to avoid

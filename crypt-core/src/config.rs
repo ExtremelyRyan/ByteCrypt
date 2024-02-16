@@ -95,8 +95,7 @@ pub fn get_interface() -> Interface {
 }
 
 pub fn set_interface(interface_type: &Interface) {
-    let mut interface =
-        INTERFACE.write().expect("Cannot write interface type");
+    let mut interface = INTERFACE.write().expect("Cannot write interface type");
     *interface = interface_type.clone();
 }
 

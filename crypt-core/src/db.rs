@@ -132,10 +132,7 @@ pub fn import_keeper(path: &String) -> Result<()> {
         let fc: FileCrypt = match record.deserialize(None) {
             Ok(it) => it,
             Err(err) => {
-                error!(
-                    "Failed to convert StringRecord to FileCrypt!: {}",
-                    err
-                );
+                error!("Failed to convert StringRecord to FileCrypt!: {}", err);
                 FileCrypt::default()
             } // TODO: Fix with more elegant handling.
         };
@@ -152,8 +149,7 @@ pub fn import_keeper(path: &String) -> Result<()> {
 /// let conn = get_keeper()?;
 /// conn.execute("SELECT * FROM *");
 ///```
-pub fn get_keeper(
-) -> Result<r2d2::PooledConnection<r2d2_sqlite::SqliteConnectionManager>> {
+pub fn get_keeper() -> Result<r2d2::PooledConnection<r2d2_sqlite::SqliteConnectionManager>> {
     //Returns the static connection
     KEEPER.get().map_err(|e| e.into())
 }
@@ -325,9 +321,7 @@ pub fn query_token(service: CloudService) -> anyhow::Result<UserToken> {
 /// let path = PathBuf::from("path/to/file.txt");
 /// let fc = insert_crypt(path);
 ///```
-pub fn query_keeper_for_existing_file(
-    full_path: PathBuf,
-) -> Result<FileCrypt> {
+pub fn query_keeper_for_existing_file(full_path: PathBuf) -> Result<FileCrypt> {
     //Get the connection
     let conn = get_keeper()?;
 
@@ -367,7 +361,8 @@ pub fn query_keeper_for_existing_file(
 /// let path = PathBuf::from("path/to/file.txt");
 /// let fc = insert_crypt(path);
 ///```
-pub fn query_keeper_by_file_name(file_name: &str) -> Result<FileCrypt> {
+pub fn query_keeper_by_file_name<T: AsRef<Path>>(file_name: &T) -> Result<FileCrypt> {
+    let file_name = file_name.as_ref();
     //Get the connection
     let conn = get_keeper()?;
 
@@ -376,7 +371,7 @@ pub fn query_keeper_by_file_name(file_name: &str) -> Result<FileCrypt> {
         "SELECT *
         FROM crypt
         WHERE filename = ?1",
-        params![file_name.to_string()],
+        params![file_name.display().to_string()],
         |row| {
             let get: String = row.get(4)?;
             Ok(FileCrypt {

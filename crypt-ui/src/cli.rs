@@ -8,8 +8,7 @@ use crypt_cloud::crypt_core::{
 };
 
 use crate::directive::{
-    self, dropbox_download, dropbox_upload, dropbox_view, google_download,
-    google_view,
+    self, dropbox_download, dropbox_upload, dropbox_view, google_download, google_view,
 };
 // use crate::tui::load_tui;
 
@@ -120,12 +119,12 @@ pub enum DriveCommand {
     /// Upload a file or folder
     #[command(short_flag = 'u')]
     Upload {
-        /// Path to the file to be encrypted and uploaded to the cloud
-        #[arg(required = false, default_value_t = String::from(""))]
-        path: String,
-        /// if flag is passed, do not encrypt.
-        #[arg(long, short)]
-        no_encrypt: bool,
+        // /// Path to the file to be encrypted and uploaded to the cloud
+        // #[arg(required = false, default_value_t = String::from(""))]
+        // path: String,
+        // /// if flag is passed, do not encrypt.
+        // #[arg(long, short)]
+        // no_encrypt: bool,
     },
 
     /// Download a file or folder
@@ -302,15 +301,17 @@ pub fn load_cli() {
             // Google
             Some(CloudCommand::Google { task }) => {
                 match task {
-                    Some(DriveCommand::Upload {
-                        path,
-                        no_encrypt: _,
-                    }) => {
-                        dbg!(&path);
-                        let _response = directive::google_upload(path);
+                    Some(DriveCommand::Upload {}) => {
+                        let response = directive::google_upload();
+                        if let Err(e) = response {
+                            println!("error: {}", e);
+                        }
                     }
                     Some(DriveCommand::Download { path }) => {
-                        google_download(path)
+                        let response = google_download(path);
+                        if let Err(e) = response {
+                            println!("error: {}", e);
+                        }
                     }
                     Some(DriveCommand::View { path }) => google_view(path),
                     None => panic!("invalid input"),
@@ -321,13 +322,8 @@ pub fn load_cli() {
             // TODO:
             Some(CloudCommand::Dropbox { task }) => {
                 match task {
-                    Some(DriveCommand::Upload {
-                        path,
-                        no_encrypt: _,
-                    }) => dropbox_upload(path),
-                    Some(DriveCommand::Download { path }) => {
-                        dropbox_download(path)
-                    }
+                    Some(DriveCommand::Upload {}) => dropbox_upload(""),
+                    Some(DriveCommand::Download { path }) => dropbox_download(path),
                     Some(DriveCommand::View { path }) => dropbox_view(path),
                     None => panic!("invalid input"),
                 };
@@ -360,26 +356,18 @@ pub fn load_cli() {
                         _ => panic!("invalid input"),
                     };
 
-                    directive::config(
-                        "",
-                        ConfigTask::IgnoreItems(add_remove, item.to_owned()),
-                    );
+                    directive::config("", ConfigTask::IgnoreItems(add_remove, item.to_owned()));
                 }
 
                 // ZstdLevel
                 Some(ConfigCommand::ZstdLevel { level }) => {
-                    let level: i32 = level
-                        .parse()
-                        .expect("Could not interpret passed value");
+                    let level: i32 = level.parse().expect("Could not interpret passed value");
                     directive::config("", ConfigTask::ZstdLevel(level));
                 }
 
                 //Hwid
                 Some(ConfigCommand::Hwid {}) => {
-                    send_information(vec![format!(
-                        "machine name: {}",
-                        get_machine_name()
-                    )]);
+                    send_information(vec![format!("machine name: {}", get_machine_name())]);
                 }
 
                 // LoadDefault
@@ -409,8 +397,7 @@ pub fn test() {
     // }
 
     // Get the current working directory
-    let current_dir =
-        std::env::current_dir().expect("Failed to get current directory");
+    let current_dir = std::env::current_dir().expect("Failed to get current directory");
 
     // Specify the file or directory for which you want to find the relative path
     let target_path = "test_folder\\folder2\\file3.txt";
