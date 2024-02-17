@@ -1,5 +1,4 @@
 use std::{
-    error::Error,
     fmt::Display,
     fs::{File, OpenOptions},
     io::{self, BufReader, Write},
@@ -874,7 +873,6 @@ pub fn walk_crypt_folder() -> Result<(Vec<PathBuf>, Vec<PathBuf>), Box<dyn std::
     let decrypted_folder = Path::new(&crypt_folder).join("decrypted");
 
     let walker = WalkDir::new(crypt_folder).into_iter();
-    let mut pathlist: Vec<PathBuf> = Vec::new();
 
     let (filenames, folders): (Vec<_>, Vec<_>) = walker
         .filter_entry(|e| {
@@ -884,18 +882,13 @@ pub fn walk_crypt_folder() -> Result<(Vec<PathBuf>, Vec<PathBuf>), Box<dyn std::
         })
         .filter_map(|entry| {
             let entry = entry.ok()?;
-            if entry.path().is_file() {
-                Some(entry.path().to_owned())
-            } else if entry.path().is_dir() {
+            if entry.path().is_file() || entry.path().is_dir() {
                 Some(entry.path().to_owned())
             } else {
                 None
             }
         })
         .partition(|entry| entry.is_file());
-
-    let filenames: Vec<_> = filenames.into_iter().map(|entry| entry).collect();
-    let folders: Vec<_> = folders.into_iter().map(|entry| entry).collect();
 
     Ok((filenames, folders))
 }

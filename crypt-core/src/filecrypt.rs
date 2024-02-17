@@ -1,7 +1,7 @@
 use crate::{
     common::{
         chooser, get_crypt_folder, get_file_contents, get_full_file_path, get_vec_file_bytes,
-        walk_crypt_folder, write_contents_to_file, CommonError,
+        write_contents_to_file, CommonError,
     },
     config::get_config,
     db::{insert_crypt, query_crypt},
@@ -15,8 +15,8 @@ use rand::RngCore;
 use serde::{Deserialize, Serialize};
 use std::{
     fmt,
-    fs::read,
-    io,
+    fs::{read, File},
+    io::{self, BufReader, Read},
     path::{Path, PathBuf},
     time::Duration,
 };
@@ -664,13 +664,20 @@ pub fn get_uuid_from_file<T: AsRef<Path>>(file: T) -> Result<String, io::Error> 
             ))
         }
     }
+    // Open the file
+    let file = File::open(path)?;
 
-    // Read the file contents
-    let contents = std::fs::read(path)?;
+    // Create a buffered reader
+    let mut reader = BufReader::new(file);
 
-    // Extract UUID (assuming it is the first 36 characters)
-    let uuid = String::from_utf8(contents.clone().drain(0..36).collect())
-        .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, format!("Invalid UTF-8: {}", e)))?;
+    // Create a buffer to store the content
+    let mut buffer = [0; 36];
+
+    // Read the first 36 characters into the buffer
+    let bytes_read = reader.read(&mut buffer)?;
+
+    // Convert the buffer to a string
+    let uuid = String::from_utf8_lossy(&buffer[..bytes_read]).to_string();
 
     Ok(uuid)
 }
