@@ -20,4 +20,4 @@ serde_json = "1.0.111"
 crypt-cloud = { path = "../crypt-cloud" } 
 
 anyhow = { workspace = true }
-thiserror = "1.0.56"
+thiserror =  { workspace = true }

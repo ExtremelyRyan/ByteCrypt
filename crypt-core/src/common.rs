@@ -1,15 +1,16 @@
 use std::{
+    error::Error,
     fmt::Display,
-    fs::File,
-    io::{self, BufReader},
+    fs::{File, OpenOptions},
+    io::{self, BufReader, Write},
     path::{Path, PathBuf},
     process::Command,
     time::SystemTime,
-    {fs::OpenOptions, io::Write},
 };
+use thiserror::Error;
 use walkdir::WalkDir;
 
-use crate::config;
+use crate::config::{self};
 use crate::ui_repo::CharacterSet;
 use ansi_term::Color;
 use serde_json::Value;
@@ -553,72 +554,72 @@ pub fn get_filenames_from_subdirectories<T: AsRef<Path>>(
     Ok((filenames, folders))
 }
 
-/// Displays a menu for choosing files and folders based on a provided list and item.
+#[derive(Error, Debug)]
+pub enum CommonError {
+    #[error("no files found in crypt folder")]
+    CryptFolderIsEmpty,
+    #[error("user aborted file search")]
+    UserAbort,
+}
+
+/// Displays a menu for choosing files and folders from the users `crypt` folder.
 ///
 /// # Arguments
 ///
-/// * `list`: A mutable vector of `PathBuf` representing the initial list of files and folders.
 /// * `item`: A string representing the filename or part of it to filter the list.
 ///
 /// # Returns
 ///
 /// Returns a `PathBuf` representing the user's selection. Returns an empty `PathBuf` if the user chooses to abort.
 ///
-/// # Examples
-///
-/// ```rust ignore
-/// use std::path::PathBuf;
-/// # use crate::chooser;
-///
-/// let paths = vec![
-///     PathBuf::from("path/to/file1.txt"),
-///     PathBuf::from("path/to/file2.txt"),
-///     PathBuf::from("path/to/folder1/file3.txt"),
-///     PathBuf::from("path/to/folder2/file4.txt"),
-/// ];
-///
-/// let selected_path = chooser(paths, "file");
-/// println!("Selected Path: {:?}", selected_path);
-/// ```
+pub fn chooser(item: &str) -> Result<PathBuf, CommonError> {
+    let (mut files, mut folders) = walk_crypt_folder().unwrap_or_else(|_| (Vec::new(), Vec::new()));
 
-pub fn chooser(mut list: Vec<PathBuf>, item: &str) -> PathBuf {
+    if files.is_empty() {
+        return Err(CommonError::CryptFolderIsEmpty);
+    }
+
+    files.sort();
+    folders.sort();
+
     let mut count = 1;
 
-    // Show header based on item being empty or not
-    match item.is_empty() {
-        true => {
-            println!("\nplease choose from the following items: (or 0 to abort)\n");
-            println!("{: <3} {: <45} {: <14}", "#", "files", "last modified");
-        }
-        false => {
-            println!("\nmultiple values found for {}", item);
-            println!("please choose from the following matches: (or 0 to abort)\n");
-            println!("{: <3} {: <45} {: <14}", "#", "files", "last modified");
-
-            // Filter list based on item
-            list.retain(|p| {
-                p.file_stem()
-                    .map(|stem| stem.to_ascii_lowercase().to_string_lossy().contains(item))
+    if !item.is_empty() {
+        // Filter files based on item
+        files.retain(|p| {
+            p.file_stem()
+                .map(|stem| stem.to_ascii_lowercase().to_string_lossy().contains(item))
+                .unwrap_or(false)
+                || p.file_name()
+                    .map(|name| name.to_ascii_lowercase() == item)
                     .unwrap_or(false)
-                    || p.file_name()
-                        .map(|name| name.to_ascii_lowercase() == item)
-                        .unwrap_or(false)
-            });
-        }
-    };
+        });
 
-    let mut folders: Vec<PathBuf> = Vec::new();
+        // Filter folders based on item
+        folders.retain(|p| {
+            p.file_stem()
+                .map(|stem| stem.to_ascii_lowercase().to_string_lossy().contains(item))
+                .unwrap_or(false)
+                || p.file_name()
+                    .map(|name| name.to_ascii_lowercase() == item)
+                    .unwrap_or(false)
+        });
+    }
 
+    println!("\nplease choose from the following: (or 0 to abort)");
+    println!("{: <3} {: <45} {: <14}", "#", "files", "last modified");
     println!("----------------------------------------------------------------");
-    for item in &list {
-        let item_str = item.display().to_string();
+    for item in &files {
+        let item_str = item.to_string_lossy();
 
-        let found = item_str.find(r#"\crypt"#).unwrap_or(0);
+        let partal_path = if let Some(found) = item_str.find(r#"\crypt"#) {
+            // split at "found" + 6 to get rid of '\crypt' to save space
+            item_str.split_at(found + 6).1
+        } else {
+            &item_str
+        };
 
-        // split at "found" + 6 to get rid of '\crypt' to save space
-        let right = item_str.split_at(found + 6).1;
-
-        let cropped_str = Path::new(right).to_string_lossy().to_string();
+        let cropped_str = Path::new(partal_path).to_string_lossy().to_string();
 
         // since our main width is 45 characters, crop path so we look nice and neat.
         let display_path = match cropped_str.len() > 45 {
@@ -634,15 +635,6 @@ pub fn chooser(mut list: Vec<PathBuf>, item: &str) -> PathBuf {
         );
 
         count += 1;
-
-        // Extract directories past crypt
-        let mut remaining_path = PathBuf::from(cropped_str);
-        while remaining_path.components().count() > 1 {
-            remaining_path.pop();
-            if !folders.contains(&remaining_path) {
-                folders.push(remaining_path.clone());
-            }
-        }
     }
 
     if !folders.is_empty() {
@@ -650,20 +642,37 @@ pub fn chooser(mut list: Vec<PathBuf>, item: &str) -> PathBuf {
         println!("{: <3} {: <45} ", "#", "folders",);
         println!("----------------------------------------------------------------");
 
-        folders.sort();
-        for i in &folders {
+        for i in folders {
             if i.display().to_string() == std::path::MAIN_SEPARATOR_STR {
                 continue;
             }
-            println!("{: <3} {: <45}", count, i.display());
+            let item_str = i.to_string_lossy();
+
+            let partal_path = if let Some(found) = item_str.find(r#"\crypt"#) {
+                // split at "found" + 6 to get rid of '\crypt' to save space
+                item_str.split_at(found).1
+            } else {
+                &item_str
+            };
+
+            // convert to string for easier length checking and cropping if needed.
+            let cropped_str = Path::new(partal_path).to_string_lossy().to_string();
+
+            // since our main width is 45 characters, crop path so we look nice and neat.
+            let display_path = match cropped_str.len() > 45 {
+                true => &cropped_str[cropped_str.len() - 45..],
+                false => cropped_str.as_ref(),
+            };
+            println!("{: <3} {: <45}", count, display_path);
+
+            // add folder to files vector for easier picking later.
+            files.push(i.to_path_buf());
+
             count += 1;
         }
         println!("----------------------------------------------------------------");
-
-        list.append(&mut folders);
     }
-
-    // Get input
+    // Get choice from user
     loop {
         let mut number = String::new();
         if io::stdin().read_line(&mut number).is_err() {
@@ -673,14 +682,14 @@ pub fn chooser(mut list: Vec<PathBuf>, item: &str) -> PathBuf {
 
         let num: usize = number.trim().parse().unwrap_or_default();
         if num == 0 {
-            return PathBuf::from("");
+            return Err(CommonError::UserAbort);
         }
-        if num > list.len() {
+        if num > files.len() {
             println!("invalid selection. please try again.");
             continue;
         }
 
-        return list[num - 1].to_owned();
+        return Ok(files[num - 1].to_owned());
     }
 }
 
@@ -857,8 +866,8 @@ pub fn walk_directory<T: AsRef<Path>>(
 ///     Err(err) => eprintln!("Error: {}", err),
 /// }
 /// ```
-pub fn walk_crypt_folder() -> Result<Vec<PathBuf>, Box<dyn std::error::Error>> {
-    let crypt_folder = get_crypt_folder().to_str().unwrap().to_string();
+pub fn walk_crypt_folder() -> Result<(Vec<PathBuf>, Vec<PathBuf>), Box<dyn std::error::Error>> {
+    let crypt_folder = get_crypt_folder();
 
     // folders to avoid
     let log_folder = Path::new(&crypt_folder).join("logs");
@@ -867,18 +876,28 @@ pub fn walk_crypt_folder() -> Result<Vec<PathBuf>, Box<dyn std::error::Error>> {
     let walker = WalkDir::new(crypt_folder).into_iter();
     let mut pathlist: Vec<PathBuf> = Vec::new();
 
-    for entry in walker.filter_entry(|e| {
-        !is_hidden(e)
-            && !e.path().starts_with(log_folder.as_os_str())
-            && !e.path().starts_with(decrypted_folder.as_os_str())
-    }) {
-        let entry = entry?;
-        // we only want to save paths that are towards a file.
-        if entry.file_type().is_file() {
-            pathlist.push(entry.path().to_owned());
-        }
-    }
-    Ok(pathlist)
+    let (filenames, folders): (Vec<_>, Vec<_>) = walker
+        .filter_entry(|e| {
+            !is_hidden(e)
+                && !e.path().starts_with(&log_folder)
+                && !e.path().starts_with(&decrypted_folder)
+        })
+        .filter_map(|entry| {
+            let entry = entry.ok()?;
+            if entry.path().is_file() {
+                Some(entry.path().to_owned())
+            } else if entry.path().is_dir() {
+                Some(entry.path().to_owned())
+            } else {
+                None
+            }
+        })
+        .partition(|entry| entry.is_file());
+
+    let filenames: Vec<_> = filenames.into_iter().map(|entry| entry).collect();
+    let folders: Vec<_> = folders.into_iter().map(|entry| entry).collect();
+
+    Ok((filenames, folders))
 }
 
 /// takes in a path, and recursively walks the subdirectories and returns a `vec<pathbuf>`

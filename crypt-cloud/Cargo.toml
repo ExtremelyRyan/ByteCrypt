@@ -9,6 +9,7 @@ workspace = "../"
 [dependencies]
 #General 
 anyhow = { workspace = true }
+thiserror =  { workspace = true }
 
 crypt-core = { path = "../crypt-core" }
 

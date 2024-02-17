@@ -20,6 +20,7 @@ harness = false
 anyhow = { workspace = true }
 lazy_static = { workspace = true }
 logfather = { workspace = true }
+thiserror =  { workspace = true }
 
 # Encryption
 uuid = { version = "1.6.1", features = ["v4", "fast-rng"] }

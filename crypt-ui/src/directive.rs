@@ -6,8 +6,7 @@ use crate::cli::{
 // use anyhow::Ok;
 use crypt_cloud::crypt_core::{
     common::{
-        build_tree, chooser, get_crypt_folder, get_filenames_from_subdirectories,
-        get_full_file_path, send_information, walk_crypt_folder, walk_directory,
+        build_tree, chooser, get_crypt_folder, get_filenames_from_subdirectories, get_full_file_path, send_information, walk_crypt_folder, walk_directory, CommonError
     },
     config::{self, Config, ConfigTask, ItemsTask},
     db::{self, delete_keeper, export_keeper, query_crypt, query_keeper_crypt},
@@ -189,16 +188,9 @@ impl From<std::io::Error> for UploadError {
 }
 
 pub fn google_upload() -> Result<(), UploadError> {
-    let mut crypt_root: PathBuf = get_crypt_folder();
-    let dir = walk_crypt_folder()?;
+    let user_result = chooser("").unwrap_or_default();
 
-    // if there are no files in the crypt folder, return
-    if dir.is_empty() {
-        return Err(UploadError::NoCryptFilesFound);
-    }
-    let user_result = chooser(dir, "");
-
-    // user aborted
+    // user aborted | no files in crypt
     if user_result.to_string_lossy().is_empty() {
         return Err(UploadError::UserAbortedError);
     }
@@ -229,17 +221,8 @@ pub fn google_upload() -> Result<(), UploadError> {
             .expect("Could not view directory information");
         send_information(build_tree(&cloud_directory));
     } else {
-        // iterate over parts of folder path passed from user
-        for p in user_result.as_path().iter() {
-            // have to do this if result has leading "\\", like "\\test_folder"
-            if p.to_string_lossy().to_string().contains(MAIN_SEPARATOR) {
-                continue;
-            }
-            crypt_root.push(p);
-        }
-
         // get all our file paths from folder
-        let (files, _) = get_filenames_from_subdirectories(&crypt_root)?;
+        let (files, _) = walk_crypt_folder()?;
 
         for file in files {
             // get FileCrypt information from keeper
@@ -327,8 +310,11 @@ pub enum DownloadError {
     #[error("failed to query database: {0}")]
     DbError(#[from] anyhow::Error),
 
-    #[error("failed to decrypt contents: {0}")]
+    #[error("{0}")]
     DecryptError(#[from] FcError),
+
+    #[error("{0}")]
+    CommonError(#[from] CommonError),
 }
 
 impl From<std::io::Error> for DownloadError {
@@ -340,12 +326,10 @@ impl From<std::io::Error> for DownloadError {
 pub fn google_download(path: &str) -> Result<(), DownloadError> {
     let (runtime, user_token, _crypt_folder_id) = google_startup()?;
 
-    // TODO: how do we handle paths that do not match / misspelled / mis-cased?
-    // TODO:
     let crypt_folder = get_crypt_folder();
     let (files, _) = get_filenames_from_subdirectories(crypt_folder)?;
 
-    let file_choice = chooser(files, path);
+    let file_choice = chooser(path)?;
     dbg!(&file_choice);
 
     if file_choice.is_file() {
@@ -634,10 +618,10 @@ pub fn ls(local: &bool, cloud: &bool) {
 // ===========================================================
 
 pub fn test() {
-    let (runtime, user_token, crypt_folder) = match google_startup() {
-        Ok(res) => res,
-        Err(_) => todo!(), // TODO: do we handle this here? or do we pass back to CLI?
-    };
+    // let (runtime, user_token, crypt_folder) = match google_startup() {
+    // Ok(res) => res,
+    // Err(_) => todo!(), // TODO: do we handle this here? or do we pass back to CLI?
+    // };
     // let res = runtime.block_on(drive::g_view(&user_token, "Crypt"));
     // println!("{:#?}", res);
 
@@ -647,6 +631,12 @@ pub fn test() {
     // let res = runtime.block_on(drive::google_query_folders(&user_token, "testerer_folderer",&crypt_folder));
     // println!("{:#?}", res);
 
-    let res = runtime.block_on(drive::google_query(&user_token, &crypt_folder));
+    // let res = runtime.block_on(drive::google_query(&user_token, &crypt_folder));
+    // println!("{:#?}", res);
+    let crypt = get_crypt_folder();
+    let (mut left, mut right) = get_filenames_from_subdirectories(crypt).unwrap();
+    left.append(&mut right);
+
+    let res = chooser("");
     println!("{:#?}", res);
 }

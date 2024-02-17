@@ -1,8 +1,7 @@
 use crate::{
-    common::get_full_file_path,
     common::{
-        chooser, get_crypt_folder, get_file_contents, get_vec_file_bytes, walk_crypt_folder,
-        write_contents_to_file,
+        chooser, get_crypt_folder, get_file_contents, get_full_file_path, get_vec_file_bytes,
+        walk_crypt_folder, write_contents_to_file, CommonError,
     },
     config::get_config,
     db::{insert_crypt, query_crypt},
@@ -200,39 +199,14 @@ impl FileCrypt {
 /// This function may panic in case of critical errors, but most errors are returned in the `Result`.
 pub fn decrypt_file<T: AsRef<Path>>(path: T, output: String) -> Result<(), FcError> {
     let path = path.as_ref();
-    // get location of crypt folder and append "decrypted" path
-    let mut crypt_folder = get_crypt_folder();
 
-    // walk along crypt folder and find all files.
-    let crypt_paths = match walk_crypt_folder() {
-        Ok(p) => p,
-        Err(e) => panic!("{e}"),
-    };
-
-    let mut compared: Vec<PathBuf> = Vec::new();
-
-    // appeasing the compiler gods
-    let binding = path.to_string_lossy().trim().to_lowercase();
-    let path = binding.as_str();
-
-    // compare files found to filename, and keep in compared those that match
-    for p in crypt_paths.iter() {
-        // file may or may not include extension, so check for both & if filename is partial match.
-        if p.file_stem().unwrap().to_ascii_lowercase() == path
-            || p.file_name().unwrap().to_ascii_lowercase() == path
-            || p.to_string_lossy()
-                .to_string()
-                .to_lowercase()
-                .contains(path)
-        {
-            compared.push(p.to_owned());
-        }
-    }
-
-    // if we have more than one match, prompt user to choose which file they want.
-    let file_match = match compared.len() > 1 {
-        true => chooser(compared, path),
-        false => compared[0].to_owned(),
+    // have user choose
+    let file_match = match chooser(path.to_str().unwrap_or("")) {
+        Ok(file) => file,
+        Err(err) => match err {
+            CommonError::CryptFolderIsEmpty => return Err(FcError::GeneralError(err.to_string())),
+            CommonError::UserAbort => return Err(FcError::GeneralError(err.to_string())),
+        },
     };
 
     let content = read(file_match).map_err(|e| FcError::FileError(e.to_string()))?;
@@ -247,6 +221,8 @@ pub fn decrypt_file<T: AsRef<Path>>(path: T, output: String) -> Result<(), FcErr
     let fc_hash: [u8; 32] = fc.hash.to_owned();
 
     // make sure we put decrypted file in the "decrypted" folder, dummy.
+    // get location of crypt folder and append "decrypted" path
+    let mut crypt_folder = get_crypt_folder();
     crypt_folder.push("decrypted");
     let file = generate_output_file(&fc, output, &mut crypt_folder);
     dbg!(&file);

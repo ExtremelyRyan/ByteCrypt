@@ -28,6 +28,7 @@ rust-version = "1.70"
 anyhow = "1.0.75"
 lazy_static = "1.4"
 logfather = "0.2.4"
+thiserror = "1.0.56"
 
 # The development profile, used for `cargo build`.
 [profile.dev]
