@@ -1,7 +1,7 @@
 use crate::{
     common::{
         chooser, get_crypt_folder, get_file_contents, get_full_file_path, get_vec_file_bytes,
-        walk_crypt_folder, write_contents_to_file, CommonError,
+        write_contents_to_file, CommonError,
     },
     config::get_config,
     db::{insert_crypt, query_crypt},

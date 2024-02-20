@@ -6,7 +6,8 @@ use crate::cli::{
 // use anyhow::Ok;
 use crypt_cloud::crypt_core::{
     common::{
-        build_tree, chooser, get_crypt_folder, get_filenames_from_subdirectories, get_full_file_path, send_information, walk_crypt_folder, walk_directory, CommonError
+        build_tree, chooser, get_crypt_folder, get_filenames_from_subdirectories,
+        get_full_file_path, send_information, walk_crypt_folder, walk_directory, CommonError,
     },
     config::{self, Config, ConfigTask, ItemsTask},
     db::{self, delete_keeper, export_keeper, query_crypt, query_keeper_crypt},
@@ -20,7 +21,7 @@ use crypt_cloud::crypt_core::{
 use crypt_cloud::{crypt_core::common::verify_path, drive};
 use std::{
     fs, io,
-    path::{Path, PathBuf, MAIN_SEPARATOR},
+    path::{Path, PathBuf},
 };
 use thiserror::Error;
 use tokio::runtime::Runtime;
@@ -327,7 +328,7 @@ pub fn google_download(path: &str) -> Result<(), DownloadError> {
     let (runtime, user_token, _crypt_folder_id) = google_startup()?;
 
     let crypt_folder = get_crypt_folder();
-    let (files, _) = get_filenames_from_subdirectories(crypt_folder)?;
+    let (_files, _) = get_filenames_from_subdirectories(crypt_folder)?;
 
     let file_choice = chooser(path)?;
     dbg!(&file_choice);
