@@ -7,6 +7,11 @@
 [![Crates.io](https://img.shields.io/crates/v/ByteCrypt.svg)](https://crates.io/crates/ByteCrypt)
 [![Docs.rs](https://docs.rs/ByteCrypt/badge.svg)](https://docs.rs/ByteCrypt)
 [![CI](https://github.com/ExtremelyRyan/ByteCrypt/workflows/CI/badge.svg)](https://github.com/ExtremelyRyan/ByteCrypt/actions)
+[![Rust](https://img.shields.io/badge/Made_with-Rust-blue)](https://www.rust-lang.org/)
+![Discord](https://img.shields.io/discord/1187791252402470962?logo=Discord&logoColor=purple&label=Discord&color=blue)
+
+
+
  
 Encryption command line application on single file or entire directories.
 

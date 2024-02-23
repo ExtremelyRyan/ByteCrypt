@@ -385,9 +385,10 @@ fn tree_recursion(dir_info: &DirInfo, path: String, tree: &mut Vec<String>) {
     }
 }
 
+// todo: wrap this in result
 /// read file, and return values within a Vector of u8.
 pub fn get_vec_file_bytes(path: &str) -> Vec<u8> {
-    std::fs::read(path).expect("Can't open/read file!")
+    std::fs::read(path).unwrap_or_default()
 }
 
 pub fn get_file_contents<T: AsRef<Path>>(path: T) -> Result<Vec<u8>, String> {
@@ -642,7 +643,7 @@ pub fn chooser(item: &str) -> Result<PathBuf, CommonError> {
         println!("----------------------------------------------------------------");
 
         for i in folders {
-            if i.display().to_string() == std::path::MAIN_SEPARATOR_STR { 
+            if i.display().to_string() == std::path::MAIN_SEPARATOR_STR {
                 continue;
             }
             let item_str = i.to_string_lossy();
@@ -888,7 +889,7 @@ pub fn walk_crypt_folder() -> Result<(Vec<PathBuf>, Vec<PathBuf>), Box<dyn std::
                 None
             }
         })
-        .partition(|entry| entry.is_file()); 
+        .partition(|entry| entry.is_file());
     Ok((filenames, folders))
 }
 
