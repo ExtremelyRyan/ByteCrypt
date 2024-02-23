@@ -68,7 +68,7 @@ enum Commands {
     ///Decrypt file or folder of files
     Decrypt {
         ///Path to File or Directory
-        #[arg(required = true)]
+        #[arg(required = false, default_value_t = String::from(""))]
         path: String,
 
         ///Change the output path

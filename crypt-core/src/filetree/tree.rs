@@ -31,7 +31,7 @@ pub struct Symlink {
 }
 
 pub fn is_not_hidden(name: &str) -> bool {
-    return !name.starts_with('.');
+    !name.starts_with('.')
 }
 
 pub fn sort_by_name(a: &fs::DirEntry, b: &fs::DirEntry) -> Ordering {

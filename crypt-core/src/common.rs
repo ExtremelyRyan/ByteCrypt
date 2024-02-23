@@ -10,7 +10,6 @@ use thiserror::Error;
 use walkdir::WalkDir;
 
 use crate::config::{self};
-use crate::ui_repo::CharacterSet;
 use ansi_term::Color;
 use serde_json::Value;
 
@@ -337,16 +336,17 @@ fn tree_recursion(dir_info: &DirInfo, path: String, tree: &mut Vec<String>) {
     contents.extend(other_content);
 
     //Character set and color
-    //TODO: make a part of config and implement properly with UI
-    let char_set = CharacterSet::U8_SLINE_CURVE;
+    //TODO: make a part of config and implement properly with UI 
     let dir_color = Color::Blue.bold();
     let expanded_color = Color::Green.bold();
     let bracket_color = Color::White.bold();
 
     //Set up the formatted values
-    let joint = format!(" {}{}{}", char_set.joint, char_set.h_line, char_set.h_line);
-    let node = format!(" {}{}{}", char_set.node, char_set.h_line, char_set.h_line);
-    let vline = format!(" {}  ", char_set.v_line);
+    let joint = format!(" {}{}{}", '├', '─', '─');
+
+    let node = format!(" {}{}{}", '╰', '─', '─');
+
+    let vline = format!(" {}  ", '│');
 
     //Iterate through contents and add them to the tree
     let contents_len = contents.len();
