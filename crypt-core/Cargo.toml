@@ -52,7 +52,7 @@ zstd = "0.13"
 #Database 
 rusqlite = { version = "0.31.0", features = ["bundled"] }
 r2d2 = "0.8.10"
-r2d2_sqlite = "0.23.0"
+r2d2_sqlite = "0.24.0"
 oauth2 = "4.4.0" #latest 4.4.2
 url = { version = "2.1", features = ["serde"] } 
 
