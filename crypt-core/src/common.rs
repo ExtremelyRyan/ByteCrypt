@@ -124,6 +124,12 @@ impl FileInfo {
     }
 }
 
+impl std::fmt::Display for FileInfo {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.path)
+    }
+}
+
 ///Stores information about a directory
 ///
 ///```ignore
@@ -336,7 +342,7 @@ fn tree_recursion(dir_info: &DirInfo, path: String, tree: &mut Vec<String>) {
     contents.extend(other_content);
 
     //Character set and color
-    //TODO: make a part of config and implement properly with UI 
+    //TODO: make a part of config and implement properly with UI
     let dir_color = Color::Blue.bold();
     let expanded_color = Color::Green.bold();
     let bracket_color = Color::White.bold();
@@ -387,8 +393,8 @@ fn tree_recursion(dir_info: &DirInfo, path: String, tree: &mut Vec<String>) {
 
 // todo: wrap this in result
 /// read file, and return values within a Vector of u8.
-pub fn get_vec_file_bytes(path: &str) -> Vec<u8> {
-    std::fs::read(path).unwrap_or_default()
+pub fn get_vec_file_bytes(path: &str) -> io::Result<Vec<u8>> {
+    std::fs::read(path)
 }
 
 pub fn get_file_contents<T: AsRef<Path>>(path: T) -> Result<Vec<u8>, String> {

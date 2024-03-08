@@ -363,6 +363,7 @@ pub async fn g_walk(user_token: &UserToken, name: &str) -> Result<DirInfo> {
     }
     //Search through response and return id
     let folders = response.json::<Value>().await?;
+    dbg!(&folders);
     for item in folders["files"].as_array().unwrap_or(&vec![]) {
         if item["name"].as_str() == Some(name) {
             if let Some(id) = item["id"].as_str() {
@@ -510,7 +511,7 @@ async fn walk_cloud(
     }
 
     let files = response.json::<Value>().await?;
-    // dbg!(&files);
+    dbg!(&files);
     if let Some(array) = files["files"].as_array() {
         for item in array {
             let name = item["name"].as_str().unwrap_or_default().to_string();

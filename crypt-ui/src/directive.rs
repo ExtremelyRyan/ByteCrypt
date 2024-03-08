@@ -384,6 +384,7 @@ pub fn google_view(path: &str) {
         .block_on(drive::g_walk(&user_token, path))
         .expect("Could not view directory information");
     send_information(build_tree(&cloud_directory));
+    dbg!(cloud_directory);
 }
 
 pub fn dropbox_upload(_path: &str) {}
@@ -619,10 +620,10 @@ pub fn ls(local: &bool, cloud: &bool) {
 // ===========================================================
 
 pub fn test() {
-    // let (runtime, user_token, crypt_folder) = match google_startup() {
-    // Ok(res) => res,
-    // Err(_) => todo!(), // TODO: do we handle this here? or do we pass back to CLI?
-    // };
+    let (runtime, user_token, _crypt_folder) = match google_startup() {
+        Ok(res) => res,
+        Err(_) => todo!(), // TODO: do we handle this here? or do we pass back to CLI?
+    };
     // let res = runtime.block_on(drive::g_view(&user_token, "Crypt"));
     // println!("{:#?}", res);
 
@@ -634,10 +635,103 @@ pub fn test() {
 
     // let res = runtime.block_on(drive::google_query(&user_token, &crypt_folder));
     // println!("{:#?}", res);
-    let crypt = get_crypt_folder();
-    let (mut left, mut right) = get_filenames_from_subdirectories(crypt).unwrap();
-    left.append(&mut right);
+    // let crypt = get_crypt_folder();
+    // let (mut left, mut right) = get_filenames_from_subdirectories(crypt).unwrap();
+    // left.append(&mut right);
 
-    let res = chooser("");
-    println!("{:#?}", res);
+    // let res = chooser("");
+    // println!("{:#?}", res);
+
+    let cloud_directory = runtime
+        .block_on(drive::g_walk(&user_token, "Crypt"))
+        .unwrap_or_else(|_| DirInfo::default());
+    // dbg!(cloud_directory);
+    example();
+}
+
+use crypt_cloud::crypt_core::common::{DirInfo, FileInfo};
+
+fn _print_files(file_list: &[FileInfo]) {
+    println!("\n#   files\tlast modified");
+    println!("----------------------------------------------------------------");
+    for (i, file_info) in file_list.iter().enumerate() {
+        println!("{:<3} {}/{}", i + 1, file_info.path, file_info.name);
+    }
+}
+
+fn _print_folders(folder_list: &[DirInfo]) {
+    println!("\n#   folders");
+    println!("----------------------------------------------------------------");
+    for (i, folder_info) in folder_list.iter().enumerate() {
+        println!("{:<3} {}", i + 1, folder_info.name);
+    }
+}
+
+use std::fmt;
+
+#[derive(Debug)]
+struct FInfo {
+    name: String,
+    id: String,
+    parent_name: String,
+    parent_id: String,
+    last_modified: u64, // Assuming last modified is a Unix timestamp
+}
+
+impl fmt::Display for FInfo {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "Name: {}, ID: {}, Parent Name: {}, Parent ID: {}, Last Modified: {}",
+            self.name, self.id, self.parent_name, self.parent_id, self.last_modified
+        )
+    }
+}
+#[derive(Debug)]
+struct DInfo {
+    name: String,
+    id: String,
+    parent_name: String,
+    parent_id: String,
+    expanded: bool,
+    contents: Vec<Content>, // Assuming Content is an enum of FileInfo and DirInfo
+}
+
+#[derive(Debug)]
+enum Content {
+    File(FInfo),
+    Directory(DInfo),
+}
+
+impl fmt::Display for DInfo {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "Name: {}\nID: {}\nParent Name: {}\nParent ID: {}\nExpanded: {}",
+            self.name, self.id, self.parent_name, self.parent_id, self.expanded
+        )
+    }
+}
+
+fn example() {
+    // Example usage
+    let dir_info = DInfo {
+        name: String::from("test_folder"),
+        id: String::from("1qnOh6LuTeHojeaVwB_eKHxqaKifkZRgi"),
+        parent_name: String::from("Crypt"),
+        parent_id: String::from("1xhf8AefxBdmXWPg_2ixrAKzYI0D5YTXE"),
+        expanded: true,
+        contents: vec![
+            Content::File(FInfo {
+                name: String::from("file2.crypt"),
+                id: String::from("1GzebIQA2c1JIa6YeDztX5_j_Z1a6Gkcu"),
+                parent_name: String::from("test_folder"),
+                parent_id: String::from("1qnOh6LuTeHojeaVwB_eKHxqaKifkZRgi"),
+                last_modified: 1644949500,
+            }),
+            // More Content entries...
+        ],
+    };
+
+    println!("{}", dir_info);
 }

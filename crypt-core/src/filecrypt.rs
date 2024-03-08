@@ -316,7 +316,7 @@ pub fn encrypt_file(path: &str, output: &Option<String>) {
     let (fp, _, filename, extension) = get_file_info(path);
 
     // get contents of file
-    let binding = get_vec_file_bytes(path);
+    let binding = get_vec_file_bytes(path).unwrap_or_default();
     let mut contents = binding.as_slice();
 
     let fc = FileCrypt::new(
@@ -403,56 +403,6 @@ pub fn do_file_encryption<T: AsRef<Path>>(path: T) -> Result<Vec<u8>, String> {
 
     // prepend uuid to contents
     Ok(prepend_uuid(&fc.uuid, &mut encrypted_contents))
-}
-
-pub fn encrypt_contents(path: &str) -> Option<Vec<u8>> {
-    if path.contains(".crypt") {
-        return None;
-    }
-    let conf = get_config();
-    // parse out file path
-    let (fp, _, filename, extension) = get_file_info(path);
-
-    // get contents of file
-    let binding = get_vec_file_bytes(path);
-    let mut contents = binding.as_slice();
-
-    let fc = FileCrypt::new(
-        filename,
-        extension,
-        "".to_string(),
-        fp,
-        compute_hash(contents),
-    );
-
-    // zip contents
-    let binding = compress(contents, conf.zstd_level);
-    contents = binding.as_slice();
-
-    let mut encrypted_contents = encrypt(&fc, contents).unwrap();
-
-    // prepend uuid to contents
-    encrypted_contents = prepend_uuid(&fc.uuid, &mut encrypted_contents);
-
-    // write crypt file to crypt folder
-    let mut path = get_crypt_folder();
-    // make sure we append the filename, dummy.
-    path.push(format!("{}{}", fc.filename, ".crypt"));
-
-    // TODO: fix this later.
-    match write_contents_to_file(path.to_str().unwrap(), encrypted_contents.clone()) {
-        Ok(_) => (),
-        Err(_) => todo!(),
-    }
-
-    // TODO: fix this later.
-    // write fc to crypt_keeper
-    match insert_crypt(&fc) {
-        Ok(_) => (),
-        Err(_) => todo!(),
-    }
-
-    Some(encrypted_contents)
 }
 
 /// Generates the output file path for decrypted content based on the provided parameters.

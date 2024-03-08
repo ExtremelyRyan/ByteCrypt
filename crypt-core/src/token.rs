@@ -381,10 +381,7 @@ pub fn decrypt_token(user_token: &UserToken, access_token: Vec<u8>) -> String {
         .decrypt(Nonce::from_slice(&user_token.nonce_seed), token.as_ref())
         .expect("Failed to decrypt access_token");
 
-    let decompressed_token = match decompress(cipher.as_slice()) {
-        Ok(d) => d,
-        Err(_) => todo!(),
-    };
+    let decompressed_token = decompress(cipher.as_slice()).unwrap_or_default();
 
     String::from_utf8(decompressed_token).expect("Could not decrypt token")
 }

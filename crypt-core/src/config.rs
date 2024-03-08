@@ -356,7 +356,6 @@ pub fn load_config() -> anyhow::Result<Config> {
     }
 
     //Attempt to import config
-    //TODO: handle more gracefully - ask user for desired change
     let content = fs::read_to_string(CONFIG_PATH.as_str())?;
     config = match toml::from_str(content.as_str()) {
         core::result::Result::Ok(config) => config,

@@ -148,13 +148,9 @@ mod test {
     #[test]
     fn test_compress_decompress() {
         let contents = b"hello there";
-
         let res = compress(contents, 3);
-
         assert_ne!(contents, res.as_slice());
-
         let dec = decompress(res.as_slice()).unwrap();
-
         assert_eq!(dec.as_slice(), contents);
     }
 

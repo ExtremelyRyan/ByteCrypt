@@ -387,14 +387,7 @@ fn debug_mode() {
     println!("Why would you do this ._.");
 }
 
-pub fn test() {
-    // let crypts = crypt_cloud::crypt_core::db::query_keeper_for_files_with_drive_id().unwrap();
-
-    // for crypt in crypts {
-    //     println!("file: {}{}", crypt.filename, crypt.ext);
-    //     println!("full path: {}", crypt.full_path.display());
-    //     println!("drive ID: {}\n", crypt.drive_id);
-    // }
+pub fn test() { 
 
     // Get the current working directory
     let current_dir = std::env::current_dir().expect("Failed to get current directory");
