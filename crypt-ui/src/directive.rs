@@ -112,18 +112,6 @@ pub fn decrypt(path: &str, output: Option<String>) {
 
 // ############################################ Cloud Implementation ############################################
 
-/// Generic Cloud Errors
-#[derive(Debug, Error)]
-pub enum CloudError {
-    /// Error accessing Crypt "root" folder
-    #[error("Error accessing Crypt 'root' folder")]
-    RemoteCryptDirectoryAccessError,
-
-    /// Runtime error
-    #[error("Runtime error")]
-    RuntimeError(#[from] std::io::Error),
-}
-
 /// Contains the necessary properties for Google Drive
 pub struct Google {
     pub runtime: Runtime,
