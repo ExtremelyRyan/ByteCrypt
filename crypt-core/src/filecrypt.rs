@@ -129,13 +129,7 @@ pub fn decrypt_file<T: AsRef<Path>>(path: T, output: String) -> Result<()> {
     let path = path.as_ref();
 
     // have user choose
-    let file_match = match chooser(path.to_str().unwrap_or("")) {
-        Ok(file) => file,
-        Err(err) => match err {
-            CommonError::CryptFolderIsEmpty => return Err(FcError::GeneralError(err.to_string())),
-            CommonError::UserAbort => return Err(FcError::GeneralError(err.to_string())),
-        },
-    };
+    let file_match = chooser(path.to_str().unwrap_or(""))?;
 
     let content = read(file_match).map_err(|e| Error::IoError(e))?;
 

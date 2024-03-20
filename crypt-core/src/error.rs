@@ -22,6 +22,10 @@ pub enum Error {
     // #################### FileCrypt Errors ####################
     #[error(transparent)]
     FcError(#[from] FcError),
+
+    // #################### FileCrypt Errors ####################
+    #[error(transparent)]
+    CommonError(#[from] CommonError),
     
     // #################### General Errors ####################
     #[error(transparent)]
@@ -126,4 +130,14 @@ pub enum FcError {
 pub enum EncryptionError {
     #[error(transparent)]
     ChaChaError(#[from] chacha20poly1305::Error)
+}
+
+
+#[derive(Error, Debug)]
+pub enum CommonError {
+    #[error("no files found in crypt folder")]
+    CryptFolderIsEmpty,
+
+    #[error("user aborted file search")]
+    UserAbort,
 }
