@@ -6,16 +6,17 @@ use crate::cli::{
 use crypt_cloud::crypt_core::{
     common::{
         build_tree, chooser, get_crypt_folder, get_filenames_from_subdirectories,
-        get_full_file_path, send_information, walk_crypt_folder, walk_directory, CommonError,
+        get_full_file_path, send_information, walk_crypt_folder, walk_directory
     },
     config::{self, Config, ConfigTask, ItemsTask},
     db::{self, delete_keeper, export_keeper, query_crypt, query_keeper_crypt},
-    filecrypt::{decrypt_contents, decrypt_file, encrypt_file, get_uuid_from_file, FcError},
+    filecrypt::{decrypt_contents, decrypt_file, encrypt_file, get_uuid_from_file},
     filetree::{
         tree::{dir_walk, is_not_hidden, sort_by_name, Directory},
         treeprint::print_tree,
     },
     token::{purge_tokens, UserToken},
+    prelude::Error as core_error, 
 };
 use crypt_cloud::{crypt_core::common::verify_path, drive};
 use std::{
@@ -172,7 +173,7 @@ pub enum UploadError {
 
     /// Generated if the database encounters an error.
     #[error("Database Error: {0}")]
-    DatabaseError(#[from] db::DatabaseError),
+    DatabaseError(#[from] core_error),
 
     /// Cloud-related errors
     #[error("Cloud error: {0}")]
@@ -310,18 +311,8 @@ pub enum DownloadError {
     #[error("Cloud error: {0}")]
     CloudError(#[from] CloudError),
 
-    /// Generated if the database encounters an error.
-    #[error("Database Error: {0}")]
-    DatabaseError(#[from] db::DatabaseError),
-
     #[error("failed to query database: {0}")]
     DbError(#[from] anyhow::Error),
-
-    #[error("{0}")]
-    DecryptError(#[from] FcError),
-
-    #[error("{0}")]
-    CommonError(#[from] CommonError),
 }
 
 impl From<std::io::Error> for DownloadError {

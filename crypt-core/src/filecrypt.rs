@@ -8,7 +8,7 @@ use crate::{
     encryption::{
         compress, compute_hash, decompress, decrypt, encrypt, generate_seeds, KEY_SIZE, NONCE_SIZE,
     },
-    error::FcError,
+    error,
     prelude::*,
 };
 use logfather::*;
@@ -16,7 +16,7 @@ use rand::RngCore;
 use serde::{Deserialize, Serialize};
 use std::{
     fs::{read, File},
-    io::{self, BufReader, Error, Read},
+    io::{BufReader, Read},
     path::{Path, PathBuf},
     time::Duration,
 };
@@ -130,9 +130,9 @@ pub fn decrypt_file<T: AsRef<Path>>(path: T, output: String) -> Result<()> {
     let path = path.as_ref();
 
     // have user choose
-    let file_match = chooser(path.to_str().unwrap_or(""));
+    let file_match = chooser(path.to_str().unwrap_or(""))?;
 
-    let content = read(file_match).map_err(|e| Error::IoError(e))?;
+    let content = read(file_match)?;
 
     let (uuid, contents) = get_uuid(&content)?;
 
@@ -150,29 +150,15 @@ pub fn decrypt_file<T: AsRef<Path>>(path: T, output: String) -> Result<()> {
     let file = generate_output_file(&fc, output, &mut crypt_folder);
     dbg!(&file);
 
-    let mut decrypted_content = match decrypt(fc.clone(), &contents.to_vec()) {
-        Ok(d) => d,
-        Err(e) => return Err(FcError::DecryptError(e.to_string())),
-    };
-
-    decrypted_content = match decompress(&decrypted_content) {
-        Ok(d) => d,
-        Err(e) => return Err(FcError::DecompressionError(e.to_string())),
-    };
+    let mut decrypted_content = decrypt(fc.clone(), &contents.to_vec())?;
+    decrypted_content = decompress(&decrypted_content)?;
 
     let hash = compute_hash(&decrypted_content);
 
     if hash != fc_hash {
-        let s = format!(
-            "HASH COMPARISON FAILED\nfile hash: {:?}\ndecrypted hash:{:?}",
-            &fc.hash.to_vec(),
-            hash
-        );
-        return Err(FcError::HashFail(s));
+        return Err(Error::FcError(error::FcError::HashFail(fc_hash, hash)));
     }
-
-    write_contents_to_file(&file, decrypted_content)
-        .map_err(|e| FcError::FileError(e.to_string()))?;
+    write_contents_to_file(&file, decrypted_content)?;
 
     Ok(())
 }
@@ -202,14 +188,8 @@ pub fn decrypt_contents(fc: FileCrypt, contents: Vec<u8>) -> Result<()> {
 
     // verify file integrity
     if hash != fc_hash {
-        let s = format!(
-            "HASH COMPARISON FAILED\nfile hash: {:?}\ndecrypted hash:{:?}",
-            &fc.hash.to_vec(),
-            hash
-        );
-        return Err(FcError::HashFail(s));
+        return Err(Error::FcError(error::FcError::HashFail(fc_hash, hash)));
     }
-
     // Write contents to file
     write_contents_to_file(file, decrypted_content)?;
 
@@ -304,25 +284,13 @@ pub fn zip_contents(contents: &[u8]) -> Result<Vec<u8>> {
 pub fn do_file_encryption<T: AsRef<Path>>(path: T) -> Result<Vec<u8>> {
     let path = path.as_ref();
 
-    let contents = match get_file_contents(path) {
-        Ok(c) => c,
-        Err(error) => {
-            // Propagate the error to the caller
-            return Err(format!("Error reading file contents: {}", error));
-        }
-    };
+    let contents = get_file_contents(path)?;
 
     let fc = create_file_crypt(path, &contents);
 
-    let compressed_contents: Vec<u8> = match zip_contents(&contents) {
-        Ok(c) => c,
-        Err(error) => return Err(format!("Error compressing file contents: {}", error)),
-    };
+    let compressed_contents: Vec<u8> = zip_contents(&contents)?;
 
-    let mut encrypted_contents = match encrypt(&fc, &compressed_contents) {
-        Ok(e) => e,
-        Err(error) => return Err(format!("File encryption failed: {}", error)),
-    };
+    let mut encrypted_contents = encrypt(&fc, &compressed_contents)?;
 
     // prepend uuid to contents
     Ok(prepend_uuid(&fc.uuid, &mut encrypted_contents))
@@ -523,7 +491,7 @@ pub fn generate_uuid() -> String {
 /// The function will panic if the length of `contents` is less than 36.
 pub fn get_uuid(contents: &[u8]) -> Result<(String, Vec<u8>)> {
     if contents.len() < 36 {
-        return Err("Input too short to extract UUID".to_string());
+        return Err(Error::FcError(error::FcError::UuidError));
     }
 
     let (uuid, contents) = contents.split_at(36);
@@ -573,19 +541,9 @@ pub fn get_uuid_from_file<T: AsRef<Path>>(file: T) -> Result<String> {
     match path.extension() {
         Some(ext) => match ext == "crypt" {
             true => (),
-            false => {
-                return Err(Error::new(
-                    io::ErrorKind::InvalidData,
-                    "Invalid file extension",
-                ))
-            }
+            false => return Err(Error::FcError(error::FcError::FileReadError("Invalid file extension."))),
         },
-        None => {
-            return Err(Error::new(
-                io::ErrorKind::InvalidData,
-                "File has no extension",
-            ))
-        }
+        None => return Err(Error::FcError(error::FcError::FileReadError("Missing file extension."))),
     }
     // Open the file
     let file = File::open(path)?;

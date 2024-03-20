@@ -1,4 +1,5 @@
 use thiserror::Error;
+use crate::encryption::KEY_SIZE;
 
 #[derive(Debug, Error)]
 pub enum Error {
@@ -104,14 +105,14 @@ pub enum DatabaseError {
 ///
 #[derive(Debug, Error)]
 pub enum FcError {
-    #[error("Hash comparison failed. {0}")]
-    HashFail(String),
+    #[error("HASH COMPARISON FAILED\nfile hash: {0:?}\ndecrypted hash:{1:?}")]
+    HashFail([u8; KEY_SIZE], [u8; 32]),
+    
+    #[error("Input too short to extract UUID")]
+    UuidError,
 
-    #[error("")]
-    InvalidFilePath,
-
-    #[error("")]
-    CryptQueryError,
+    #[error("Unable to read file: {0}")]
+    FileReadError(&'static str),
 
     #[error("file decompression failed. {0}")]
     DecompressionError(String),
@@ -119,17 +120,12 @@ pub enum FcError {
     #[error("")]
     FileDeletionError(std::io::Error, String),
 
-    #[error("")]
-    FileReadError,
+    
 
-    #[error("Error loading file")]
-    FileError(String),
+    
 
     #[error("Decryption failed: {0}")]
     DecryptError(String),
-
-    #[error("Other error occured. {0}")]
-    GeneralError(String),
 }
 
 #[derive(Debug, Error)]
