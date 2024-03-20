@@ -128,7 +128,7 @@ pub enum FcError {
 
 #[derive(Debug, Error)]
 pub enum EncryptionError {
-    #[error(transparent)]
+    #[error("ChaCha Error: {0}")]
     ChaChaError(#[from] chacha20poly1305::Error)
 }
 
