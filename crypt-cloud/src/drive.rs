@@ -1,8 +1,8 @@
-use anyhow::{Error, Ok, Result};
+use crate::prelude::*;
 use async_recursion::async_recursion;
 use crypt_core::{
     common::DirInfo,
-    common::{send_information, FileInfo, FsNode},
+    common::{FileInfo, FsNode},
     token::UserToken,
 };
 use reqwest::{
@@ -12,7 +12,6 @@ use reqwest::{
 use serde_json::Value;
 use std::{
     collections::HashMap,
-    fmt,
     path::{Path, PathBuf},
 };
 use tokio::{fs::File, io::AsyncReadExt, runtime::Runtime};
@@ -34,14 +33,13 @@ const CHUNK_SIZE: usize = 5_242_880; //5MB
 /// # Panics
 ///
 /// This function could panic if `reqwest` crate fails to create a new `Client`
-pub async fn request_url(url: &str, creds: &UserToken) -> Result<Response, Error> {
+pub async fn request_url(url: &str, creds: &UserToken) -> Result<Response> {
     let client = reqwest::Client::new();
     let response = client
         .get(url)
         .bearer_auth(&creds.access_token)
         .send()
-        .await
-        .map_err(Error::from)?;
+        .await?;
     Ok(response)
 }
 
@@ -64,10 +62,7 @@ pub async fn g_id_exists(user_token: &UserToken, id: &str) -> Result<bool> {
         reqwest::StatusCode::NOT_FOUND => return Ok(false),
         _ => {
             let error = response.json::<Value>().await?;
-            return Err(Error::msg(format!(
-                "Could not query Google Drive: {:?}",
-                error
-            )));
+            return Err(Error::GeneralQueryError(error));
         }
     }
 }
@@ -107,9 +102,8 @@ pub async fn g_create_folder(
 
     //If drive query failed, break out and print error
     if !response.status().is_success() {
-        let e = Error::msg(format!("{:?}", response.text().await?));
-        println!("ERROR {}", &e);
-        return Err(e);
+        let error = response.json::<Value>().await?;
+        return Err(Error::GeneralQueryError(error));
     }
     //If folder exists, break out
     let folders = response.json::<Value>().await?;
@@ -169,11 +163,11 @@ pub async fn g_update(user_token: &UserToken, id: &str, path: &str) -> Result<St
     let session_uri = response
         .headers()
         .get(LOCATION)
-        .ok_or_else(|| anyhow::Error::msg("Location header missing"))?
+        .ok_or_else(|| Error::HeaderError("LOCATION"))?
         .to_str()?
         .to_owned();
 
-    return Ok(upload_chunks(&session_uri, &mut file, file_size).await?);
+    return upload_chunks(&session_uri, &mut file, file_size).await;
 }
 
 ///Uploads a file to google drive
@@ -201,11 +195,11 @@ pub async fn g_upload(user_token: &UserToken, path: &str, parent: &str) -> Resul
     let session_uri = response
         .headers()
         .get(LOCATION)
-        .ok_or_else(|| Error::msg("Location header missing"))?
+        .ok_or_else(|| Error::HeaderError("LOCATION"))?
         .to_str()?
         .to_string();
 
-    return Ok(upload_chunks(&session_uri, &mut file, file_size).await?);
+    return upload_chunks(&session_uri, &mut file, file_size).await;
 }
 
 ///Helper function that performs the upload of file information
@@ -239,19 +233,19 @@ async fn upload_chunks(session_uri: &str, file: &mut File, file_size: u64) -> Re
                 if let Some(id) = body["id"].as_str() {
                     return Ok(id.to_string());
                 } else {
-                    return Err(Error::msg("Failed retrieve file ID"));
+                    return Err(Error::FileIdError);
                 }
             }
             //TODO: Deal with HTTP 401 Unauthorized Error
             status => {
-                return Err(Error::msg(format!("Failed to upload: {}", status)));
+                return Err(Error::ResponseError(status));
             }
         }
 
         start += bytes_read as u64;
     }
 
-    return Err(anyhow::Error::msg("File upload not successful"));
+    return Err(Error::UploadError);
 }
 
 /// Builds and returns a set of HTTP headers for a partial content range request.
@@ -308,7 +302,8 @@ pub async fn g_view(user_token: &UserToken, name: &str) -> Result<Vec<String>> {
 
     //If drive query failed, break out and print error
     if !response.status().is_success() {
-        return Err(Error::msg(format!("{:?}", response.text().await?)));
+        let error = response.json::<Value>().await?;
+        return Err(Error::GeneralQueryError(error));
     }
     //Search through response and return id
     let folders = response.json::<Value>().await?;
@@ -340,7 +335,7 @@ pub async fn g_view(user_token: &UserToken, name: &str) -> Result<Vec<String>> {
             None => Vec::new(),
         })
     } else {
-        Err(Error::msg("Could not query folder"))
+        Err(Error::DirectoryQueryError)
     }
 }
 
@@ -359,7 +354,8 @@ pub async fn g_walk(user_token: &UserToken, name: &str) -> Result<DirInfo> {
 
     //If drive query failed, break out and print error
     if !response.status().is_success() {
-        return Err(Error::msg(format!("{:?}", response.text().await?)));
+        let error = response.json::<Value>().await?;
+        return Err(Error::GeneralQueryError(error));
     }
     //Search through response and return id
     let folders = response.json::<Value>().await?;
@@ -371,7 +367,7 @@ pub async fn g_walk(user_token: &UserToken, name: &str) -> Result<DirInfo> {
         }
     }
 
-    return Err(Error::msg("Folder not found"));
+    return Err(Error::FolderNotFoundError);
 }
 
 ///
@@ -482,7 +478,8 @@ pub async fn google_query_file(user_token: &UserToken, file_id: &str) -> Result<
 
     //If drive query failed, break out and print error
     if !response.status().is_success() {
-        return Err(Error::msg(format!("{:?}", response.text().await?)));
+        let error = response.json::<Value>().await?;
+        return Err(Error::GeneralQueryError(error));
     }
 
     let bytes = &response.bytes().await?;
@@ -506,7 +503,7 @@ async fn walk_cloud(
     let response = request_url(&url, user_token).await?;
 
     if !response.status().is_success() {
-        return Err(Error::msg("Could not view folder"));
+        return Err(Error::DirectoryQueryError);
     }
 
     let files = response.json::<Value>().await?;
@@ -557,8 +554,7 @@ pub async fn g_drive_info(user_token: &UserToken) -> Result<Vec<Value>> {
         let url = match &page_token {
             Some(token) => {
                 format!(
-                    "https://www.googleapis.com/drive/v3/files?pageToken={}",
-                    token
+                    "https://www.googleapis.com/drive/v3/files?pageToken={token}",
                 )
             }
             None => "https://www.googleapis.com/drive/v3/files?q='1xhf8AefxBdmXWPg_2ixrAKzYI0D5YTXE'+in+parents&fields=files(id,name,mimeType)".to_string(),
@@ -593,7 +589,7 @@ pub fn test_create_subfolders(
         std::result::Result::Ok(res) => res,
         Err(err) => {
             eprintln!("error: {}", err);
-            return Err(err.into());
+            return Err(err);
         }
     };
 
@@ -629,42 +625,13 @@ pub fn test_create_subfolders(
     Ok(hmap)
 }
 
-#[derive(Debug)]
-pub enum CloudError {
-    ///Error accessing Crypt "root" folder
-    CryptFolderError,
-    RuntimeError,
-}
-
-impl fmt::Display for CloudError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            CloudError::CryptFolderError => {
-                write!(f, "Error accessing Crypt 'root' folder")
-            }
-            CloudError::RuntimeError => write!(f, "Runtime error"),
-        }
-    }
-}
-
-impl std::error::Error for CloudError {}
-
-pub fn google_startup() -> Result<(Runtime, UserToken, String), CloudError> {
-    let runtime = match Runtime::new() {
-        core::result::Result::Ok(it) => it,
-        Err(_err) => return Err(CloudError::RuntimeError),
-    };
+pub fn google_startup() -> Result<(Runtime, UserToken, String)> {
+    let runtime = Runtime::new()?;
 
     let user_token = UserToken::new_google();
 
     //Access google drive and ensure a crypt folder exists, create if doesn't
-    let crypt_folder: String = match runtime.block_on(g_create_folder(&user_token, None, "")) {
-        core::result::Result::Ok(folder_id) => folder_id,
-        Err(error) => {
-            send_information(vec![format!("{}", error)]);
-            return Err(CloudError::CryptFolderError);
-        }
-    };
+    let crypt_folder: String = runtime.block_on(g_create_folder(&user_token, None, ""))?;
 
     std::result::Result::Ok((runtime, user_token, crypt_folder))
 }

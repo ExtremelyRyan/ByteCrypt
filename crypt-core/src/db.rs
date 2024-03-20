@@ -1,22 +1,21 @@
-use anyhow::{anyhow, Result};
-use csv::*;
-use lazy_static::lazy_static;
-use logfather::*;
-use r2d2::Pool;
-use r2d2_sqlite::SqliteConnectionManager;
-use rusqlite::{params, Connection, Error as rusqliteError};
-use std::{
-    fs,
-    path::{Path, PathBuf},
-    str::FromStr,
-};
-
 use crate::{
     common::{get_config_folder, write_contents_to_file},
     config::get_config,
     encryption::{KEY_SIZE, NONCE_SIZE},
     filecrypt::FileCrypt,
+    prelude::*,
     token::{CloudService, UserToken},
+};
+use csv::{StringRecord, WriterBuilder};
+use lazy_static::lazy_static;
+use logfather::*;
+use r2d2::Pool;
+use r2d2_sqlite::SqliteConnectionManager;
+use rusqlite::{params, Connection};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+    str::FromStr,
 };
 
 //Connection pool maintains a single connection to db for life of program
@@ -66,7 +65,7 @@ fn init_keeper(conn: &Connection) -> Result<()> {
         [],
     )?;
 
-    Ok(())
+    return Ok(());
 }
 
 /// Export data from the keeper and write it to a CSV file.
@@ -93,7 +92,7 @@ pub fn export_keeper(alt_path: Option<&str>) -> Result<()> {
     }
 
     // Get CSV data as bytes
-    let data = wtr.into_inner()?;
+    let data = wtr.into_inner().map_err(|e| e.into_error())?;
 
     // get crypt dir "C:\\users\\USER\\crypt_config"
     let path: PathBuf = match alt_path {
@@ -112,7 +111,7 @@ pub fn export_keeper(alt_path: Option<&str>) -> Result<()> {
     } else {
         write_contents_to_file(path, data)?;
     }
-    Ok(())
+    return Ok(());
 }
 
 /// Imports csv into database. <b>WARNING</b>, overrides may occur!
@@ -139,7 +138,7 @@ pub fn import_keeper(path: &String) -> Result<()> {
         _ = insert_crypt(&fc);
     }
 
-    Ok(())
+    return Ok(());
 }
 
 ///Grabs the connection
@@ -151,7 +150,8 @@ pub fn import_keeper(path: &String) -> Result<()> {
 ///```
 pub fn get_keeper() -> Result<r2d2::PooledConnection<r2d2_sqlite::SqliteConnectionManager>> {
     //Returns the static connection
-    KEEPER.get().map_err(|e| e.into())
+    let keeper = KEEPER.get()?;
+    return Ok(keeper);
 }
 
 ///Insert a crypt into the database
@@ -163,7 +163,7 @@ pub fn get_keeper() -> Result<r2d2::PooledConnection<r2d2_sqlite::SqliteConnecti
 ///```
 pub fn insert_crypt(crypt: &FileCrypt) -> Result<()> {
     //Get the connection
-    let conn = get_keeper().map_err(|_| anyhow!("Failed to get keeper"))?;
+    let conn = get_keeper()?;
 
     //Create insert command and execute -- should handle uuid conflicts
     conn.execute(
@@ -190,15 +190,14 @@ pub fn insert_crypt(crypt: &FileCrypt) -> Result<()> {
             &crypt.filename,
             &crypt.ext,
             &crypt.drive_id,
-            &crypt.full_path.to_str().unwrap(),
+            &crypt.full_path.to_str().unwrap_or_default(),
             &crypt.key.as_ref(),
             &crypt.nonce.as_ref(),
             &crypt.hash.as_ref(),
         ],
-    )
-    .map_err(|e| anyhow!("Failed to insert crypt {} into keeper", e))?;
+    )?;
 
-    Ok(())
+    return Ok(());
 }
 
 ///Inserts a token into the database
@@ -210,7 +209,7 @@ pub fn insert_crypt(crypt: &FileCrypt) -> Result<()> {
 ///```
 pub fn insert_token(user_token: &UserToken) -> Result<()> {
     //Get the connection
-    let conn = get_keeper().map_err(|_| anyhow!("Failed to get keeper"))?;
+    let conn = get_keeper()?;
 
     //Create insert command and execute -- should handle uuid conflicts
     conn.execute(
@@ -230,10 +229,9 @@ pub fn insert_token(user_token: &UserToken) -> Result<()> {
             &user_token.nonce_seed.as_ref(),
             &user_token.expiration,
         ],
-    )
-    .map_err(|e| anyhow!("Failed to insert crypt {} into keeper", e))?;
+    )?;
 
-    Ok(())
+    return Ok(());
 }
 
 ///Queries the database for the crypt
@@ -248,32 +246,27 @@ pub fn query_crypt(uuid: String) -> Result<FileCrypt> {
     let conn = get_keeper()?;
 
     //Get the results of the query
-    conn.query_row(
+    let filecrypt = conn.query_row(
         "SELECT *
         FROM crypt
         WHERE uuid = ?1",
         params![uuid],
         |row| {
-            let get: String = row.get(4)?;
+            let path: String = row.get(4)?;
             Ok(FileCrypt {
                 uuid: row.get(0)?,
                 filename: row.get(1)?,
                 ext: row.get(2)?,
                 drive_id: row.get(3)?,
-                full_path: PathBuf::from(get),
+                full_path: PathBuf::from(path),
                 key: row.get(5)?,
                 nonce: row.get(6)?,
                 hash: row.get(7)?,
             })
         },
-    )
-    .map_err(|e| match e {
-        //Handle the errors
-        rusqliteError::QueryReturnedNoRows => {
-            anyhow!("No crypt with that uuid exists")
-        }
-        _ => anyhow!("Keeper query failed {}", e),
-    })
+    )?;
+
+    return Ok(filecrypt);
 }
 
 ///Queries the database for the token
@@ -283,12 +276,12 @@ pub fn query_crypt(uuid: String) -> Result<FileCrypt> {
 /// let cs = CloudService::Google;
 /// let user_token = query_token(&cs);
 ///```
-pub fn query_token(service: CloudService) -> anyhow::Result<UserToken> {
+pub fn query_token(service: CloudService) -> Result<UserToken> {
     //Get the connection
     let conn = get_keeper()?;
 
     //Get the results of the query
-    conn.query_row(
+    let token = conn.query_row(
         "SELECT *
         FROM user_token
         WHERE service = ?1",
@@ -297,21 +290,17 @@ pub fn query_token(service: CloudService) -> anyhow::Result<UserToken> {
             let service: String = row.get(0)?;
             let expiration: u64 = row.get(3)?;
             Ok(UserToken {
-                service: CloudService::from(service),
+                service: CloudService::try_from(service.as_ref())
+                    .map_err(|e| rusqlite::Error::UserFunctionError(Box::new(e)))?,
                 key_seed: row.get(1)?,
                 nonce_seed: row.get(2)?,
                 expiration,
-                access_token: "".to_string(),
+                access_token: String::new(),
             })
         },
-    )
-    .map_err(|e| match e {
-        //Handle the errors
-        rusqliteError::QueryReturnedNoRows => {
-            anyhow!("No token exists for that service")
-        }
-        _ => anyhow!("Keeper query failed {}", e),
-    })
+    )?;
+
+    return Ok(token);
 }
 
 ///Queries the database if a file's metadata matches existing entry in crypt keeper
@@ -326,32 +315,27 @@ pub fn query_keeper_for_existing_file(full_path: PathBuf) -> Result<FileCrypt> {
     let conn = get_keeper()?;
 
     //Get the results of the query
-    conn.query_row(
+    let filecrypt = conn.query_row(
         "SELECT *
         FROM crypt
         WHERE full_path = ?1",
-        params![full_path.to_str().unwrap().to_string()],
+        params![full_path.to_str().unwrap_or_default().to_string()],
         |row| {
-            let get: String = row.get(4)?;
+            let path: String = row.get(4)?;
             Ok(FileCrypt {
                 uuid: row.get(0)?,
                 filename: row.get(1)?,
                 ext: row.get(2)?,
                 drive_id: row.get(3)?,
-                full_path: PathBuf::from(get),
+                full_path: PathBuf::from(path),
                 key: row.get(5)?,
                 nonce: row.get(6)?,
                 hash: row.get(7)?,
             })
         },
-    )
-    .map_err(|e| match e {
-        //Handle the errors
-        rusqliteError::QueryReturnedNoRows => {
-            anyhow!("No crypt with that uuid exists ")
-        }
-        _ => anyhow!("Keeper query failed {}", e),
-    })
+    )?;
+
+    return Ok(filecrypt);
 }
 
 ///Queries the database if a file's metadata matches existing entry in crypt keeper
@@ -367,7 +351,7 @@ pub fn query_keeper_by_file_name<T: AsRef<Path>>(file_name: &T) -> Result<FileCr
     let conn = get_keeper()?;
 
     //Get the results of the query
-    conn.query_row(
+    let filecrypt = conn.query_row(
         "SELECT *
         FROM crypt
         WHERE filename = ?1",
@@ -385,20 +369,15 @@ pub fn query_keeper_by_file_name<T: AsRef<Path>>(file_name: &T) -> Result<FileCr
                 hash: row.get(7)?,
             })
         },
-    )
-    .map_err(|e| match e {
-        //Handle the errors
-        rusqliteError::QueryReturnedNoRows => {
-            anyhow!("No crypt with that uuid exists ")
-        }
-        _ => anyhow!("Keeper query failed {}", e),
-    })
+    )?;
+
+    return Ok(filecrypt);
 }
 
 /// Searches the Crypt for FileCrypts whose `drive_id` IS NOT NULL AND IS NOT "", and returns those results in a vector.
 pub fn query_keeper_for_files_with_drive_id() -> Result<Vec<FileCrypt>> {
     //Get the connection
-    let conn = get_keeper().map_err(|_| anyhow!("Failed to get keeper"))?;
+    let conn = get_keeper()?;
 
     //Create the query and execute
     let mut query = conn.prepare(
@@ -410,7 +389,7 @@ pub fn query_keeper_for_files_with_drive_id() -> Result<Vec<FileCrypt>> {
 
     //Get the results of the query
     let query_result = query.query_map([], |row| {
-        let get: String = row.get(4)?;
+        let path: String = row.get(4)?;
         let key: [u8; KEY_SIZE] = row.get(5)?;
         let nonce: [u8; NONCE_SIZE] = row.get(6)?;
         let hash: [u8; KEY_SIZE] = row.get(7)?;
@@ -420,7 +399,7 @@ pub fn query_keeper_for_files_with_drive_id() -> Result<Vec<FileCrypt>> {
             filename: row.get(1)?,
             ext: row.get(2)?,
             drive_id: row.get(3)?,
-            full_path: PathBuf::from(get),
+            full_path: PathBuf::from(path),
             key,
             nonce,
             hash,
@@ -428,12 +407,12 @@ pub fn query_keeper_for_files_with_drive_id() -> Result<Vec<FileCrypt>> {
     })?;
 
     //Convert the results into a vector
-    let mut crypts: Vec<FileCrypt> = Vec::new();
-    for crypt in query_result {
-        crypts.push(crypt.unwrap());
+    let mut crypts = vec![];
+    for crypt in query_result.into_iter() {
+        crypts.push(crypt?);
     }
 
-    Ok(crypts)
+    return Ok(crypts);
 }
 
 ///Queries the database for all crypts
@@ -445,7 +424,7 @@ pub fn query_keeper_for_files_with_drive_id() -> Result<Vec<FileCrypt>> {
 ///```
 pub fn query_keeper_crypt() -> Result<Vec<FileCrypt>> {
     //Get the connection
-    let conn = get_keeper().map_err(|_| anyhow!("Failed to get keeper"))?;
+    let conn = get_keeper()?;
 
     //Create the query and execute
     let mut query = conn.prepare(
@@ -474,12 +453,12 @@ pub fn query_keeper_crypt() -> Result<Vec<FileCrypt>> {
     })?;
 
     //Convert the results into a vector
-    let mut crypts: Vec<FileCrypt> = Vec::new();
-    for crypt in query_result {
-        crypts.push(crypt.unwrap());
+    let mut crypts = vec![];
+    for crypt in query_result.into_iter() {
+        crypts.push(crypt?);
     }
 
-    Ok(crypts)
+    return Ok(crypts);
 }
 
 ///Queries the database for all tokens
@@ -491,7 +470,7 @@ pub fn query_keeper_crypt() -> Result<Vec<FileCrypt>> {
 // /```
 pub fn query_keeper_token() -> Result<Vec<UserToken>> {
     //Get the connection
-    let conn = get_keeper().map_err(|_| anyhow!("Failed to get keeper"))?;
+    let conn = get_keeper()?;
 
     //Create the query and execute
     let mut query = conn.prepare(
@@ -502,26 +481,27 @@ pub fn query_keeper_token() -> Result<Vec<UserToken>> {
 
     //Get the results of the query
     let query_result = query.query_map([], |row| {
-        let service: String = row.get(0)?;
+        let service_result: String = row.get(0)?;
         let key: [u8; KEY_SIZE] = row.get(1)?;
         let nonce: [u8; NONCE_SIZE] = row.get(2)?;
 
         Ok(UserToken {
-            service: CloudService::from(service),
+            service: CloudService::try_from(service_result.as_str())
+                .map_err(|e| rusqlite::Error::UserFunctionError(Box::new(e)))?,
             key_seed: key,
             nonce_seed: nonce,
             expiration: row.get(3)?,
-            access_token: "".to_string(),
+            access_token: String::new(),
         })
     })?;
 
     //Convert the results into a vector
-    let mut tokens: Vec<UserToken> = Vec::new();
-    for token in query_result {
-        tokens.push(token.unwrap());
+    let mut tokens = vec![];
+    for token in query_result.into_iter() {
+        tokens.push(token?);
     }
 
-    Ok(tokens)
+    return Ok(tokens);
 }
 
 ///Deletes the crypt
@@ -529,7 +509,7 @@ pub fn query_keeper_token() -> Result<Vec<UserToken>> {
 ///
 pub fn delete_crypt(uuid: String) -> Result<()> {
     //Get the connection
-    let conn = get_keeper().map_err(|_| anyhow!("Failed to get keeper"))?;
+    let conn = get_keeper()?;
 
     conn.execute(
         "

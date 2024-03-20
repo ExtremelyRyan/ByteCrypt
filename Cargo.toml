@@ -6,8 +6,6 @@ edition = "2021"
 
 [dependencies]
 crypt-ui = { path = "crypt-ui", version = "*"}
-anyhow = { workspace = true }
-
 
 [workspace]
 resolver = "2"
@@ -25,7 +23,6 @@ license = "MIT"
 rust-version = "1.70"
 
 [workspace.dependencies]
-anyhow = "1.0.75"
 lazy_static = "1.4"
 logfather = "0.2.4"
 thiserror = "1.0.56"

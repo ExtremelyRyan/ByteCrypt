@@ -6,10 +6,9 @@ use std::{
     process::Command,
     time::SystemTime,
 };
-use thiserror::Error;
 use walkdir::WalkDir;
 
-use crate::config::{self};
+use crate::{config, error, prelude::*};
 use ansi_term::Color;
 use serde_json::Value;
 
@@ -233,17 +232,7 @@ pub fn verify_path(path: &impl AsRef<Path>) -> bool {
 /// Possible errors include failure to retrieve the current working directory or
 /// failure to join paths.
 ///
-/// ```
-/// use std::path::PathBuf;
-/// use std::io::Error;
-/// # use crate::crypt_core::common::get_path_diff;
-///
-/// fn main() -> Result<(), Error> {
-///     let relative_path = get_path_diff(None, &PathBuf::from("non/existing/path"))?;
-///     Ok(())
-/// }
-/// ```
-pub fn get_path_diff<T>(root: Option<&T>, target_path: &T) -> Result<PathBuf, std::io::Error>
+pub fn get_path_diff<T>(root: Option<&T>, target_path: &T) -> Result<PathBuf>
 where
     T: AsRef<Path>,
 {
@@ -336,7 +325,7 @@ fn tree_recursion(dir_info: &DirInfo, path: String, tree: &mut Vec<String>) {
     contents.extend(other_content);
 
     //Character set and color
-    //TODO: make a part of config and implement properly with UI 
+    //TODO: make a part of config and implement properly with UI
     let dir_color = Color::Blue.bold();
     let expanded_color = Color::Green.bold();
     let bracket_color = Color::White.bold();
@@ -391,8 +380,8 @@ pub fn get_vec_file_bytes(path: &str) -> Vec<u8> {
     std::fs::read(path).unwrap_or_default()
 }
 
-pub fn get_file_contents<T: AsRef<Path>>(path: T) -> Result<Vec<u8>, String> {
-    std::fs::read(path).map_err(|e| format!("Failed to open/read file: {}", e))
+pub fn get_file_contents<T: AsRef<Path>>(path: T) -> Result<Vec<u8>> {
+    return std::fs::read(path).map_err(Error::IoError);
 }
 
 /// Writes the contents of a `Vec<u8>` to a file.
@@ -406,7 +395,7 @@ pub fn get_file_contents<T: AsRef<Path>>(path: T) -> Result<Vec<u8>, String> {
 ///
 /// Returns a `Result` indicating whether the write operation was successful.
 ///
-pub fn write_contents_to_file<T: AsRef<Path>>(file: T, contents: Vec<u8>) -> Result<(), io::Error> {
+pub fn write_contents_to_file<T: AsRef<Path>>(file: T, contents: Vec<u8>) -> Result<()> {
     let mut f = OpenOptions::new()
         .write(true)
         .create(true)
@@ -534,7 +523,7 @@ pub fn get_machine_name() -> String {
 
 pub fn get_filenames_from_subdirectories<T: AsRef<Path>>(
     dir_path: T,
-) -> Result<(Vec<PathBuf>, Vec<PathBuf>), std::io::Error> {
+) -> Result<(Vec<PathBuf>, Vec<PathBuf>)> {
     let walker = WalkDir::new(&dir_path).into_iter();
 
     let (filenames, folders): (Vec<_>, Vec<_>) = walker
@@ -554,14 +543,6 @@ pub fn get_filenames_from_subdirectories<T: AsRef<Path>>(
     Ok((filenames, folders))
 }
 
-#[derive(Error, Debug)]
-pub enum CommonError {
-    #[error("no files found in crypt folder")]
-    CryptFolderIsEmpty,
-    #[error("user aborted file search")]
-    UserAbort,
-}
-
 /// Displays a menu for choosing files and folders from the users `crypt` folder.
 ///
 /// # Arguments
@@ -572,11 +553,11 @@ pub enum CommonError {
 ///
 /// Returns a `PathBuf` representing the user's selection. Returns an empty `PathBuf` if the user chooses to abort.
 ///
-pub fn chooser(item: &str) -> Result<PathBuf, CommonError> {
+pub fn chooser(item: &str) -> Result<PathBuf> {
     let (mut files, mut folders) = walk_crypt_folder().unwrap_or_else(|_| (Vec::new(), Vec::new()));
 
     if files.is_empty() {
-        return Err(CommonError::CryptFolderIsEmpty);
+        return Err(Error::CommonError(error::CommonError::CryptFolderIsEmpty));
     }
 
     files.sort();
@@ -682,7 +663,7 @@ pub fn chooser(item: &str) -> Result<PathBuf, CommonError> {
 
         let num: usize = number.trim().parse().unwrap_or_default();
         if num == 0 {
-            return Err(CommonError::UserAbort);
+            return Err(Error::CommonError(error::CommonError::UserAbort));
         }
         if num > files.len() {
             println!("invalid selection. please try again.");
@@ -755,7 +736,7 @@ impl Convert for PathBuf {
 /// - `GOOGLE_CLIENT_ID`: Google OAuth client ID.
 /// - `GOOGLE_CLIENT_SECRET`: Google OAuth client secret.
 ///
-pub fn parse_json_token() -> Result<(), io::Error> {
+pub fn parse_json_token() -> Result<()> {
     let mut config_path = get_config_folder();
     config_path.push("google.json");
 
@@ -820,7 +801,7 @@ pub fn send_information(info: Vec<String>) {
 pub fn walk_directory<T: AsRef<Path>>(
     path_in: T,
     filter_directories: bool,
-) -> Result<Vec<PathBuf>, io::Error> {
+) -> Result<Vec<PathBuf>> {
     let path_in = path_in.as_ref();
     let path = match path_in.to_string_lossy().is_empty() {
         true => std::env::current_dir()?,
@@ -866,7 +847,7 @@ pub fn walk_directory<T: AsRef<Path>>(
 ///     Err(err) => eprintln!("Error: {}", err),
 /// }
 /// ```
-pub fn walk_crypt_folder() -> Result<(Vec<PathBuf>, Vec<PathBuf>), Box<dyn std::error::Error>> {
+pub fn walk_crypt_folder() -> Result<(Vec<PathBuf>, Vec<PathBuf>)> {
     let crypt_folder = get_crypt_folder();
 
     // folders to avoid

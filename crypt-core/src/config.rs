@@ -1,6 +1,7 @@
 use crate::{
     common::{self, get_machine_name, send_information},
     db::{self},
+    prelude::*,
 };
 use chrono::prelude::*;
 use lazy_static::lazy_static;
@@ -344,7 +345,7 @@ impl Config {
 }
 
 ///Loads configuration file -- creates default if missing
-pub fn load_config() -> anyhow::Result<Config> {
+pub fn load_config() -> Result<Config> {
     info!("loading config");
     let mut config: Config = Config::default();
 
@@ -376,7 +377,7 @@ pub fn load_config() -> anyhow::Result<Config> {
 }
 
 ///Saves the configuration file
-pub fn save_config(config: &Config) -> anyhow::Result<()> {
+pub fn save_config(config: &Config) -> Result<()> {
     info!("saving config");
     //Serialize config
     let serialized_config = toml::to_string_pretty(&config)?;

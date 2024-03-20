@@ -1,96 +1,25 @@
 use crate::{
     common::{
         chooser, get_crypt_folder, get_file_contents, get_full_file_path, get_vec_file_bytes,
-        write_contents_to_file, CommonError,
+        write_contents_to_file,
     },
     config::get_config,
     db::{insert_crypt, query_crypt},
     encryption::{
         compress, compute_hash, decompress, decrypt, encrypt, generate_seeds, KEY_SIZE, NONCE_SIZE,
     },
+    error,
+    prelude::*,
 };
-use anyhow::Result;
 use logfather::*;
 use rand::RngCore;
 use serde::{Deserialize, Serialize};
 use std::{
-    fmt,
     fs::{read, File},
-    io::{self, BufReader, Read},
+    io::{BufReader, Read},
     path::{Path, PathBuf},
     time::Duration,
 };
-
-/// Represents various errors that can occur during file decryption.
-///
-/// The `FcError` enum provides specific error variants for different failure scenarios
-/// encountered during the decryption process.
-///
-/// # Variants
-///
-/// - `HashFail(String)`: Hash comparison between file and decrypted content failed.
-/// - `InvalidFilePath`: The provided file path is invalid.
-/// - `CryptQueryError`: Failed to query the cryptographic information.
-/// - `DecompressionError`: Failed to decompress the decrypted content.
-/// - `FileDeletionError(std::io::Error, String)`: Failed to delete the original file.
-/// - `FileReadError`: An error occurred while reading the file.
-/// - `FileError(String)`: An error occurred during file operations (read or write).
-/// - `DecryptError(String)`: Failed to decrypt the file contents.
-///
-/// # Examples
-///
-/// ```rust ignore
-/// use crypt_core::FcError;
-///
-/// fn handle_error(err: FcError) {
-///     match err {
-///         FcError::HashFail(message) => eprintln!("Hash failure: {}", message),
-///         FcError::InvalidFilePath => eprintln!("Invalid file path."),
-///         FcError::CryptQueryError => eprintln!("Cryptographic query failed."),
-///         FcError::DecompressionError => eprintln!("Decompression failed."),
-///         FcError::FileDeletionError(io_err, path) => eprintln!("Failed to delete file {}: {:?}", path, io_err),
-///         FcError::FileReadError => eprintln!("Error reading file."),
-///         FcError::FileError(message) => eprintln!("File operation error: {}", message),
-///         FcError::DecryptError(message) => eprintln!("Decryption error: {}", message),
-///     }
-/// }
-/// ```
-///
-#[derive(Debug)]
-pub enum FcError {
-    HashFail(String),
-    InvalidFilePath,
-    CryptQueryError,
-    DecompressionError(String),
-    FileDeletionError(std::io::Error, String),
-    FileReadError,
-    FileError(String),
-    DecryptError(String),
-    GeneralError(String),
-    IoError(io::Error),
-}
-
-impl fmt::Display for FcError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        // Implement how you want to display the error
-        // This is just a placeholder, adjust as needed
-        write!(f, "Custom FcError: {:?}", self)
-    }
-}
-
-impl std::error::Error for FcError {}
-
-impl From<io::Error> for FcError {
-    fn from(err: io::Error) -> Self {
-        FcError::IoError(err)
-    }
-}
-
-impl From<String> for FcError {
-    fn from(err_msg: String) -> Self {
-        FcError::GeneralError(err_msg)
-    }
-}
 
 /// Represents cryptographic information associated with an encrypted file.
 ///
@@ -98,7 +27,7 @@ impl From<String> for FcError {
 /// full path, encryption key, nonce, and hash of an encrypted file.
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct FileCrypt {
-    /// The UUID associated with the encrypted file.
+    /// The UUID associated with the encrypted ile.
     pub uuid: String,
 
     /// The filename of the encrypted file.
@@ -197,19 +126,13 @@ impl FileCrypt {
 /// # Panics
 ///
 /// This function may panic in case of critical errors, but most errors are returned in the `Result`.
-pub fn decrypt_file<T: AsRef<Path>>(path: T, output: String) -> Result<(), FcError> {
+pub fn decrypt_file<T: AsRef<Path>>(path: T, output: String) -> Result<()> {
     let path = path.as_ref();
 
     // have user choose
-    let file_match = match chooser(path.to_str().unwrap_or("")) {
-        Ok(file) => file,
-        Err(err) => match err {
-            CommonError::CryptFolderIsEmpty => return Err(FcError::GeneralError(err.to_string())),
-            CommonError::UserAbort => return Err(FcError::GeneralError(err.to_string())),
-        },
-    };
+    let file_match = chooser(path.to_str().unwrap_or(""))?;
 
-    let content = read(file_match).map_err(|e| FcError::FileError(e.to_string()))?;
+    let content = read(file_match)?;
 
     let (uuid, contents) = get_uuid(&content)?;
 
@@ -227,34 +150,20 @@ pub fn decrypt_file<T: AsRef<Path>>(path: T, output: String) -> Result<(), FcErr
     let file = generate_output_file(&fc, output, &mut crypt_folder);
     dbg!(&file);
 
-    let mut decrypted_content = match decrypt(fc.clone(), &contents.to_vec()) {
-        Ok(d) => d,
-        Err(e) => return Err(FcError::DecryptError(e.to_string())),
-    };
-
-    decrypted_content = match decompress(&decrypted_content) {
-        Ok(d) => d,
-        Err(e) => return Err(FcError::DecompressionError(e.to_string())),
-    };
+    let mut decrypted_content = decrypt(fc.clone(), &contents.to_vec())?;
+    decrypted_content = decompress(&decrypted_content)?;
 
     let hash = compute_hash(&decrypted_content);
 
     if hash != fc_hash {
-        let s = format!(
-            "HASH COMPARISON FAILED\nfile hash: {:?}\ndecrypted hash:{:?}",
-            &fc.hash.to_vec(),
-            hash
-        );
-        return Err(FcError::HashFail(s));
+        return Err(Error::FcError(error::FcError::HashFail(fc_hash, hash)));
     }
-
-    write_contents_to_file(&file, decrypted_content)
-        .map_err(|e| FcError::FileError(e.to_string()))?;
+    write_contents_to_file(&file, decrypted_content)?;
 
     Ok(())
 }
 
-pub fn decrypt_contents(fc: FileCrypt, contents: Vec<u8>) -> Result<(), FcError> {
+pub fn decrypt_contents(fc: FileCrypt, contents: Vec<u8>) -> Result<()> {
     let fc_hash: [u8; 32] = fc.hash.to_owned();
 
     // get location of crypt folder and append "decrypted" path
@@ -279,14 +188,8 @@ pub fn decrypt_contents(fc: FileCrypt, contents: Vec<u8>) -> Result<(), FcError>
 
     // verify file integrity
     if hash != fc_hash {
-        let s = format!(
-            "HASH COMPARISON FAILED\nfile hash: {:?}\ndecrypted hash:{:?}",
-            &fc.hash.to_vec(),
-            hash
-        );
-        return Err(FcError::HashFail(s));
+        return Err(Error::FcError(error::FcError::HashFail(fc_hash, hash)));
     }
-
     // Write contents to file
     write_contents_to_file(file, decrypted_content)?;
 
@@ -378,28 +281,16 @@ pub fn zip_contents(contents: &[u8]) -> Result<Vec<u8>> {
     Ok(compress(contents, conf.zstd_level))
 }
 
-pub fn do_file_encryption<T: AsRef<Path>>(path: T) -> Result<Vec<u8>, String> {
+pub fn do_file_encryption<T: AsRef<Path>>(path: T) -> Result<Vec<u8>> {
     let path = path.as_ref();
 
-    let contents = match get_file_contents(path) {
-        Ok(c) => c,
-        Err(error) => {
-            // Propagate the error to the caller
-            return Err(format!("Error reading file contents: {}", error));
-        }
-    };
+    let contents = get_file_contents(path)?;
 
     let fc = create_file_crypt(path, &contents);
 
-    let compressed_contents: Vec<u8> = match zip_contents(&contents) {
-        Ok(c) => c,
-        Err(error) => return Err(format!("Error compressing file contents: {}", error)),
-    };
+    let compressed_contents: Vec<u8> = zip_contents(&contents)?;
 
-    let mut encrypted_contents = match encrypt(&fc, &compressed_contents) {
-        Ok(e) => e,
-        Err(error) => return Err(format!("File encryption failed: {}", error)),
-    };
+    let mut encrypted_contents = encrypt(&fc, &compressed_contents)?;
 
     // prepend uuid to contents
     Ok(prepend_uuid(&fc.uuid, &mut encrypted_contents))
@@ -598,9 +489,9 @@ pub fn generate_uuid() -> String {
 /// # Panics
 ///
 /// The function will panic if the length of `contents` is less than 36.
-pub fn get_uuid(contents: &[u8]) -> Result<(String, Vec<u8>), String> {
+pub fn get_uuid(contents: &[u8]) -> Result<(String, Vec<u8>)> {
     if contents.len() < 36 {
-        return Err("Input too short to extract UUID".to_string());
+        return Err(Error::FcError(error::FcError::UuidError));
     }
 
     let (uuid, contents) = contents.split_at(36);
@@ -643,7 +534,7 @@ pub fn get_uuid(contents: &[u8]) -> Result<(String, Vec<u8>), String> {
 ///     Ok(())
 /// }
 /// ```
-pub fn get_uuid_from_file<T: AsRef<Path>>(file: T) -> Result<String, io::Error> {
+pub fn get_uuid_from_file<T: AsRef<Path>>(file: T) -> Result<String> {
     let path = file.as_ref();
 
     // Check if the file has the expected extension
@@ -651,17 +542,15 @@ pub fn get_uuid_from_file<T: AsRef<Path>>(file: T) -> Result<String, io::Error> 
         Some(ext) => match ext == "crypt" {
             true => (),
             false => {
-                return Err(io::Error::new(
-                    io::ErrorKind::InvalidData,
-                    "Invalid file extension",
-                ))
+                return Err(Error::FcError(error::FcError::FileReadError(
+                    "Invalid file extension.",
+                )))
             }
         },
         None => {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidData,
-                "File has no extension",
-            ))
+            return Err(Error::FcError(error::FcError::FileReadError(
+                "Missing file extension.",
+            )))
         }
     }
     // Open the file

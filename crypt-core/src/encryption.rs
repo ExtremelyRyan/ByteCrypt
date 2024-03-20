@@ -1,5 +1,4 @@
-use crate::filecrypt::FileCrypt;
-use anyhow::Result;
+use crate::{error, filecrypt::FileCrypt, prelude::*};
 use blake2::{Blake2s256, Digest, *};
 use chacha20poly1305::{
     aead::{Aead, AeadCore, KeyInit, OsRng},
@@ -59,8 +58,9 @@ pub fn compress(contents: &[u8], level: i32) -> Vec<u8> {
 ///
 /// # Panics
 /// Panics if the decompression process fails.
-pub fn decompress(contents: &[u8]) -> Result<Vec<u8>, std::io::Error> {
-    zstd::decode_all(contents)
+pub fn decompress(contents: &[u8]) -> Result<Vec<u8>> {
+    let contents = zstd::decode_all(contents)?;
+    return Ok(contents);
 }
 
 /// Generates a random key and nonce pair for use in ChaCha20Poly1305 encryption.
@@ -92,11 +92,13 @@ pub fn generate_seeds() -> ([u8; KEY_SIZE], [u8; NONCE_SIZE]) {
 /// # Panics
 ///
 /// Panics if the decryption process encounters a critical error.
-pub fn decrypt(fc: FileCrypt, contents: &Vec<u8>) -> Result<Vec<u8>, chacha20poly1305::Error> {
+pub fn decrypt(fc: FileCrypt, contents: &Vec<u8>) -> Result<Vec<u8>> {
     info!("decrypting contents");
     let k = Key::from_slice(&fc.key);
     let n = Nonce::from_slice(&fc.nonce);
-    ChaCha20Poly1305::new(k).decrypt(n, contents.as_ref())
+    ChaCha20Poly1305::new(k)
+        .decrypt(n, contents.as_ref())
+        .map_err(|_| Error::EncryptionError(error::EncryptionError::ChaChaError))
 }
 
 /// Takes a `FileCrypt` struct and encrypts the provided contents using the ChaCha20-Poly1305 cipher.
@@ -113,11 +115,13 @@ pub fn decrypt(fc: FileCrypt, contents: &Vec<u8>) -> Result<Vec<u8>, chacha20pol
 ///
 /// # Panics
 /// The function panics if encryption using ChaCha20-Poly1305 fails.
-pub fn encrypt(fc: &FileCrypt, contents: &[u8]) -> Result<Vec<u8>, chacha20poly1305::Error> {
+pub fn encrypt(fc: &FileCrypt, contents: &[u8]) -> Result<Vec<u8>> {
     info!("encrypting file contents");
     let k = Key::from_slice(&fc.key);
     let n = Nonce::from_slice(&fc.nonce);
-    ChaCha20Poly1305::new(k).encrypt(n, contents)
+    ChaCha20Poly1305::new(k)
+        .encrypt(n, contents)
+        .map_err(|_| Error::EncryptionError(error::EncryptionError::ChaChaError))
 }
 
 // cargo nextest run
