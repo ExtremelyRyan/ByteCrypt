@@ -3,7 +3,6 @@ use crate::cli::{
     KeeperPurgeSubCommand::{Database, Token},
 };
 
-// use anyhow::Ok;
 use crypt_cloud::crypt_core::{
     common::{
         build_tree, chooser, get_crypt_folder, get_filenames_from_subdirectories,
@@ -25,17 +24,7 @@ use std::{
 };
 use thiserror::Error;
 use tokio::runtime::Runtime;
-
-#[derive(Debug, Error)]
-pub enum CloudError {
-    /// Error accessing Crypt "root" folder
-    #[error("Error accessing Crypt 'root' folder")]
-    CryptFolderError,
-
-    /// Runtime error
-    #[error("Runtime error")]
-    RuntimeError,
-}
+// #############################################################################################################################################
 
 ///Process the encryption directive
 ///
@@ -120,57 +109,70 @@ pub fn decrypt(path: &str, output: Option<String>) {
     };
 }
 
-#[allow(dead_code)]
-struct Google {
-    runtime: Runtime,
-    token: UserToken,
-    cloud_root_folder: String,
+// ############################################ Cloud Implementation ############################################
+
+/// Generic Cloud Errors
+#[derive(Debug, Error)]
+pub enum CloudError {
+    /// Error accessing Crypt "root" folder
+    #[error("Error accessing Crypt 'root' folder")]
+    RemoteCryptDirectoryAccessError,
+
+    /// Runtime error
+    #[error("Runtime error")]
+    RuntimeError(#[from] std::io::Error),
+}
+
+/// Contains the necessary properties for Google Drive
+pub struct Google {
+    pub runtime: Runtime,
+    pub token: UserToken,
+    pub cloud_root_folder: String,
 }
 
 impl Google {
     /// Creates a new [`Google`].
-    fn _new(runtime: Runtime, token: UserToken, cloud_root_folder: String) -> Self {
-        Self {
-            runtime,
-            token,
+    fn new() -> Result<Self, CloudError> {
+        let runtime = match Runtime::new() {
+            core::result::Result::Ok(rt) => rt,
+            Err(err) => return Err(CloudError::RuntimeError(err)),
+        };
+    
+        let token = UserToken::new_google();
+    
+        // Access google drive and ensure a crypt folder exists, create if doesn't
+        let cloud_root_folder: String = match runtime.block_on(drive::g_create_folder(&token, None, ""))
+        {
+            core::result::Result::Ok(folder_id) => folder_id,
+            Err(error) => {
+                send_information(vec![format!("{}", error)]);
+                return Err(CloudError::RemoteCryptDirectoryAccessError);
+            }
+        };
+
+        return Ok(Self {
+            runtime, 
+            token, 
             cloud_root_folder,
-        }
+        });
     }
 }
 
-pub fn google_startup() -> Result<(Runtime, UserToken, String), CloudError> {
-    let runtime = match Runtime::new() {
-        core::result::Result::Ok(it) => it,
-        Err(_err) => return Err(CloudError::RuntimeError),
-    };
-
-    let user_token = UserToken::new_google();
-
-    //Access google drive and ensure a crypt folder exists, create if doesn't
-    let crypt_folder: String = match runtime.block_on(drive::g_create_folder(&user_token, None, ""))
-    {
-        core::result::Result::Ok(folder_id) => folder_id,
-        Err(error) => {
-            send_information(vec![format!("{}", error)]);
-            return Err(CloudError::CryptFolderError);
-        }
-    };
-    Ok((runtime, user_token, crypt_folder))
-}
+// ############################################ Cloud Upload ############################################
 
 #[derive(Debug, Error)]
 pub enum UploadError {
-    #[error("Failed to get crypt folder")]
-    CryptFolderError,
-
-    #[error("Failed to walk crypt folder")]
-    WalkCryptFolderError,
-
+    /// Generated when the user aborts the operation.
     #[error("User aborted the operation")]
     UserAbortedError,
 
+    /// Generated if no crypt files exist within the directory provided.
     #[error("no files were found in the directory provided")]
     NoCryptFilesFound,
+
+    /// Generated if the database encounters an error.
+    #[error("Database Error: {0}")]
+    DatabaseError(#[from] db::DatabaseError),
 
     /// Cloud-related errors
     #[error("Cloud error: {0}")]
@@ -196,7 +198,7 @@ pub fn google_upload() -> Result<(), UploadError> {
         return Err(UploadError::UserAbortedError);
     }
 
-    let (runtime, user_token, crypt_folder) = google_startup()?;
+    let google = Google::new()?;
 
     // determine if path picked is a file or path
     if user_result.is_file() {
@@ -207,18 +209,18 @@ pub fn google_upload() -> Result<(), UploadError> {
         };
 
         // 2. upload file to cloud, saving drive id to crypt
-        fc.drive_id = runtime.block_on(drive::g_upload(
-            &user_token,
+        fc.drive_id = google.runtime.block_on(drive::g_upload(
+            &google.token,
             &user_result.display().to_string(),
-            &crypt_folder,
+            &google.cloud_root_folder,
         ))?;
 
         // 3. update database.
         db::insert_crypt(&fc)?;
 
         // 4. show cloud directory
-        let cloud_directory = runtime
-            .block_on(drive::g_walk(&user_token, "Crypt"))
+        let cloud_directory = google.runtime
+            .block_on(drive::g_walk(&google.token, "Crypt"))
             .expect("Could not view directory information");
         send_information(build_tree(&cloud_directory));
     } else {
@@ -236,13 +238,13 @@ pub fn google_upload() -> Result<(), UploadError> {
             // if so: we will update the file instead of overwriting it.
             // if we fail, blank out the FC drive id and fall through to upload.
             if !fc.drive_id.is_empty()
-                && runtime
-                    .block_on(drive::g_id_exists(&user_token, &fc.drive_id))
+                && google.runtime
+                    .block_on(drive::g_id_exists(&google.token, &fc.drive_id))
                     .is_ok_and(|x| x)
             {
-                fc.drive_id = runtime
+                fc.drive_id = google.runtime
                     .block_on(drive::g_update(
-                        &user_token,
+                        &google.token,
                         &fc.drive_id,
                         &file.to_string_lossy(),
                     ))
@@ -264,7 +266,7 @@ pub fn google_upload() -> Result<(), UploadError> {
                 }
 
                 // our parent directory ID
-                let mut parent: String = crypt_folder.clone();
+                let mut parent: String = google.cloud_root_folder.clone();
 
                 // our current directory ID
                 let mut current: String = String::new();
@@ -275,15 +277,15 @@ pub fn google_upload() -> Result<(), UploadError> {
                 // Iterate over each remaining component
                 for (num, component) in remaining_components.iter().enumerate() {
                     if num != len {
-                        current = runtime.block_on(drive::g_create_folder(
-                            &user_token,
+                        current = google.runtime.block_on(drive::g_create_folder(
+                            &google.token,
                             Some(&PathBuf::from(component)),
                             &parent,
                         ))?;
                         parent = current.clone();
                     } else {
-                        current = runtime.block_on(drive::g_upload(
-                            &user_token,
+                        current = google.runtime.block_on(drive::g_upload(
+                            &google.token,
                             file.to_str().unwrap(),
                             &current,
                         ))?;
@@ -308,6 +310,10 @@ pub enum DownloadError {
     #[error("Cloud error: {0}")]
     CloudError(#[from] CloudError),
 
+    /// Generated if the database encounters an error.
+    #[error("Database Error: {0}")]
+    DatabaseError(#[from] db::DatabaseError),
+
     #[error("failed to query database: {0}")]
     DbError(#[from] anyhow::Error),
 
@@ -325,7 +331,7 @@ impl From<std::io::Error> for DownloadError {
 }
 
 pub fn google_download(path: &str) -> Result<(), DownloadError> {
-    let (runtime, user_token, _crypt_folder_id) = google_startup()?;
+    let google = Google::new()?;
 
     let crypt_folder = get_crypt_folder();
     let (_files, _) = get_filenames_from_subdirectories(crypt_folder)?;
@@ -347,8 +353,8 @@ pub fn google_download(path: &str) -> Result<(), DownloadError> {
 
         // step 2: get drive id and query file, retreve contents
 
-        let bytes = runtime
-            .block_on(drive::google_query_file(&user_token, &fc.drive_id))
+        let bytes = google.runtime
+            .block_on(drive::google_query_file(&google.token, &fc.drive_id))
             .unwrap_or(vec![]);
 
         // TODO: if something went wrong, what do?
@@ -374,16 +380,23 @@ pub fn google_download(path: &str) -> Result<(), DownloadError> {
     Ok(())
 }
 
-pub fn google_view(path: &str) {
-    let (runtime, user_token, _) = match google_startup() {
-        Ok(res) => res,
-        Err(_) => todo!(), // TODO: do we handle this here? or do we pass back to CLI?
-    };
 
-    let cloud_directory = runtime
-        .block_on(drive::g_walk(&user_token, path))
+#[derive(Debug, Error)]
+pub enum ViewError {
+    /// Cloud-related errors
+    #[error("Cloud error: {0}")]
+    CloudError(#[from] CloudError),
+}
+
+pub fn google_view(path: &str) -> Result<(), ViewError> {
+    let google = Google::new()?;
+
+    let cloud_directory = google.runtime
+        .block_on(drive::g_walk(&google.token, path))
         .expect("Could not view directory information");
     send_information(build_tree(&cloud_directory));
+
+    return Ok(());
 }
 
 pub fn dropbox_upload(_path: &str) {}
@@ -610,7 +623,7 @@ pub fn ls(local: &bool, cloud: &bool) {
         // display local only
         (_, false) => print_tree(crypt_root.to_str().unwrap(), &dir),
         // display cloud only
-        (_, true) => google_view("Crypt"),
+        (_, true) => _ = google_view("Crypt"),
     };
 }
 

@@ -4,6 +4,7 @@ use crate::{
     db,
     encryption::{compress, decompress, generate_seeds},
     encryption::{KEY_SIZE, NONCE_SIZE},
+    error::*,
 };
 use chacha20poly1305::{aead::Aead, ChaCha20Poly1305, Key, KeyInit, Nonce};
 use lazy_static::lazy_static;
@@ -13,16 +14,10 @@ use oauth2::{
 };
 use serde::{Deserialize, Serialize};
 use std::{
-    fs,
-    path::Path,
-    time::{SystemTime, UNIX_EPOCH},
-    {
-        env,
-        io::{BufRead, BufReader, Write},
-        net::TcpListener,
-    },
+    env, fmt::Display, fs, io::{BufRead, BufReader, Write}, net::TcpListener, path::Path, time::{SystemTime, UNIX_EPOCH}
 };
 use url::Url;
+use crate::prelude::*;
 
 lazy_static! {
     ///Path for the google user token
@@ -50,6 +45,8 @@ lazy_static! {
     };
 }
 
+
+
 ///Supported cloud platforms
 ///
 /// # Options:
@@ -65,51 +62,27 @@ pub enum CloudService {
     Dropbox,
 }
 
-///For conversion to String from enum
-impl ToString for CloudService {
-    fn to_string(&self) -> String {
+/// For conversion to String from enum
+impl Display for CloudService {    
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Google => "Google".to_string(),
-            Self::Dropbox => "DropBox".to_string(),
+            Self::Google    => write!(f, "Google"),
+            Self::Dropbox   => write!(f, "Dropbox"),
         }
     }
 }
 
-///For conversion from &str to enum
-impl From<&str> for CloudService {
-    fn from(service: &str) -> Self {
-        match service {
-            "Google" => Self::Google,
-            "DropBox" => Self::Dropbox,
-            _ => panic!("Invalid platform"),
+/// 
+impl TryFrom<&str> for CloudService {
+    type Error = Error;
+
+    fn try_from(value: &str) -> Result<Self> {
+        match value.to_lowercase().as_str() {
+            "google"    => Ok(Self::Google),
+            "dropbox"   => Ok(Self::Dropbox),
+            _           => Err(Error::TokenError(TokenError::InvalidPlatform)),
         }
     }
-}
-
-///For conversion from String to enum
-impl From<String> for CloudService {
-    fn from(service: String) -> Self {
-        match service.as_str() {
-            "Google" => Self::Google,
-            "DropBox" => Self::Dropbox,
-            _ => panic!("Invalid platform"),
-        }
-    }
-}
-
-///Supported tasks for cloud platforms
-///
-/// # Options:  
-/// ```ignore
-/// * CloudTask::Upload
-/// * CloudTask::Download
-/// * CloudTask::View
-/// ```
-#[derive(Debug)]
-pub enum CloudTask {
-    Upload,
-    Download,
-    View,
 }
 
 ///Holds user authentication information
@@ -151,7 +124,7 @@ impl UserToken {
     pub fn new_google() -> Self {
         //Check if user_token already exists in database
         let user_token = get_access_token(CloudService::Google);
-        if let Some(user_token) = user_token {
+        if let Ok(user_token) = user_token {
             return user_token;
         }
 
@@ -316,20 +289,20 @@ impl UserToken {
 }
 
 ///Attempts to get an access token from the database
-fn get_access_token(service: CloudService) -> Option<UserToken> {
-    //Get the path
+fn get_access_token(service: CloudService) -> Result<UserToken> {
+    // Get the path
     let path = match service {
-        CloudService::Google => GOOGLE_TOKEN_PATH.as_str(),
-        CloudService::Dropbox => DROPBOX_TOKEN_PATH.as_str(),
+        CloudService::Google    => GOOGLE_TOKEN_PATH.as_str(),
+        CloudService::Dropbox   => DROPBOX_TOKEN_PATH.as_str(),
     };
-    //Test if the path exists
+    // Test if the path exists
     if !Path::new(path).exists() {
-        return None;
+        return Err(Error::TokenError(TokenError::PathDoesNotExist));
     }
-    //Read the token from the location
-    let access_token = fs::read(path).unwrap();
+    // Read the token from the location
+    let access_token = fs::read(path)?;
 
-    //Ensure that it's not expired
+    // Ensure that it's not expired
     match db::query_token(service) {
         Ok(mut user_token) => {
             let current_time = SystemTime::now()
@@ -340,20 +313,20 @@ fn get_access_token(service: CloudService) -> Option<UserToken> {
             match user_token.expiration > current_time {
                 true => {
                     user_token.access_token = decrypt_token(&user_token, access_token);
-                    Some(user_token)
+                    Ok(user_token)
                 }
-                false => None,
+                false => return Err(Error::TokenError(TokenError::ExpiredToken)),
             }
         }
-        Err(_) => None,
+        Err(err) => return Err(err),
     }
 }
 
-fn save_access_token(user_token: &UserToken) -> anyhow::Result<()> {
+fn save_access_token(user_token: &UserToken) -> Result<()> {
     //Get the path
     let path = match user_token.service {
-        CloudService::Google => GOOGLE_TOKEN_PATH.as_str(),
-        CloudService::Dropbox => DROPBOX_TOKEN_PATH.as_str(),
+        CloudService::Google    => GOOGLE_TOKEN_PATH.as_str(),
+        CloudService::Dropbox   => DROPBOX_TOKEN_PATH.as_str(),
     };
     let token = encrypt_token(user_token)?;
 
@@ -362,7 +335,7 @@ fn save_access_token(user_token: &UserToken) -> anyhow::Result<()> {
     Ok(())
 }
 
-pub fn encrypt_token(user_token: &UserToken) -> anyhow::Result<Vec<u8>> {
+pub fn encrypt_token(user_token: &UserToken) -> Result<Vec<u8>> {
     let conf = get_config();
     let mut token = user_token.access_token.as_bytes();
     let compressed_token = compress(token, conf.zstd_level);

@@ -1,5 +1,4 @@
-use crate::filecrypt::FileCrypt;
-use anyhow::Result;
+use crate::{prelude::*, filecrypt::FileCrypt};
 use blake2::{Blake2s256, Digest, *};
 use chacha20poly1305::{
     aead::{Aead, AeadCore, KeyInit, OsRng},
@@ -59,7 +58,7 @@ pub fn compress(contents: &[u8], level: i32) -> Vec<u8> {
 ///
 /// # Panics
 /// Panics if the decompression process fails.
-pub fn decompress(contents: &[u8]) -> Result<Vec<u8>, std::io::Error> {
+pub fn decompress(contents: &[u8]) -> Result<Vec<u8>> {
     zstd::decode_all(contents)
 }
 
@@ -92,7 +91,7 @@ pub fn generate_seeds() -> ([u8; KEY_SIZE], [u8; NONCE_SIZE]) {
 /// # Panics
 ///
 /// Panics if the decryption process encounters a critical error.
-pub fn decrypt(fc: FileCrypt, contents: &Vec<u8>) -> Result<Vec<u8>, chacha20poly1305::Error> {
+pub fn decrypt(fc: FileCrypt, contents: &Vec<u8>) -> Result<Vec<u8>> {
     info!("decrypting contents");
     let k = Key::from_slice(&fc.key);
     let n = Nonce::from_slice(&fc.nonce);
@@ -113,7 +112,7 @@ pub fn decrypt(fc: FileCrypt, contents: &Vec<u8>) -> Result<Vec<u8>, chacha20pol
 ///
 /// # Panics
 /// The function panics if encryption using ChaCha20-Poly1305 fails.
-pub fn encrypt(fc: &FileCrypt, contents: &[u8]) -> Result<Vec<u8>, chacha20poly1305::Error> {
+pub fn encrypt(fc: &FileCrypt, contents: &[u8]) -> Result<Vec<u8>> {
     info!("encrypting file contents");
     let k = Key::from_slice(&fc.key);
     let n = Nonce::from_slice(&fc.nonce);

@@ -313,7 +313,7 @@ pub fn load_cli() {
                             println!("error: {}", e);
                         }
                     }
-                    Some(DriveCommand::View { path }) => google_view(path),
+                    Some(DriveCommand::View { path }) => _ = google_view(path),
                     None => panic!("invalid input"),
                 };
             }
