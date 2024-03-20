@@ -391,7 +391,7 @@ pub fn get_vec_file_bytes(path: &str) -> Vec<u8> {
 }
 
 pub fn get_file_contents<T: AsRef<Path>>(path: T) -> Result<Vec<u8>> {
-    std::fs::read(path)
+    return std::fs::read(path).map_err(|e| Error::IoError(e));
 }
 
 /// Writes the contents of a `Vec<u8>` to a file.

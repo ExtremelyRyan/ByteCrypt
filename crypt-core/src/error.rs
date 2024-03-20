@@ -29,7 +29,20 @@ pub enum Error {
     
     // #################### General Errors ####################
     #[error(transparent)]
+    EncryptionError(#[from] EncryptionError),
+    
+    // #################### General Errors ####################
+    #[error(transparent)]
     IoError(#[from] std::io::Error),
+
+    #[error(transparent)]
+    SerdeError(#[from] serde_json::Error),
+
+    #[error(transparent)]
+    TomlError(#[from] toml::ser::Error),
+
+    #[error(transparent)]
+    WalkDirError(#[from] walkdir::Error),
 
     /// Errors that should/will never happen.
     #[error(transparent)]
@@ -47,15 +60,11 @@ pub enum TokenError {
 
     #[error("Expired token.")]
     ExpiredToken,
-
-    #[error(transparent)]
-    DbError(#[from] rusqlite::Error),
 }
 
 #[derive(Debug, Error)]
 pub enum DatabaseError {
-    #[error(transparent)]
-    DbError(#[from] rusqlite::Error),
+
 }
 
 /// Represents various errors that can occur during file decryption.
@@ -125,12 +134,12 @@ pub enum FcError {
 
 #[derive(Debug, Error)]
 pub enum EncryptionError {
-    #[error("ChaCha Error: {0}")]
-    ChaChaError(#[from] chacha20poly1305::Error)
+    #[error("ChaChaPoly1305 Error")]
+    ChaChaError,
 }
 
 
-#[derive(Error, Debug)]
+#[derive(Debug, Error)]
 pub enum CommonError {
     #[error("no files found in crypt folder")]
     CryptFolderIsEmpty,

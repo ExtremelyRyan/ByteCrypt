@@ -1,4 +1,4 @@
-use crate::{prelude::*, filecrypt::FileCrypt};
+use crate::{error, filecrypt::FileCrypt, prelude::*};
 use blake2::{Blake2s256, Digest, *};
 use chacha20poly1305::{
     aead::{Aead, AeadCore, KeyInit, OsRng},
@@ -59,7 +59,8 @@ pub fn compress(contents: &[u8], level: i32) -> Vec<u8> {
 /// # Panics
 /// Panics if the decompression process fails.
 pub fn decompress(contents: &[u8]) -> Result<Vec<u8>> {
-    zstd::decode_all(contents)
+    let contents = zstd::decode_all(contents)?;
+    return Ok(contents);
 }
 
 /// Generates a random key and nonce pair for use in ChaCha20Poly1305 encryption.
@@ -96,6 +97,7 @@ pub fn decrypt(fc: FileCrypt, contents: &Vec<u8>) -> Result<Vec<u8>> {
     let k = Key::from_slice(&fc.key);
     let n = Nonce::from_slice(&fc.nonce);
     ChaCha20Poly1305::new(k).decrypt(n, contents.as_ref())
+        .map_err(|e| Error::EncryptionError(error::EncryptionError::ChaChaError))
 }
 
 /// Takes a `FileCrypt` struct and encrypts the provided contents using the ChaCha20-Poly1305 cipher.
@@ -117,6 +119,7 @@ pub fn encrypt(fc: &FileCrypt, contents: &[u8]) -> Result<Vec<u8>> {
     let k = Key::from_slice(&fc.key);
     let n = Nonce::from_slice(&fc.nonce);
     ChaCha20Poly1305::new(k).encrypt(n, contents)
+        .map_err(|e| Error::EncryptionError(error::EncryptionError::ChaChaError))
 }
 
 // cargo nextest run
