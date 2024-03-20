@@ -292,14 +292,14 @@ pub fn query_token(service: CloudService) -> Result<UserToken> {
             let service: String = row.get(0)?;
             let expiration: u64 = row.get(3)?;
             Ok(UserToken {
-                service: CloudService::try_from(service.as_ref()).map_err(|_| rusqlite::Error::InvalidQuery)?, // I hate this
+                service: CloudService::try_from(service.as_ref())?,
                 key_seed: row.get(1)?,
                 nonce_seed: row.get(2)?,
                 expiration,
                 access_token: String::new(),
             })
         },
-    )?;
+    );
 
     return Ok(token);
 }
@@ -483,10 +483,7 @@ pub fn query_keeper_token() -> Result<Vec<UserToken>> {
     //Get the results of the query
     let query_result = query.query_map([], |row| {
         let service_result: String = row.get(0)?;
-        let service = match CloudService::try_from(service_result.as_str()) {
-            Ok(srv) => srv,
-            Err(_) => return Err(rusqlite::Error::InvalidQuery), //  I hate this -> Error
-        };
+        let service = CloudService::try_from(service_result.as_str())?;
         let key: [u8; KEY_SIZE] = row.get(1)?;
         let nonce: [u8; NONCE_SIZE] = row.get(2)?;
 
@@ -497,7 +494,7 @@ pub fn query_keeper_token() -> Result<Vec<UserToken>> {
             expiration: row.get(3)?,
             access_token: String::new(),
         })
-    })?;
+    });
 
     //Convert the results into a vector
     let mut tokens = vec![];
