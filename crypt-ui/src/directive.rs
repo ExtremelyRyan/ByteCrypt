@@ -1,29 +1,26 @@
-use crate::cli::{
-    KeeperCommand,
-    KeeperPurgeSubCommand::{Database, Token},
+use crate::{
+    cli::{KeeperCommand, KeeperPurgeSubCommand::{Database, Token},}, 
+    error, 
+    prelude::*,
 };
-
-use crypt_cloud::crypt_core::{
-    common::{
-        build_tree, chooser, get_crypt_folder, get_filenames_from_subdirectories,
-        get_full_file_path, send_information, walk_crypt_folder, walk_directory
-    },
-    config::{self, Config, ConfigTask, ItemsTask},
-    db::{self, delete_keeper, export_keeper, query_crypt, query_keeper_crypt},
-    filecrypt::{decrypt_contents, decrypt_file, encrypt_file, get_uuid_from_file},
-    filetree::{
-        tree::{dir_walk, is_not_hidden, sort_by_name, Directory},
-        treeprint::print_tree,
-    },
-    token::{purge_tokens, UserToken},
-    prelude::Error as core_error, 
-};
-use crypt_cloud::{crypt_core::common::verify_path, drive};
-use std::{
-    fs, io,
-    path::{Path, PathBuf},
-};
-use thiserror::Error;
+use crypt_cloud::{
+    drive,
+    crypt_core::{
+        common::{
+            build_tree, chooser, get_crypt_folder, get_filenames_from_subdirectories,
+            get_full_file_path, send_information, walk_crypt_folder, walk_directory,
+            verify_path,
+        },
+        config::{self, Config, ConfigTask, ItemsTask},
+        db::{self, delete_keeper, export_keeper, query_crypt, query_keeper_crypt},
+        filecrypt::{decrypt_contents, decrypt_file, encrypt_file, get_uuid_from_file},
+        filetree::{
+            tree::{dir_walk, is_not_hidden, sort_by_name, Directory},
+            treeprint::print_tree,
+        },
+        token::{purge_tokens, UserToken},
+}};
+use std::{fs, path::{Path, PathBuf}};
 use tokio::runtime::Runtime;
 // #############################################################################################################################################
 
@@ -39,7 +36,7 @@ use tokio::runtime::Runtime;
 /// directive.encrypt(in_place, output);
 ///```
 ///TODO: implement output
-pub fn encrypt(path: &str, output: Option<String>) -> Result<(), Box<dyn std::error::Error>> {
+pub fn encrypt(path: &str, output: Option<String>) -> Result<()> {
     // verify our path is pointing to a actual dir/file
     if !verify_path(&path) {
         send_information(vec![format!("could not find path: {}", path)]);
@@ -56,8 +53,6 @@ pub fn encrypt(path: &str, output: Option<String>) -> Result<(), Box<dyn std::er
         true => {
             if let Ok(directory) = walk_directory(path, false) {
                 for path in directory {
-                    // send_information(vec![format!("Encrypting file: {}", p.display())]);
-
                     if path.is_dir() {
                         root.push(path.file_name().unwrap());
                     } else if path.is_file() {
@@ -121,23 +116,13 @@ pub struct Google {
 
 impl Google {
     /// Creates a new [`Google`].
-    fn new() -> Result<Self, CloudError> {
-        let runtime = match Runtime::new() {
-            core::result::Result::Ok(rt) => rt,
-            Err(err) => return Err(CloudError::RuntimeError(err)),
-        };
+    fn new() -> Result<Self> {
+        let runtime = Runtime::new()?;
     
         let token = UserToken::new_google();
     
         // Access google drive and ensure a crypt folder exists, create if doesn't
-        let cloud_root_folder: String = match runtime.block_on(drive::g_create_folder(&token, None, ""))
-        {
-            core::result::Result::Ok(folder_id) => folder_id,
-            Err(error) => {
-                send_information(vec![format!("{}", error)]);
-                return Err(CloudError::RemoteCryptDirectoryAccessError);
-            }
-        };
+        let cloud_root_folder: String = runtime.block_on(drive::g_create_folder(&token, None, ""))?;
 
         return Ok(Self {
             runtime, 
@@ -149,42 +134,12 @@ impl Google {
 
 // ############################################ Cloud Upload ############################################
 
-#[derive(Debug, Error)]
-pub enum UploadError {
-    /// Generated when the user aborts the operation.
-    #[error("User aborted the operation")]
-    UserAbortedError,
-
-    /// Generated if no crypt files exist within the directory provided.
-    #[error("no files were found in the directory provided")]
-    NoCryptFilesFound,
-
-    /// Generated if the database encounters an error.
-    #[error("Database Error: {0}")]
-    DatabaseError(#[from] core_error),
-
-    /// Cloud-related errors
-    #[error("Cloud error: {0}")]
-    CloudError(#[from] CloudError),
-
-    #[error("An unexpected error occurred: {0}")]
-    OtherError(#[from] Box<dyn std::error::Error>),
-
-    #[error("An unexpected error occurred: {0}")]
-    AltError(#[from] anyhow::Error),
-}
-impl From<std::io::Error> for UploadError {
-    fn from(err: std::io::Error) -> Self {
-        UploadError::OtherError(Box::new(err))
-    }
-}
-
-pub fn google_upload() -> Result<(), UploadError> {
+pub fn google_upload() -> Result<()> {
     let user_result = chooser("").unwrap_or_default();
 
     // user aborted | no files in crypt
     if user_result.to_string_lossy().is_empty() {
-        return Err(UploadError::UserAbortedError);
+        return Err(Error::UploadError(error::UploadError::UserAbortedError));
     }
 
     let google = Google::new()?;
@@ -192,10 +147,9 @@ pub fn google_upload() -> Result<(), UploadError> {
     // determine if path picked is a file or path
     if user_result.is_file() {
         // 1. get crypt info from pathbuf
-        let mut fc = match get_uuid_from_file(user_result.clone()) {
-            Ok(uuid) => db::query_crypt(uuid)?,
-            Err(err) => return Err(UploadError::OtherError(Box::new(err))),
-        };
+        let mut fc = get_uuid_from_file(user_result.clone())
+            .and_then(|uuid| db::query_crypt(uuid))?;
+
 
         // 2. upload file to cloud, saving drive id to crypt
         fc.drive_id = google.runtime.block_on(drive::g_upload(
@@ -290,26 +244,9 @@ pub fn google_upload() -> Result<(), UploadError> {
     Ok(())
 }
 
-#[derive(Debug, Error)]
-pub enum DownloadError {
-    #[error("An IO error occurred: {0}")]
-    IoError(String),
+// ############################################ Cloud Download ############################################
 
-    /// Cloud-related errors
-    #[error("Cloud error: {0}")]
-    CloudError(#[from] CloudError),
-
-    #[error("failed to query database: {0}")]
-    DbError(#[from] anyhow::Error),
-}
-
-impl From<std::io::Error> for DownloadError {
-    fn from(err: std::io::Error) -> Self {
-        DownloadError::IoError(err.to_string())
-    }
-}
-
-pub fn google_download(path: &str) -> Result<(), DownloadError> {
+pub fn google_download(path: &str) -> Result<()> {
     let google = Google::new()?;
 
     let crypt_folder = get_crypt_folder();
@@ -359,15 +296,9 @@ pub fn google_download(path: &str) -> Result<(), DownloadError> {
     Ok(())
 }
 
+// ############################################ Cloud View ############################################
 
-#[derive(Debug, Error)]
-pub enum ViewError {
-    /// Cloud-related errors
-    #[error("Cloud error: {0}")]
-    CloudError(#[from] CloudError),
-}
-
-pub fn google_view(path: &str) -> Result<(), ViewError> {
+pub fn google_view(path: &str) -> Result<()> {
     let google = Google::new()?;
 
     let cloud_directory = google.runtime
@@ -558,7 +489,7 @@ pub fn keeper(kc: &KeeperCommand) {
 pub fn merge_base_with_relative_path(
     base_path: &Path,
     relative_file_path: &Path,
-) -> io::Result<PathBuf> {
+) -> Result<PathBuf> {
     // Extract the folder structure relative to the current working directory
     let relative_path = relative_file_path
         // Assuming the fike path is relative to the current working directory
