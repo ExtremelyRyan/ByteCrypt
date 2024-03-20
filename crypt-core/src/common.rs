@@ -335,7 +335,7 @@ fn tree_recursion(dir_info: &DirInfo, path: String, tree: &mut Vec<String>) {
     contents.extend(other_content);
 
     //Character set and color
-    //TODO: make a part of config and implement properly with UI 
+    //TODO: make a part of config and implement properly with UI
     let dir_color = Color::Blue.bold();
     let expanded_color = Color::Green.bold();
     let bracket_color = Color::White.bold();

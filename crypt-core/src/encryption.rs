@@ -96,7 +96,8 @@ pub fn decrypt(fc: FileCrypt, contents: &Vec<u8>) -> Result<Vec<u8>> {
     info!("decrypting contents");
     let k = Key::from_slice(&fc.key);
     let n = Nonce::from_slice(&fc.nonce);
-    ChaCha20Poly1305::new(k).decrypt(n, contents.as_ref())
+    ChaCha20Poly1305::new(k)
+        .decrypt(n, contents.as_ref())
         .map_err(|_| Error::EncryptionError(error::EncryptionError::ChaChaError))
 }
 
@@ -118,7 +119,8 @@ pub fn encrypt(fc: &FileCrypt, contents: &[u8]) -> Result<Vec<u8>> {
     info!("encrypting file contents");
     let k = Key::from_slice(&fc.key);
     let n = Nonce::from_slice(&fc.nonce);
-    ChaCha20Poly1305::new(k).encrypt(n, contents)
+    ChaCha20Poly1305::new(k)
+        .encrypt(n, contents)
         .map_err(|_| Error::EncryptionError(error::EncryptionError::ChaChaError))
 }
 

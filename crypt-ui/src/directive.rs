@@ -1,15 +1,16 @@
 use crate::{
-    cli::{KeeperCommand, KeeperPurgeSubCommand::{Database, Token},}, 
-    error, 
+    cli::{
+        KeeperCommand,
+        KeeperPurgeSubCommand::{Database, Token},
+    },
+    error,
     prelude::*,
 };
 use crypt_cloud::{
-    drive,
     crypt_core::{
         common::{
             build_tree, chooser, get_crypt_folder, get_filenames_from_subdirectories,
-            get_full_file_path, send_information, walk_crypt_folder, walk_directory,
-            verify_path,
+            get_full_file_path, send_information, verify_path, walk_crypt_folder, walk_directory,
         },
         config::{self, Config, ConfigTask, ItemsTask},
         db::{self, delete_keeper, export_keeper, query_crypt, query_keeper_crypt},
@@ -19,8 +20,13 @@ use crypt_cloud::{
             treeprint::print_tree,
         },
         token::{purge_tokens, UserToken},
-}};
-use std::{fs, path::{Path, PathBuf}};
+    },
+    drive,
+};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+};
 use tokio::runtime::Runtime;
 // #############################################################################################################################################
 
@@ -118,15 +124,16 @@ impl Google {
     /// Creates a new [`Google`].
     fn new() -> Result<Self> {
         let runtime = Runtime::new()?;
-    
+
         let token = UserToken::new_google();
-    
+
         // Access google drive and ensure a crypt folder exists, create if doesn't
-        let cloud_root_folder: String = runtime.block_on(drive::g_create_folder(&token, None, ""))?;
+        let cloud_root_folder: String =
+            runtime.block_on(drive::g_create_folder(&token, None, ""))?;
 
         return Ok(Self {
-            runtime, 
-            token, 
+            runtime,
+            token,
             cloud_root_folder,
         });
     }
@@ -147,9 +154,8 @@ pub fn google_upload() -> Result<()> {
     // determine if path picked is a file or path
     if user_result.is_file() {
         // 1. get crypt info from pathbuf
-        let mut fc = get_uuid_from_file(user_result.clone())
-            .and_then(|uuid| db::query_crypt(uuid))?;
-
+        let mut fc =
+            get_uuid_from_file(user_result.clone()).and_then(|uuid| db::query_crypt(uuid))?;
 
         // 2. upload file to cloud, saving drive id to crypt
         fc.drive_id = google.runtime.block_on(drive::g_upload(
@@ -162,7 +168,8 @@ pub fn google_upload() -> Result<()> {
         db::insert_crypt(&fc)?;
 
         // 4. show cloud directory
-        let cloud_directory = google.runtime
+        let cloud_directory = google
+            .runtime
             .block_on(drive::g_walk(&google.token, "Crypt"))
             .expect("Could not view directory information");
         send_information(build_tree(&cloud_directory));
@@ -181,11 +188,13 @@ pub fn google_upload() -> Result<()> {
             // if so: we will update the file instead of overwriting it.
             // if we fail, blank out the FC drive id and fall through to upload.
             if !fc.drive_id.is_empty()
-                && google.runtime
+                && google
+                    .runtime
                     .block_on(drive::g_id_exists(&google.token, &fc.drive_id))
                     .is_ok_and(|x| x)
             {
-                fc.drive_id = google.runtime
+                fc.drive_id = google
+                    .runtime
                     .block_on(drive::g_update(
                         &google.token,
                         &fc.drive_id,
@@ -269,7 +278,8 @@ pub fn google_download(path: &str) -> Result<()> {
 
         // step 2: get drive id and query file, retreve contents
 
-        let bytes = google.runtime
+        let bytes = google
+            .runtime
             .block_on(drive::google_query_file(&google.token, &fc.drive_id))
             .unwrap_or(vec![]);
 
@@ -301,7 +311,8 @@ pub fn google_download(path: &str) -> Result<()> {
 pub fn google_view(path: &str) -> Result<()> {
     let google = Google::new()?;
 
-    let cloud_directory = google.runtime
+    let cloud_directory = google
+        .runtime
         .block_on(drive::g_walk(&google.token, path))
         .expect("Could not view directory information");
     send_information(build_tree(&cloud_directory));

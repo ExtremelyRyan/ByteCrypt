@@ -541,9 +541,17 @@ pub fn get_uuid_from_file<T: AsRef<Path>>(file: T) -> Result<String> {
     match path.extension() {
         Some(ext) => match ext == "crypt" {
             true => (),
-            false => return Err(Error::FcError(error::FcError::FileReadError("Invalid file extension."))),
+            false => {
+                return Err(Error::FcError(error::FcError::FileReadError(
+                    "Invalid file extension.",
+                )))
+            }
         },
-        None => return Err(Error::FcError(error::FcError::FileReadError("Missing file extension."))),
+        None => {
+            return Err(Error::FcError(error::FcError::FileReadError(
+                "Missing file extension.",
+            )))
+        }
     }
     // Open the file
     let file = File::open(path)?;

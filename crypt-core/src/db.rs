@@ -1,4 +1,12 @@
-use csv::{WriterBuilder, StringRecord};
+use crate::{
+    common::{get_config_folder, write_contents_to_file},
+    config::get_config,
+    encryption::{KEY_SIZE, NONCE_SIZE},
+    filecrypt::FileCrypt,
+    prelude::*,
+    token::{CloudService, UserToken},
+};
+use csv::{StringRecord, WriterBuilder};
 use lazy_static::lazy_static;
 use logfather::*;
 use r2d2::Pool;
@@ -8,14 +16,6 @@ use std::{
     fs,
     path::{Path, PathBuf},
     str::FromStr,
-};
-use crate::{
-    common::{get_config_folder, write_contents_to_file},
-    config::get_config,
-    encryption::{KEY_SIZE, NONCE_SIZE},
-    filecrypt::FileCrypt,
-    token::{CloudService, UserToken},
-    prelude::*,
 };
 
 //Connection pool maintains a single connection to db for life of program
@@ -36,8 +36,6 @@ lazy_static! {
         pool
     };
 }
-
-
 
 ///Generates a connection to the database.
 ///Creates the database if one does not exist.

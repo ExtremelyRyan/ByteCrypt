@@ -1,5 +1,5 @@
-use thiserror::Error;
 use crate::encryption::KEY_SIZE;
+use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum Error {
@@ -27,11 +27,11 @@ pub enum Error {
     // #################### FileCrypt Errors ####################
     #[error(transparent)]
     CommonError(#[from] CommonError),
-    
+
     // #################### General Errors ####################
     #[error(transparent)]
     EncryptionError(#[from] EncryptionError),
-    
+
     // #################### General Errors ####################
     #[error(transparent)]
     IoError(#[from] std::io::Error),
@@ -64,9 +64,7 @@ pub enum TokenError {
 }
 
 #[derive(Debug, Error)]
-pub enum DatabaseError {
-
-}
+pub enum DatabaseError {}
 
 /// Represents various errors that can occur during file decryption.
 ///
@@ -107,7 +105,7 @@ pub enum DatabaseError {
 pub enum FcError {
     #[error("HASH COMPARISON FAILED\nfile hash: {0:?}\ndecrypted hash:{1:?}")]
     HashFail([u8; KEY_SIZE], [u8; 32]),
-    
+
     #[error("Input too short to extract UUID")]
     UuidError,
 
@@ -120,10 +118,6 @@ pub enum FcError {
     #[error("")]
     FileDeletionError(std::io::Error, String),
 
-    
-
-    
-
     #[error("Decryption failed: {0}")]
     DecryptError(String),
 }
@@ -133,7 +127,6 @@ pub enum EncryptionError {
     #[error("ChaChaPoly1305 Error")]
     ChaChaError,
 }
-
 
 #[derive(Debug, Error)]
 pub enum CommonError {

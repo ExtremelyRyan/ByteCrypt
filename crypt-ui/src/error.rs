@@ -3,12 +3,11 @@ use thiserror::Error;
 use crypt_cloud::crypt_core::prelude::Error as core_error;
 use crypt_cloud::prelude::Error as cloud_error;
 
-
 #[derive(Debug, Error)]
 pub enum Error {
     #[error(transparent)]
     CloudError(#[from] cloud_error),
-    
+
     #[error(transparent)]
     CoreError(#[from] core_error),
 
@@ -24,7 +23,6 @@ pub enum Error {
     #[error(transparent)]
     StdError(#[from] Box<dyn std::error::Error>),
 }
-
 
 /// Generic Cloud Errors
 #[derive(Debug, Error)]
@@ -46,6 +44,4 @@ pub enum UploadError {
 }
 
 #[derive(Debug, Error)]
-pub enum DownloadError {
-
-}
+pub enum DownloadError {}

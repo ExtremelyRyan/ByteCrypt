@@ -1,3 +1,4 @@
+use crate::prelude::*;
 use crate::{
     common::{get_config_folder, get_crypt_folder, parse_json_token, send_information},
     config::get_config,
@@ -14,10 +15,15 @@ use oauth2::{
 };
 use serde::{Deserialize, Serialize};
 use std::{
-    env, fmt::Display, fs, io::{BufRead, BufReader, Write}, net::TcpListener, path::Path, time::{SystemTime, UNIX_EPOCH}
+    env,
+    fmt::Display,
+    fs,
+    io::{BufRead, BufReader, Write},
+    net::TcpListener,
+    path::Path,
+    time::{SystemTime, UNIX_EPOCH},
 };
 use url::Url;
-use crate::prelude::*;
 
 lazy_static! {
     ///Path for the google user token
@@ -45,8 +51,6 @@ lazy_static! {
     };
 }
 
-
-
 ///Supported cloud platforms
 ///
 /// # Options:
@@ -63,24 +67,24 @@ pub enum CloudService {
 }
 
 /// For conversion to String from enum
-impl Display for CloudService {    
+impl Display for CloudService {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Google    => write!(f, "Google"),
-            Self::Dropbox   => write!(f, "Dropbox"),
+            Self::Google => write!(f, "Google"),
+            Self::Dropbox => write!(f, "Dropbox"),
         }
     }
 }
 
-/// 
+///
 impl TryFrom<&str> for CloudService {
     type Error = Error;
 
     fn try_from(value: &str) -> Result<Self> {
         match value.to_lowercase().as_str() {
-            "google"    => Ok(Self::Google),
-            "dropbox"   => Ok(Self::Dropbox),
-            _           => Err(Error::TokenError(TokenError::InvalidPlatform)),
+            "google" => Ok(Self::Google),
+            "dropbox" => Ok(Self::Dropbox),
+            _ => Err(Error::TokenError(TokenError::InvalidPlatform)),
         }
     }
 }
@@ -292,8 +296,8 @@ impl UserToken {
 fn get_access_token(service: CloudService) -> Result<UserToken> {
     // Get the path
     let path = match service {
-        CloudService::Google    => GOOGLE_TOKEN_PATH.as_str(),
-        CloudService::Dropbox   => DROPBOX_TOKEN_PATH.as_str(),
+        CloudService::Google => GOOGLE_TOKEN_PATH.as_str(),
+        CloudService::Dropbox => DROPBOX_TOKEN_PATH.as_str(),
     };
     // Test if the path exists
     if !Path::new(path).exists() {
@@ -325,8 +329,8 @@ fn get_access_token(service: CloudService) -> Result<UserToken> {
 fn save_access_token(user_token: &UserToken) -> Result<()> {
     //Get the path
     let path = match user_token.service {
-        CloudService::Google    => GOOGLE_TOKEN_PATH.as_str(),
-        CloudService::Dropbox   => DROPBOX_TOKEN_PATH.as_str(),
+        CloudService::Google => GOOGLE_TOKEN_PATH.as_str(),
+        CloudService::Dropbox => DROPBOX_TOKEN_PATH.as_str(),
     };
     let token = encrypt_token(user_token)?;
 
