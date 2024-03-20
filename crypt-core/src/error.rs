@@ -23,6 +23,10 @@ pub enum Error {
     #[error(transparent)]
     FcError(#[from] FcError),
 
+    // #################### FileCrypt Errors ####################
+    #[error(transparent)]
+    CommonError(#[from] CommonError),
+    
     // #################### General Errors ####################
     #[error(transparent)]
     IoError(#[from] std::io::Error),
@@ -121,6 +125,16 @@ pub enum FcError {
 
 #[derive(Debug, Error)]
 pub enum EncryptionError {
-    #[error("ChaCha encryption error: {0}")]
-    ChaChaError(#[from] chacha20poly1305::Error),
+    #[error(transparent)]
+    ChaChaError(#[from] chacha20poly1305::Error)
+}
+
+
+#[derive(Error, Debug)]
+pub enum CommonError {
+    #[error("no files found in crypt folder")]
+    CryptFolderIsEmpty,
+
+    #[error("user aborted file search")]
+    UserAbort,
 }
