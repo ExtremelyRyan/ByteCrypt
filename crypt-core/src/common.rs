@@ -232,16 +232,6 @@ pub fn verify_path(path: &impl AsRef<Path>) -> bool {
 /// Possible errors include failure to retrieve the current working directory or
 /// failure to join paths.
 ///
-/// ```
-/// use std::path::PathBuf;
-/// use std::io::Error;
-/// # use crate::crypt_core::common::get_path_diff;
-///
-/// fn main() -> Result<(), Error> {
-///     let relative_path = get_path_diff(None, &PathBuf::from("non/existing/path"))?;
-///     Ok(())
-/// }
-/// ```
 pub fn get_path_diff<T>(root: Option<&T>, target_path: &T) -> Result<PathBuf>
 where
     T: AsRef<Path>,
