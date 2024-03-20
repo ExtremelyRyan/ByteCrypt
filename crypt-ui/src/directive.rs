@@ -155,7 +155,7 @@ pub fn google_upload() -> Result<()> {
     if user_result.is_file() {
         // 1. get crypt info from pathbuf
         let mut fc =
-            get_uuid_from_file(user_result.clone()).and_then(|uuid| db::query_crypt(uuid))?;
+            get_uuid_from_file(user_result.clone()).and_then(db::query_crypt)?;
 
         // 2. upload file to cloud, saving drive id to crypt
         fc.drive_id = google.runtime.block_on(drive::g_upload(

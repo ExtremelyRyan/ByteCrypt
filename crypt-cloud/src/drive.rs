@@ -167,7 +167,7 @@ pub async fn g_update(user_token: &UserToken, id: &str, path: &str) -> Result<St
         .to_str()?
         .to_owned();
 
-    return Ok(upload_chunks(&session_uri, &mut file, file_size).await?);
+    return upload_chunks(&session_uri, &mut file, file_size).await;
 }
 
 ///Uploads a file to google drive
@@ -199,7 +199,7 @@ pub async fn g_upload(user_token: &UserToken, path: &str, parent: &str) -> Resul
         .to_str()?
         .to_string();
 
-    return Ok(upload_chunks(&session_uri, &mut file, file_size).await?);
+    return upload_chunks(&session_uri, &mut file, file_size).await;
 }
 
 ///Helper function that performs the upload of file information
@@ -589,7 +589,7 @@ pub fn test_create_subfolders(
         std::result::Result::Ok(res) => res,
         Err(err) => {
             eprintln!("error: {}", err);
-            return Err(err.into());
+            return Err(err);
         }
     };
 

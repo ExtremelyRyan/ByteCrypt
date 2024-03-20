@@ -120,7 +120,7 @@ pub fn import_keeper(path: &String) -> Result<()> {
         .has_headers(false)
         .from_path(path)?;
 
-    for result in rdr.records().into_iter() {
+    for result in rdr.records() {
         let record: StringRecord = match result {
             Ok(it) => it,
             Err(err) => {
