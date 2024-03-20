@@ -5,13 +5,13 @@ pub enum Error {
     // #################### Database Errors ####################
     #[error(transparent)]
     DatabaseError(#[from] DatabaseError),
-    
+
     #[error(transparent)]
     DbPoolingError(#[from] r2d2::Error),
 
     #[error(transparent)]
     DbError(#[from] rusqlite::Error),
-    
+
     #[error(transparent)]
     CsvError(#[from] csv::Error),
 
@@ -33,7 +33,7 @@ pub enum Error {
 
     /// Errors that should/will never happen.
     #[error(transparent)]
-    Infallible(#[from] std::convert::Infallible)
+    Infallible(#[from] std::convert::Infallible),
 }
 
 /// Error types for Cloud Tokens
@@ -95,35 +95,32 @@ pub enum DatabaseError {
 ///
 #[derive(Debug, Error)]
 pub enum FcError {
-    #[error(transparent)]
+    #[error("Hash comparison failed. {0}")]
     HashFail(String),
 
     #[error("")]
     InvalidFilePath,
-    
+
     #[error("")]
     CryptQueryError,
-    
-    #[error(transparent)]
+
+    #[error("file decompression failed. {0}")]
     DecompressionError(String),
-    
+
     #[error("")]
     FileDeletionError(std::io::Error, String),
-    
+
     #[error("")]
     FileReadError,
-    
-    #[error(transparent)]
+
+    #[error("Error loading file")]
     FileError(String),
-    
-    #[error(transparent)]
+
+    #[error("Decryption failed: {0}")]
     DecryptError(String),
-    
-    #[error(transparent)]
+
+    #[error("Other error occured. {0}")]
     GeneralError(String),
-    
-    #[error(transparent)]
-    IoError(#[from] std::io::Error),
 }
 
 #[derive(Debug, Error)]

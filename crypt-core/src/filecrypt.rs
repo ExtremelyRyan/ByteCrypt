@@ -1,13 +1,14 @@
 use crate::{
     common::{
         chooser, get_crypt_folder, get_file_contents, get_full_file_path, get_vec_file_bytes,
-        write_contents_to_file, CommonError,
+        write_contents_to_file,
     },
     config::get_config,
     db::{insert_crypt, query_crypt},
     encryption::{
         compress, compute_hash, decompress, decrypt, encrypt, generate_seeds, KEY_SIZE, NONCE_SIZE,
     },
+    error::FcError,
     prelude::*,
 };
 use logfather::*;
@@ -15,7 +16,7 @@ use rand::RngCore;
 use serde::{Deserialize, Serialize};
 use std::{
     fs::{read, File},
-    io::{self, BufReader, Read},
+    io::{self, BufReader, Error, Read},
     path::{Path, PathBuf},
     time::Duration,
 };
@@ -26,7 +27,7 @@ use std::{
 /// full path, encryption key, nonce, and hash of an encrypted file.
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct FileCrypt {
-    /// The UUID associated with the encrypted file.
+    /// The UUID associated with the encrypted ile.
     pub uuid: String,
 
     /// The filename of the encrypted file.
@@ -129,7 +130,7 @@ pub fn decrypt_file<T: AsRef<Path>>(path: T, output: String) -> Result<()> {
     let path = path.as_ref();
 
     // have user choose
-    let file_match = chooser(path.to_str().unwrap_or(""))?;
+    let file_match = chooser(path.to_str().unwrap_or(""));
 
     let content = read(file_match).map_err(|e| Error::IoError(e))?;
 
@@ -176,7 +177,7 @@ pub fn decrypt_file<T: AsRef<Path>>(path: T, output: String) -> Result<()> {
     Ok(())
 }
 
-pub fn decrypt_contents(fc: FileCrypt, contents: Vec<u8>) -> Result<(), FcError> {
+pub fn decrypt_contents(fc: FileCrypt, contents: Vec<u8>) -> Result<()> {
     let fc_hash: [u8; 32] = fc.hash.to_owned();
 
     // get location of crypt folder and append "decrypted" path
@@ -300,7 +301,7 @@ pub fn zip_contents(contents: &[u8]) -> Result<Vec<u8>> {
     Ok(compress(contents, conf.zstd_level))
 }
 
-pub fn do_file_encryption<T: AsRef<Path>>(path: T) -> Result<Vec<u8>, String> {
+pub fn do_file_encryption<T: AsRef<Path>>(path: T) -> Result<Vec<u8>> {
     let path = path.as_ref();
 
     let contents = match get_file_contents(path) {
@@ -520,7 +521,7 @@ pub fn generate_uuid() -> String {
 /// # Panics
 ///
 /// The function will panic if the length of `contents` is less than 36.
-pub fn get_uuid(contents: &[u8]) -> Result<(String, Vec<u8>), String> {
+pub fn get_uuid(contents: &[u8]) -> Result<(String, Vec<u8>)> {
     if contents.len() < 36 {
         return Err("Input too short to extract UUID".to_string());
     }
@@ -565,7 +566,7 @@ pub fn get_uuid(contents: &[u8]) -> Result<(String, Vec<u8>), String> {
 ///     Ok(())
 /// }
 /// ```
-pub fn get_uuid_from_file<T: AsRef<Path>>(file: T) -> Result<String, io::Error> {
+pub fn get_uuid_from_file<T: AsRef<Path>>(file: T) -> Result<String> {
     let path = file.as_ref();
 
     // Check if the file has the expected extension
@@ -573,14 +574,14 @@ pub fn get_uuid_from_file<T: AsRef<Path>>(file: T) -> Result<String, io::Error> 
         Some(ext) => match ext == "crypt" {
             true => (),
             false => {
-                return Err(io::Error::new(
+                return Err(Error::new(
                     io::ErrorKind::InvalidData,
                     "Invalid file extension",
                 ))
             }
         },
         None => {
-            return Err(io::Error::new(
+            return Err(Error::new(
                 io::ErrorKind::InvalidData,
                 "File has no extension",
             ))
