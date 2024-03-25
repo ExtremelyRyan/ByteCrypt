@@ -290,7 +290,7 @@ pub fn query_token(service: CloudService) -> Result<UserToken> {
             let service: String = row.get(0)?;
             let expiration: u64 = row.get(3)?;
             Ok(UserToken {
-                service: CloudService::from_str(service)
+                service: CloudService::from_str(&service)
                     .map_err(|e| rusqlite::Error::UserFunctionError(Box::new(e)))?,
                 key_seed: row.get(1)?,
                 nonce_seed: row.get(2)?,
@@ -486,7 +486,7 @@ pub fn query_keeper_token() -> Result<Vec<UserToken>> {
         let nonce: [u8; NONCE_SIZE] = row.get(2)?;
 
         Ok(UserToken {
-            service: CloudService::from_str(service)
+            service: CloudService::from_str(&service)
                 .map_err(|e| rusqlite::Error::UserFunctionError(Box::new(e)))?,
             key_seed: key,
             nonce_seed: nonce,

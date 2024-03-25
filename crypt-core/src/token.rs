@@ -76,9 +76,11 @@ impl Display for CloudService {
     }
 }
 
-impl CloudService {
-    pub fn from_str<T: AsRef<str>>(s: T) -> Result<Self> {
-        match s.as_ref().to_lowercase().as_str() {
+impl std::str::FromStr for CloudService {
+    type Err = Error;
+
+    fn from_str(s: &str) -> std::prelude::v1::Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
             "google" => Ok(Self::Google),
             "dropbox" => Ok(Self::Dropbox),
             _ => Err(Error::TokenError(TokenError::InvalidPlatform)),
