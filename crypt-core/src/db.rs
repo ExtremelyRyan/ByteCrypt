@@ -481,7 +481,7 @@ pub fn query_keeper_token() -> Result<Vec<UserToken>> {
 
     //Get the results of the query
     let query_result = query.query_map([], |row| {
-        let service: String = row.get(0)?;
+        let service_result: String = row.get(0)?;
         let key: [u8; KEY_SIZE] = row.get(1)?;
         let nonce: [u8; NONCE_SIZE] = row.get(2)?;
 
