@@ -12,7 +12,7 @@ workspace = "../"
 [dependencies]
 # General
 tokio = { version = "1", features = ["full"] } # Async Runtime 
-reqwest = { version = "0.11", features = ["json","multipart"] } # HTTP client
+reqwest = { version = "0.12", features = ["json","multipart"] } # HTTP client
 # CLI
 clap = { version = "4.4.11", features = ["derive", "cargo"] }
 clap-markdown = "0.1.3"
