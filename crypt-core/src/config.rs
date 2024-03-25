@@ -71,6 +71,7 @@ fn load_logger(interface: &Interface) {
     logger.log_format("[{timestamp} {level}] {module_path}: {message}");
     // logger.log_format("[{timestamp} {level}] <cyan>{module_path}</cyan>: {message}");
     logger.timezone(logfather::TimeZone::Utc);
+    logger.terminal(false);
 
     match interface {
         Interface::CLI => (),

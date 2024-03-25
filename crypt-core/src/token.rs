@@ -76,12 +76,9 @@ impl Display for CloudService {
     }
 }
 
-///
-impl TryFrom<&str> for CloudService {
-    type Error = Error;
-
-    fn try_from(value: &str) -> Result<Self> {
-        match value.to_lowercase().as_str() {
+impl CloudService {
+    pub fn from_str<T: AsRef<str>>(s: T) -> Result<Self> {
+        match s.as_ref().to_lowercase().as_str() {
             "google" => Ok(Self::Google),
             "dropbox" => Ok(Self::Dropbox),
             _ => Err(Error::TokenError(TokenError::InvalidPlatform)),
