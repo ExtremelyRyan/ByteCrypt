@@ -76,12 +76,11 @@ impl Display for CloudService {
     }
 }
 
-///
-impl TryFrom<&str> for CloudService {
-    type Error = Error;
+impl std::str::FromStr for CloudService {
+    type Err = Error;
 
-    fn try_from(value: &str) -> Result<Self> {
-        match value.to_lowercase().as_str() {
+    fn from_str(s: &str) -> std::prelude::v1::Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
             "google" => Ok(Self::Google),
             "dropbox" => Ok(Self::Dropbox),
             _ => Err(Error::TokenError(TokenError::InvalidPlatform)),
